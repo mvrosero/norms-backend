@@ -8,12 +8,6 @@ app.use(cors());
 
 const PORT = process.env.PORT || 3001; /*port number*/
 
-/*import values from files*/
-const db = require('./app/configuration/database');
-const { authenticateToken } = require('../prelim_nodejs/app/middleware/authentication');
-const config = require('./app/middleware/config');
-const secretKey = config.secretKey;
-
 /*import modules*/
 const userpage = require('./routes/userpage');
 const rolepage = require('./routes/rolepage');
