@@ -15,7 +15,7 @@ router.post('/categoryReg',  async (req, res) => {
         const {category_name} = req.body;
         
 
-        const insertUsersQuery = 'INSERT INTO category (category_named) VALUES (?)';
+        const insertUsersQuery = 'INSERT INTO category (category_name) VALUES (?)';
         await db.promise().execute(insertUsersQuery, [category_name]);
 
         res.status(201).json({ message: 'Category registered successfully' });
