@@ -13,15 +13,15 @@ router.post('/login', async (req, res) => {
     try {
         const { student_number, password } = req.body;
 
-        const getUserQuery = 'SELECT * FROM student WHERE student_id = ?';
-        const [rows] = await db.promise().execute(getUserQuery, [student_number]);
+        const getStudentQuery = 'SELECT * FROM student WHERE student_id = ?';
+        const [rows] = await db.promise().execute(getStudentQuery, [student_number]);
 
         if (rows.length === 0) {
             return res.status(401).json({ error: 'Invalid username or password' });
         }
 
         const user = rows[0];
-        const passwordMatch = await bcrypt.compare(password, user.password);
+        const passwordMatch = await bcrypt.compare(password, student.password);
 
 
         if (!passwordMatch) {
