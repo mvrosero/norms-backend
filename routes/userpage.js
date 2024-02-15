@@ -45,7 +45,7 @@ router.post('/register',  async (req, res) => {
         const {student_number,name, email, password, birthday,role_id} = req.body;
         const hashedPassword = await bcrypt.hash(password, 10);
 
-        const insertUsersQuery = 'INSERT INTO users (student_number,name, email, password, birthday,role_id) VALUES (?, ?, ?, ?,?,?)';
+        const insertUsersQuery = 'INSERT INTO student (student_number,name, email, password, birthday,role_id) VALUES (?, ?, ?, ?,?,?)';
         await db.promise().execute(insertUsersQuery, [student_number,name, username,email, hashedPassword,birthday,role_id]);
 
         res.status(201).json({ message: 'User registered successfully' });
