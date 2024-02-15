@@ -13,6 +13,7 @@ const userpage = require('./routes/userpage');
 const roles = require('./routes/roles');
 const category = require('./routes/category');
 const offense = require('./routes/offense');
+const sanction = require('./routes/sanction');
 
 
 app.use(bodyParser.json());
@@ -22,6 +23,7 @@ app.use('/', userpage);
 app.use('/', roles);
 app.use('/', category);
 app.use('/', offense);
+app.use('/', sanction);
 
 
 
