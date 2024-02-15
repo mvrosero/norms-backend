@@ -17,7 +17,7 @@ router.post('/login', async (req, res) => {
         const [rows] = await db.promise().execute(getUserQuery,[student_number]);
 
         if (rows.length === 0) {
-            return res.status(401).json({ error: 'Invalid username or password' });
+            return res.status(401).json({ error: 'Invalid username ' });
         }
 
         const user = rows[0];
@@ -25,10 +25,10 @@ router.post('/login', async (req, res) => {
 
 
         if (!passwordMatch) {
-            return res.status(401).json({ error: 'Invalid username or password' });
+            return res.status(401).json({ error: 'Invalid password' });
         }
 
-        const token = jwt.sign({userID: student.id, student_number: user.student_number }, secretKey, { expiresIn: '1h'});
+        const token = jwt.sign({userID: student.id, student_number: user.student_number, }, secretKey, { expiresIn: '1h'});
 
             res.status(200).json({ token });
         }   catch (error) {
