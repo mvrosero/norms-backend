@@ -21,7 +21,7 @@ router.post('/login', async (req, res) => {
         }
 
         const user = rows[0];
-        const passwordMatch = await bcrypt.compare(password, student.password);
+        const passwordMatch = await bcrypt.compare(password, user.password);
 
 
         if (!passwordMatch) {
@@ -29,7 +29,7 @@ router.post('/login', async (req, res) => {
         }
 
 
-        const token = jwt.sign({ studentID: student.id, student_number: student.student_number }, secretKey, { expiresIn: '1h'});
+        const token = jwt.sign({ userID: user.id, student_number: user.student_number, }, secretKey, { expiresIn: '1h'});
 
             res.status(200).json({ token });
         }   catch (error) {
@@ -46,7 +46,7 @@ router.post('/register',  async (req, res) => {
         const hashedPassword = await bcrypt.hash(password, 10);
 
         const insertUsersQuery = 'INSERT INTO student (student_number,name, email, password, birthdate,role_id) VALUES (?, ?, ?, ?,?,?)';
-        await db.promise().execute(insertUsersQuery, [student_number,name, username,email, hashedPassword,birthdate,role_id]);
+        await db.promise().execute(insertUsersQuery, [student_number,name,email, hashedPassword,birthdate,role_id]);
 
         res.status(201).json({ message: 'User registered successfully' });
     } catch (error) {
