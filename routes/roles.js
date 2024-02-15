@@ -40,7 +40,7 @@ router.post('/roles', async (req, res) => {
 });
 
 /*get: 1 role*/
-router.get('/roles/:id', authenticateToken, (req, res) => {
+router.get('/roles/:id',  (req, res) => {
 
     let role_id = req.params.id;
 
