@@ -10,14 +10,14 @@ const PORT = process.env.PORT || 3001; /*port number*/
 
 /*import modules*/
 const userpage = require('./routes/userpage');
-const rolepage = require('./routes/rolepage');
+const roles = require('./routes/roles');
 const indicatorpage = require('./routes/indicatorpage');
 
 app.use(bodyParser.json());
 
 /*routes*/
 app.use('/', userpage);
-app.use('/', rolepage);
+app.use('/', roles);
 app.use('/', indicatorpage);
 
 

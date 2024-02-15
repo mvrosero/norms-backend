@@ -4,14 +4,33 @@ const db = require('../app/configuration/database');
 const bcrypt = require('bcrypt'); 
 const router = express.Router();
 
-/*post: role_register*/
-router.post('/role_register', authenticateToken, async (req, res) => {
+
+
+router.post('/registerRole', authenticateToken, async (req, res) => {
+
+    try {
+        const {role_code, role_name} = req.body;
+        
+
+        const insertUsersQuery = 'INSERT INTO role (role_code, role_name) VALUES ( ?, ?)';
+        await db.promise().execute(insertUsersQuery, [role_code, role_name]);
+
+        res.status(201).json({ message: 'Role registered successfully' });
+    } catch (error) {
+        console.error('Error registering user:', error);
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
+
+
+/*post: roles*/
+router.post('/roles', authenticateToken, async (req, res) => {
 
     try {
         const {role_code, role_name} = req.body;
 
-        const insertRolesQuery = 'INSERT INTO roles (role_code, role_name) VALUES (?, ?)';
-        await db.promise().execute(insertRolesQuery, [role_code, role_name]);
+        const insertRoleQuery = 'INSERT INTO role (role_code, role_name) VALUES (?, ?)';
+        await db.promise().execute(insertRoleQuery, [role_code, role_name]);
 
         res.status(201).json({ message: 'Role registered successfully' });
     } catch (error) {
@@ -30,7 +49,7 @@ router.get('/roles/:id', authenticateToken, (req, res) => {
     }
 
     try {
-        db.query('SELECT role_id, role_code, role_name FROM roles WHERE role_id = ?', role_id, (err, result) => {
+        db.query('SELECT role_id, role_code, role_name FROM role WHERE role_id = ?', role_id, (err, result) => {
             if (err) {
                 console.error('Error fetching items:', err);
                 res.status(500).json({ message: 'Internal Server Error' });
@@ -45,6 +64,27 @@ router.get('/roles/:id', authenticateToken, (req, res) => {
     }
 });
 
+
+/*get: roles*/
+router.get('/roles', authenticateToken, (req, res) => {
+
+    try {
+        db.query('SELECT role_id, role_code, role_name FROM role', (err, result) => {
+
+            if (err) {
+                console.error('Error fetching items:', err);
+                res.status(500).json({ message: 'Internal Server Error' });
+            } else {
+                res.status(200).json(result);
+            }
+        });
+    } catch (error) {
+        console.error('Error loading users:', error);
+        res.status(500).json({ error: 'Internal Server Error'});
+    }
+});
+
+
 /*put: role*/
 router.put('/roles/:id', authenticateToken, async (req, res) => {
 
@@ -57,7 +97,7 @@ router.put('/roles/:id', authenticateToken, async (req, res) => {
     }
 
     try {
-        db.query('UPDATE roles SET role_code = ?, role_name = ? WHERE role_id = ?', [role_code, role_name, role_id], (err, result, fields) => {
+        db.query('UPDATE role SET role_code = ?, role_name = ? WHERE role_id = ?', [role_code, role_name, role_id], (err, result, fields) => {
             if (err) {
                 console.error('Error updating item:', err);
                 res.status(500).json({ message: 'Internal Server Error' });
@@ -82,7 +122,7 @@ router.delete('/roles/:id', authenticateToken, (req, res) => {
     }
 
     try {
-        db.query('DELETE FROM roles  WHERE role_id = ?', role_id, (err, result, fields) => {
+        db.query('DELETE FROM role  WHERE role_id = ?', role_id, (err, result, fields) => {
             if (err) {
                 console.error('Error deleting item:', err);
                 res.status(500).json({ message: 'Internal Server Error'});
@@ -96,25 +136,6 @@ router.delete('/roles/:id', authenticateToken, (req, res) => {
     }
 });
 
-
-/*get: users*/
-router.get('/roles', authenticateToken, (req, res) => {
-
-    try {
-        db.query('SELECT role_id, role_code, role_name FROM roles', (err, result) => {
-
-            if (err) {
-                console.error('Error fetching items:', err);
-                res.status(500).json({ message: 'Internal Server Error' });
-            } else {
-                res.status(200).json(result);
-            }
-        });
-    } catch (error) {
-        console.error('Error loading users:', error);
-        res.status(500).json({ error: 'Internal Server Error'});
-    }
-});
 
 /*export*/
 module.exports = router;
