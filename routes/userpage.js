@@ -11,9 +11,9 @@ const router = express.Router();
 router.post('/login', async (req, res) => {
    
     try {
-        const { student_number, password } = req.body;
+        const {student_number, password } = req.body;
 
-        const getStudentQuery = 'SELECT * FROM student WHERE student_id = ?'
+        const getStudentQuery = 'SELECT * FROM student WHERE student_id = ?';
         const [rows] = await db.promise().execute(getStudentQuery,[student_number]);
 
         if (rows.length === 0) {
