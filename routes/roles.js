@@ -6,7 +6,7 @@ const router = express.Router();
 
 
 
-router.post('/registerRole', authenticateToken, async (req, res) => {
+router.post('/registerRole', async (req, res) => {
 
     try {
         const {role_code, role_name} = req.body;
@@ -24,7 +24,7 @@ router.post('/registerRole', authenticateToken, async (req, res) => {
 
 
 /*post: roles*/
-router.post('/roles', authenticateToken, async (req, res) => {
+router.post('/roles', async (req, res) => {
 
     try {
         const {role_code, role_name} = req.body;
