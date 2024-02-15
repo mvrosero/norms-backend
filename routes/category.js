@@ -35,7 +35,7 @@ router.get('/category/:id', authenticateToken, (req, res) => {
     }
 
     try {
-        db.query('SELECT category_name FROM student WHERE category_id = ?', category_id, (err, result) => {
+        db.query('SELECT category_name FROM category WHERE category_id = ?', category_id, (err, result) => {
             if (err) {
                 console.error('Error fetching items:', err);
                 res.status(500).json({ message: 'Internal Server Error' });
@@ -63,7 +63,7 @@ router.put('/category/:id', authenticateToken, async (req, res) => {
     }
 
     try {
-        db.query('UPDATE student SET category_name = ? WHERE category_id = ?', [category_name, category_id], (err, result, fields) => {
+        db.query('UPDATE category SET category_name = ? WHERE category_id = ?', [category_name, category_id], (err, result, fields) => {
             if (err) {
                 console.error('Error updating item:', err);
                 res.status(500).json({ message: 'Internal Server Error' });
