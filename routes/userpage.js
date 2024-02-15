@@ -39,14 +39,14 @@ router.post('/login', async (req, res) => {
 });
 
 /*post: register*/
-router.post('/register', authenticateToken, async (req, res) => {
+router.post('/register',  async (req, res) => {
 
     try {
-        const {name, username, password, role_id} = req.body;
+        const {student_number,name, email, password, birthday,role_id} = req.body;
         const hashedPassword = await bcrypt.hash(password, 10);
 
-        const insertUsersQuery = 'INSERT INTO users (name, username, password, role_id) VALUES (?, ?, ?, ?)';
-        await db.promise().execute(insertUsersQuery, [name, username, hashedPassword, role_id]);
+        const insertUsersQuery = 'INSERT INTO users (student_number,name, email, password, birthday,role_id) VALUES (?, ?, ?, ?,?,?)';
+        await db.promise().execute(insertUsersQuery, [student_number,name, username,email, hashedPassword,birthday,role_id]);
 
         res.status(201).json({ message: 'User registered successfully' });
     } catch (error) {
