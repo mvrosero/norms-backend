@@ -13,15 +13,15 @@ router.post('/login', async (req, res) => {
     try {
         const { student_number, password } = req.body;
 
-        const getStudentQuery = 'SELECT * FROM student WHERE student_id = ?';
-        const [rows] = await db.promise().execute(getStudentQuery, [student_number]);
+        const getStudentQuery = 'SELECT * FROM student WHERE student_id = ?'
+        const [rows] = await db.promise().execute(getStudentQuery,[student_number]);
 
         if (rows.length === 0) {
             return res.status(401).json({ error: 'Invalid username or password' });
         }
 
-        const user = rows[0];
-        const passwordMatch = await bcrypt.compare(password, user.password);
+        const student = rows[0];
+        const passwordMatch = await bcrypt.compare(password, student.password);
 
 
         if (!passwordMatch) {
@@ -29,7 +29,7 @@ router.post('/login', async (req, res) => {
         }
 
 
-        const token = jwt.sign({ userID: user.id, student_number: user.student_number, }, secretKey, { expiresIn: '1h'});
+        const token = jwt.sign({ userID: student.id, student_number: student.student_number, }, secretKey, { expiresIn: '1h'});
 
             res.status(200).json({ token });
         }   catch (error) {
