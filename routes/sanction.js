@@ -12,7 +12,7 @@ router.post('/sanctionReg', async (req, res) => {
         const {sanction_code,sanction_name,description, offense_id} = req.body;
         
 
-        const insertUsersQuery = 'INSERT INTO offense (sanction_code, sanction_name,description,offense_id) VALUES ( ?, ?,?,?)';
+        const insertUsersQuery = 'INSERT INTO sanction (sanction_code, sanction_name,description,offense_id) VALUES ( ?, ?,?,?)';
         await db.promise().execute(insertUsersQuery, [sanction_code, sanction_name,description,offense_id]);
 
         res.status(201).json({ message: 'Sanction registered successfully' });
