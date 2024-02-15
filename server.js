@@ -11,7 +11,6 @@ const PORT = process.env.PORT || 3001; /*port number*/
 /*import modules*/
 const userpage = require('./routes/userpage');
 const roles = require('./routes/roles');
-const indicatorpage = require('./routes/indicatorpage');
 const category = require('./routes/category');
 const offense = require('./routes/offense');
 
@@ -21,9 +20,9 @@ app.use(bodyParser.json());
 /*routes*/
 app.use('/', userpage);
 app.use('/', roles);
-app.use('/', indicatorpage);
 app.use('/', category);
 app.use('/', offense);
+
 
 
 /*express JS framework*/
