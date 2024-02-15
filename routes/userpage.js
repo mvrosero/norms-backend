@@ -55,16 +55,16 @@ router.post('/register',  async (req, res) => {
 });
 
 /*get: user*/
-router.get('/user/:id', authenticateToken, (req, res) => {
+router.get('/student/:id', authenticateToken, (req, res) => {
 
-    let user_id = req.params.id;
+    let student_id = req.params.id;
 
-    if (!user_id) {
-        return res.status(400).send({ error: true, message: 'Please provide user_id' });
+    if (!student_id) {
+        return res.status(400).send({ error: true, message: 'Please provide student_id' });
     }
 
     try {
-        db.query('SELECT user_id, name, username FROM users WHERE user_id = ?', user_id, (err, result) => {
+        db.query('SELECT student_number, name, email,birthdate FROM student WHERE student_id = ?', student_id, (err, result) => {
             if (err) {
                 console.error('Error fetching items:', err);
                 res.status(500).json({ message: 'Internal Server Error' });
@@ -80,19 +80,19 @@ router.get('/user/:id', authenticateToken, (req, res) => {
 });
 
 /*put: user*/
-router.put('/user/:id', authenticateToken, async (req, res) => {
+router.put('/student/:id', authenticateToken, async (req, res) => {
 
-    let user_id = req.params.id;
+    let student_id = req.params.id;
 
-    const {name, username, password} = req.body;
+    const {name, password} = req.body;
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    if (!user_id || !name || !username || !password) {
-        return res.status(400).send({ error: user, message: 'Please provide name, username, and password' });
+    if (!student_id || !name || !password) {
+        return res.status(400).send({ error: user, message: 'Please provide name and password' });
     }
 
     try {
-        db.query('UPDATE users SET name = ?, username = ?, password = ? WHERE user_id = ?', [name, username, hashedPassword, user_id], (err, result, fields) => {
+        db.query('UPDATE student SET name = ?,  password = ? WHERE student_id = ?', [name,  hashedPassword, student_id], (err, result, fields) => {
             if (err) {
                 console.error('Error updating item:', err);
                 res.status(500).json({ message: 'Internal Server Error' });
@@ -108,16 +108,16 @@ router.put('/user/:id', authenticateToken, async (req, res) => {
 
 
 /*delete: user*/
-router.delete('/user/:id', authenticateToken, (req, res) => {
+router.delete('/student/:id', authenticateToken, (req, res) => {
 
-    let user_id = req.params.id;
+    let student_id = req.params.id;
 
-    if (!user_id) {
+    if (!student_id) {
         return res.status(400).send({ error: true, message: 'Please provide user_id' });
     }
 
     try {
-        db.query('DELETE FROM users WHERE user_id = ?', user_id, (err, result, fields) => {
+        db.query('DELETE FROM student WHERE student_id = ?', student_id, (err, result, fields) => {
             if (err) {
                 console.error('Error deleting item:', err);
                 res.status(500).json({ message: 'Internal Server Error'});
@@ -133,10 +133,10 @@ router.delete('/user/:id', authenticateToken, (req, res) => {
 
 
 /*get: users*/
-router.get('/users', authenticateToken, (req, res) => {
+router.get('/students', authenticateToken, (req, res) => {
 
     try {
-        db.query('SELECT user_id, name, username FROM users', (err, result) => {
+        db.query('SELECT student_number,name,email,birthdate username FROM student', (err, result) => {
 
             if (err) {
                 console.error('Error fetching items:', err);
