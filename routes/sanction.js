@@ -35,7 +35,7 @@ router.get('/sanction/:id',  (req, res) => {
     }
 
     try {
-        db.query('SELECT sanction_id, sanction_code, sanction_name,offense_id FROM offense WHERE sanction_id = ?', sanction_id, (err, result) => {
+        db.query('SELECT sanction_id, sanction_code, sanction_name,offense_id FROM sanction WHERE sanction_id = ?', sanction_id, (err, result) => {
             if (err) {
                 console.error('Error fetching items:', err);
                 res.status(500).json({ message: 'Internal Server Error' });
@@ -83,7 +83,7 @@ router.put('/sanction/:id', authenticateToken, async (req, res) => {
     }
 
     try {
-        db.query('UPDATE offense SET sanction_code = ?,sanction_name = ?, description = ? WHERE sanction_id = ?', [sanction_code,sanction_name, description, sanction_id], (err, result, fields) => {
+        db.query('UPDATE sanction SET sanction_code = ?,sanction_name = ?, description = ? WHERE sanction_id = ?', [sanction_code,sanction_name, description, sanction_id], (err, result, fields) => {
             if (err) {
                 console.error('Error updating item:', err);
                 res.status(500).json({ message: 'Internal Server Error' });
