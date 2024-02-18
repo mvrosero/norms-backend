@@ -46,7 +46,7 @@ router.post('/registerEmployee',  async (req, res) => {
         const {employee_number, name, email, password, birthdate, role_id, dept_id} = req.body;
         const hashedPassword = await bcrypt.hash(password, 10);
 
-        const insertEmployee]Query = 'INSERT INTO employee (employee_number, name, email, password, birthdate, role_id, dept_id) VALUES (?, ?, ?, ?, ?, ?, ?)';
+        const insertEmployeeQuery = 'INSERT INTO employee (employee_number, name, email, password, birthdate, role_id, dept_id) VALUES (?, ?, ?, ?, ?, ?, ?)';
         await db.promise().execute(insertEmployeeQuery, [employee_number, name, email, hashedPassword, birthdate, role_id, dept_id]);
 
         res.status(201).json({ message: 'Employee registered successfully' });
