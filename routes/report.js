@@ -73,14 +73,14 @@ router.put('/report/:id', authenticateToken, async (req, res) => {
 
     let report_id = req.params.id;
 
-    const {report_name, report_type, description, student_id} = req.body;
+    const {report_name, report_type, description} = req.body;
 
-    if (!report_id || !report_name || !report_type || !description || !student_id) {
-        return res.status(400).send({ error: user, message: 'Please provide report name, report type, description, and student id' });
+    if (!report_id || !report_name || !report_type || !description) {
+        return res.status(400).send({ error: user, message: 'Please provide report name, report type, and description' });
     }
 
     try {
-        db.query('UPDATE report SET report_name, report_type, description, student_id WHERE report_id = ?', [report_name, report_type, description, student_id, report_id], (err, result, fields) => {
+        db.query('UPDATE report SET report_name = ?, report_type = ?, description = ? WHERE report_id = ?', [report_name, report_type, description, report_id], (err, result, fields) => {
             if (err) {
                 console.error('Error updating report:', err);
                 res.status(500).json({ message: 'Internal Server Error' });
