@@ -3,6 +3,7 @@ const { authenticateToken } = require('../app/middleware/authentication');
 const db = require('../app/configuration/database');
 const router = express.Router();
 
+
 /*post: roles*/
 router.post('/registerRole', async (req, res) => {
 

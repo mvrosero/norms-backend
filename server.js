@@ -9,7 +9,7 @@ app.use(cors());
 const PORT = process.env.PORT || 3001; /*port number*/
 
 /*import modules*/
-const userpage = require('./routes/userpage');
+const student = require('./routes/student');
 const role = require('./routes/role');
 const category = require('./routes/category');
 const offense = require('./routes/offense');
@@ -21,12 +21,12 @@ const department = require('./routes/department');
 app.use(bodyParser.json());
 
 /*routes*/
-app.use('/', userpage);
+app.use('/student', student);
 app.use('/', role);
 app.use('/', category);
 app.use('/', offense);
 app.use('/', sanction);
-app.use('/', employee);
+app.use('/employee', employee);
 app.use('/', department);
 
 

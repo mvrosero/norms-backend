@@ -7,17 +7,18 @@ const config =require('../app/middleware/config')
 const secretKey = config.secretKey;
 const router = express.Router();
 
-/*post: login*/
+
+/*post: student login*/
 router.post('/login', async (req, res) => {
    
     try {
         const {student_number, password } = req.body;
 
-        const getUserQuery = 'SELECT * FROM student WHERE student_number = ?';
-        const [rows] = await db.promise().execute(getUserQuery,[student_number]);
+        const getStudentQuery = 'SELECT * FROM student WHERE student_number = ?';
+        const [rows] = await db.promise().execute(getStudentQuery,[student_number]);
 
         if (rows.length === 0) {
-            return res.status(401).json({ error: 'Invalid username ' });
+            return res.status(401).json({ error: 'Invalid student number' });
         }
 
         const user = rows[0];
@@ -37,24 +38,26 @@ router.post('/login', async (req, res) => {
         }
 });
 
-/*post: register*/
-router.post('/register',  async (req, res) => {
+
+/*post: register student*/
+router.post('/registerStudent',  async (req, res) => {
 
     try {
-        const {student_number,name, email, password, birthdate,role_id,dept_id} = req.body;
+        const {student_number,name, email, password, birthdate, role_id, dept_id} = req.body;
         const hashedPassword = await bcrypt.hash(password, 10);
 
-        const insertUsersQuery = 'INSERT INTO student (student_number,name, email, password, birthdate,role_id,dept_id) VALUES (?,?, ?, ?, ?,?,?)';
-        await db.promise().execute(insertUsersQuery, [student_number,name,email, hashedPassword,birthdate,role_id,dept_id]);
+        const insertStudentQuery = 'INSERT INTO student (student_number,name, email, password, birthdate, role_id, dept_id) VALUES (?,?, ?, ?, ?,?,?)';
+        await db.promise().execute(insertStudentQuery, [student_number,name,email, hashedPassword, birthdate, role_id, dept_id]);
 
-        res.status(201).json({ message: 'User registered successfully' });
+        res.status(201).json({ message: 'Student registered successfully' });
     } catch (error) {
-        console.error('Error registering user:', error);
+        console.error('Error registering student:', error);
         res.status(500).json({ error: 'Internal Server Error' });
     }
 });
 
-/*get: user*/
+
+/*get: student*/
 router.get('/student/:id', authenticateToken, (req, res) => {
 
     let student_id = req.params.id;
@@ -64,7 +67,7 @@ router.get('/student/:id', authenticateToken, (req, res) => {
     }
 
     try {
-        db.query('SELECT student_number, name, email,birthdate FROM student WHERE student_id = ?', student_id, (err, result) => {
+        db.query('SELECT student_number, name, email, birthdate FROM student WHERE student_id = ?', student_id, (err, result) => {
             if (err) {
                 console.error('Error fetching items:', err);
                 res.status(500).json({ message: 'Internal Server Error' });
@@ -79,20 +82,41 @@ router.get('/student/:id', authenticateToken, (req, res) => {
     }
 });
 
-/*put: user*/
+
+/*get: students*/
+router.get('/students', authenticateToken, (req, res) => {
+
+    try {
+        db.query('SELECT student_number, name, email, birthdate username FROM student', (err, result) => {
+
+            if (err) {
+                console.error('Error fetching items:', err);
+                res.status(500).json({ message: 'Internal Server Error' });
+            } else {
+                res.status(200).json(result);
+            }
+        });
+    } catch (error) {
+        console.error('Error loading students:', error);
+        res.status(500).json({ error: 'Internal Server Error'});
+    }
+});
+
+
+/*put: student*/
 router.put('/student/:id', authenticateToken, async (req, res) => {
 
     let student_id = req.params.id;
 
-    const {name, password} = req.body;
+    const {password} = req.body;
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    if (!student_id || !name || !password) {
-        return res.status(400).send({ error: user, message: 'Please provide name and password' });
+    if (!student_id || !password) {
+        return res.status(400).send({ error: user, message: 'Please provide password' });
     }
 
     try {
-        db.query('UPDATE student SET name = ?,  password = ? WHERE student_id = ?', [name,  hashedPassword, student_id], (err, result, fields) => {
+        db.query('UPDATE student SET password = ? WHERE student_id = ?', [hashedPassword, student_id], (err, result, fields) => {
             if (err) {
                 console.error('Error updating item:', err);
                 res.status(500).json({ message: 'Internal Server Error' });
@@ -107,13 +131,13 @@ router.put('/student/:id', authenticateToken, async (req, res) => {
 });
 
 
-/*delete: user*/
+/*delete: student (for admin only)*/
 router.delete('/student/:id', authenticateToken, (req, res) => {
 
     let student_id = req.params.id;
 
     if (!student_id) {
-        return res.status(400).send({ error: true, message: 'Please provide user_id' });
+        return res.status(400).send({ error: true, message: 'Please provide student_id' });
     }
 
     try {
@@ -126,30 +150,11 @@ router.delete('/student/:id', authenticateToken, (req, res) => {
             }
         });
     } catch (error) {
-        console.error('Error loading user:', error);
+        console.error('Error loading student:', error);
         res.status(500).json({ error: 'Internal Server Error'});
     }
 });
 
-
-/*get: users*/
-router.get('/students', authenticateToken, (req, res) => {
-
-    try {
-        db.query('SELECT student_number,name,email,birthdate username FROM student', (err, result) => {
-
-            if (err) {
-                console.error('Error fetching items:', err);
-                res.status(500).json({ message: 'Internal Server Error' });
-            } else {
-                res.status(200).json(result);
-            }
-        });
-    } catch (error) {
-        console.error('Error loading users:', error);
-        res.status(500).json({ error: 'Internal Server Error'});
-    }
-});
 
 /*export*/
 module.exports = router;
