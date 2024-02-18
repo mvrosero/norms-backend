@@ -4,16 +4,15 @@ const db = require('../app/configuration/database');
 const bcrypt = require('bcrypt'); 
 const router = express.Router();
 
-
-
+/*post: roles*/
 router.post('/registerRole', async (req, res) => {
 
     try {
         const {role_code, role_name} = req.body;
         
 
-        const insertUsersQuery = 'INSERT INTO role (role_code, role_name) VALUES ( ?, ?)';
-        await db.promise().execute(insertUsersQuery, [role_code, role_name]);
+        const insertRoleQuery = 'INSERT INTO role (role_code, role_name) VALUES ( ?, ?)';
+        await db.promise().execute(insertRoleQuery, [role_code, role_name]);
 
         res.status(201).json({ message: 'Role registered successfully' });
     } catch (error) {
@@ -23,7 +22,7 @@ router.post('/registerRole', async (req, res) => {
 });
 
 
-/*post: roles*/
+/*get: roles*/
 router.post('/roles', async (req, res) => {
 
     try {
