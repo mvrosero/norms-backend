@@ -21,12 +21,12 @@ const department = require('./routes/department');
 app.use(bodyParser.json());
 
 /*routes*/
-app.use('/student', student);
+app.use('/', student);
 app.use('/', role);
 app.use('/', category);
 app.use('/', offense);
 app.use('/', sanction);
-app.use('/employee', employee);
+app.use('/', employee);
 app.use('/', department);
 
 

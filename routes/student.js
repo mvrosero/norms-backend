@@ -9,7 +9,7 @@ const router = express.Router();
 
 
 /*post: student login*/
-router.post('/login', async (req, res) => {
+router.post('/studentLogin', async (req, res) => {
    
     try {
         const {student_number, password } = req.body;
