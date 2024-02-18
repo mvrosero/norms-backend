@@ -16,6 +16,8 @@ const employee = require('.//routes/employee');
 const category = require('./routes/category');
 const offense = require('./routes/offense');
 const sanction = require('./routes/sanction');
+const report = require('./routes/report');
+const violation = require('./routes/violation');
 
 
 app.use(bodyParser.json());
@@ -28,6 +30,8 @@ app.use('/', employee);
 app.use('/', category);
 app.use('/', offense);
 app.use('/', sanction);
+app.use('/', report);
+app.use('/', violation);
 
 
 /*express JS framework*/

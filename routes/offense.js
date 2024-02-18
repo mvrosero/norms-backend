@@ -31,7 +31,7 @@ router.get('/offense/:id',  (req, res) => {
     }
 
     try {
-        db.query('SELECT offense_id, offense_code, offense_name, category_id FROM offense WHERE offense_id = ?', offense_id, (err, result) => {
+        db.query('SELECT offense_id, offense_code, offense_name, description, category_id FROM offense WHERE offense_id = ?', offense_id, (err, result) => {
             if (err) {
                 console.error('Error fetching offense:', err);
                 res.status(500).json({ message: 'Internal Server Error' });
