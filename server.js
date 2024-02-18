@@ -15,6 +15,7 @@ const category = require('./routes/category');
 const offense = require('./routes/offense');
 const sanction = require('./routes/sanction');
 const employee = require('.//routes/employee');
+const department = require('./routes/department');
 
 
 app.use(bodyParser.json());
@@ -26,6 +27,7 @@ app.use('/', category);
 app.use('/', offense);
 app.use('/', sanction);
 app.use('/', employee);
+app.use('/', department);
 
 
 
