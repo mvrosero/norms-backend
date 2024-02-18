@@ -5,39 +5,36 @@ const bcrypt = require('bcrypt');
 const router = express.Router();
 
 
-
-router.post('/sanctionReg', async (req, res) => {
+/*post: sanction*/
+router.post('/registerSanction', async (req, res) => {
 
     try {
-        const {sanction_code,sanction_name,description, offense_id} = req.body;
+        const {sanction_code, sanction_name, description, offense_id} = req.body;
         
-
-        const insertUsersQuery = 'INSERT INTO sanction (sanction_code, sanction_name,description,offense_id) VALUES ( ?, ?,?,?)';
-        await db.promise().execute(insertUsersQuery, [sanction_code, sanction_name,description,offense_id]);
+        const insertSanctionQuery = 'INSERT INTO sanction (sanction_code, sanction_name, description, offense_id) VALUES ( ?, ?, ?, ?)';
+        await db.promise().execute(insertSanctionQuery, [sanction_code, sanction_name, description, offense_id]);
 
         res.status(201).json({ message: 'Sanction registered successfully' });
     } catch (error) {
-        console.error('Error registering user:', error);
+        console.error('Error registering sanction:', error);
         res.status(500).json({ error: 'Internal Server Error' });
     }
 });
 
 
+/*get: 1 offense*/
+router.get('/offense/:id',  (req, res) => {
 
+    let offense_id = req.params.id;
 
-/*get: 1 role*/
-router.get('/sanction/:id',  (req, res) => {
-
-    let sanction_id = req.params.id;
-
-    if (!sanction_id) {
-        return res.status(400).send({ error: true, message: 'Please provide role_id' });
+    if (!offense_id) {
+        return res.status(400).send({ error: true, message: 'Please provide offense_id' });
     }
 
     try {
-        db.query('SELECT sanction_id, sanction_code, sanction_name,offense_id FROM sanction WHERE sanction_id = ?', sanction_id, (err, result) => {
+        db.query('SELECT offense_id, offense_code, offense_name, category_id FROM offense WHERE offense_id = ?', offense_id, (err, result) => {
             if (err) {
-                console.error('Error fetching items:', err);
+                console.error('Error fetching offense:', err);
                 res.status(500).json({ message: 'Internal Server Error' });
             } else {
                 res.status(200).json(result);
@@ -45,82 +42,83 @@ router.get('/sanction/:id',  (req, res) => {
         });
     } catch (error) {
 
-        console.error('Error loading user:', error);
+        console.error('Error loading offense:', error);
         res.status(500).json({ error: 'Internal Server Error' });
     }
 });
 
 
-/*get: roles*/
-router.get('/sanction', authenticateToken, (req, res) => {
+/*get: offenses*/
+router.get('/offenses', authenticateToken, (req, res) => {
 
     try {
-        db.query('SELECT sanction_code, sanction_name,description, offense_id FROM sanction', (err, result) => {
+        db.query('SELECT offense_code, offense_name, description, category_id FROM offense', (err, result) => {
 
             if (err) {
-                console.error('Error fetching items:', err);
+                console.error('Error fetching offenses:', err);
                 res.status(500).json({ message: 'Internal Server Error' });
             } else {
                 res.status(200).json(result);
             }
         });
     } catch (error) {
-        console.error('Error loading users:', error);
+        console.error('Error loading offenses:', error);
         res.status(500).json({ error: 'Internal Server Error'});
     }
 });
 
 
-/*put: role*/
-router.put('/sanction/:id', authenticateToken, async (req, res) => {
+/*put: offense*/
+router.put('/offense/:id', authenticateToken, async (req, res) => {
 
-    let sanction_id = req.params.id;
+    let offense_id = req.params.id;
 
-    const {sanction_code, sanction_name,description} = req.body;
+    const {offense_code, offense_name, description} = req.body;
 
-    if (!sanction_id || !sanction_code || !sanction_name ||!description) {
-        return res.status(400).send({ error: user, message: 'Please provide role code and role name' });
+    if (!offense_id || !offense_code || !offense_name || !description) {
+        return res.status(400).send({ error: user, message: 'Please provide offense code, offense name and description' });
     }
 
     try {
-        db.query('UPDATE sanction SET sanction_code = ?,sanction_name = ?, description = ? WHERE sanction_id = ?', [sanction_code,sanction_name, description, sanction_id], (err, result, fields) => {
+        db.query('UPDATE offense SET offense_code = ?, offense_name = ?, description = ? WHERE offense_id = ?', [offense_code, offense_name, description, offense_id], (err, result, fields) => {
             if (err) {
-                console.error('Error updating item:', err);
+                console.error('Error updating offense:', err);
                 res.status(500).json({ message: 'Internal Server Error' });
             } else {
                 res.status(200).json(result);
             }
         });
     } catch (error) {
-        console.error('Error loading user:', error);
+        console.error('Error loading offense:', error);
         res.status(500).json({ error: 'Internal Server Error' });
     }
 });
 
 
-/*delete: role*/
-router.delete('/sanction/:id', authenticateToken, (req, res) => {
+/*delete: offense*/
+router.delete('/offense/:id', authenticateToken, (req, res) => {
 
-    let sanction_id = req.params.id;
+    let offense_id = req.params.id;
 
-    if (!sanction_id) {
-        return res.status(400).send({ error: true, message: 'Please provide role_id' });
+    if (!offense_id) {
+        return res.status(400).send({ error: true, message: 'Please provide offense_id' });
     }
 
     try {
-        db.query('DELETE FROM sanction  WHERE sanction_id = ?', sanction_id, (err, result, fields) => {
+        db.query('DELETE FROM offense WHERE offense_id = ?', offense_id, (err, result, fields) => {
             if (err) {
-                console.error('Error deleting item:', err);
+                console.error('Error deleting offense:', err);
                 res.status(500).json({ message: 'Internal Server Error'});
             } else {
                 res.status(200).json(result);
             }
         });
     } catch (error) {
-        console.error('Error loading user:', error);
+        console.error('Error loading offense:', error);
         res.status(500).json({ error: 'Internal Server Error'});
     }
 });
+
 
 
 /*export*/
