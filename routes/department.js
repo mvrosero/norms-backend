@@ -33,7 +33,7 @@ router.get('/department/:id',  (req, res) => {
     try {
         db.query('SELECT dept_id, dept_code, dept_name FROM department WHERE dept_id = ?', dept_id, (err, result) => {
             if (err) {
-                console.error('Error fetching items:', err);
+                console.error('Error fetching department:', err);
                 res.status(500).json({ message: 'Internal Server Error' });
             } else {
                 res.status(200).json(result);
@@ -54,7 +54,7 @@ router.get('/departments', authenticateToken, (req, res) => {
         db.query('SELECT dept_id, dept_code, dept_name FROM department', (err, result) => {
 
             if (err) {
-                console.error('Error fetching items:', err);
+                console.error('Error fetching departments:', err);
                 res.status(500).json({ message: 'Internal Server Error' });
             } else {
                 res.status(200).json(result);
@@ -81,7 +81,7 @@ router.put('/department/:id', authenticateToken, async (req, res) => {
     try {
         db.query('UPDATE department SET dept_code = ?, dept_name = ? WHERE dept_id = ?', [dept_code, dept_name, dept_id], (err, result, fields) => {
             if (err) {
-                console.error('Error updating item:', err);
+                console.error('Error updating department:', err);
                 res.status(500).json({ message: 'Internal Server Error' });
             } else {
                 res.status(200).json(result);
@@ -106,7 +106,7 @@ router.delete('/department/:id', authenticateToken, (req, res) => {
     try {
         db.query('DELETE FROM department  WHERE dept_id = ?', dept_id, (err, result, fields) => {
             if (err) {
-                console.error('Error deleting item:', err);
+                console.error('Error deleting department:', err);
                 res.status(500).json({ message: 'Internal Server Error'});
             } else {
                 res.status(200).json(result);

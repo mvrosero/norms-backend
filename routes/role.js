@@ -16,14 +16,14 @@ router.post('/registerRole', async (req, res) => {
 
         res.status(201).json({ message: 'Role registered successfully' });
     } catch (error) {
-        console.error('Error registering user:', error);
+        console.error('Error registering role:', error);
         res.status(500).json({ error: 'Internal Server Error' });
     }
 });
 
 
 /*get: 1 role*/
-router.get('/roles/:id',  (req, res) => {
+router.get('/role/:id',  (req, res) => {
 
     let role_id = req.params.id;
 
@@ -34,7 +34,7 @@ router.get('/roles/:id',  (req, res) => {
     try {
         db.query('SELECT role_id, role_code, role_name FROM role WHERE role_id = ?', role_id, (err, result) => {
             if (err) {
-                console.error('Error fetching items:', err);
+                console.error('Error fetching role:', err);
                 res.status(500).json({ message: 'Internal Server Error' });
             } else {
                 res.status(200).json(result);
@@ -42,7 +42,7 @@ router.get('/roles/:id',  (req, res) => {
         });
     } catch (error) {
 
-        console.error('Error loading user:', error);
+        console.error('Error loading role:', error);
         res.status(500).json({ error: 'Internal Server Error' });
     }
 });
@@ -55,21 +55,21 @@ router.get('/roles', authenticateToken, (req, res) => {
         db.query('SELECT role_id, role_code, role_name FROM role', (err, result) => {
 
             if (err) {
-                console.error('Error fetching items:', err);
+                console.error('Error fetching roles:', err);
                 res.status(500).json({ message: 'Internal Server Error' });
             } else {
                 res.status(200).json(result);
             }
         });
     } catch (error) {
-        console.error('Error loading users:', error);
+        console.error('Error loading roles:', error);
         res.status(500).json({ error: 'Internal Server Error'});
     }
 });
 
 
 /*put: role*/
-router.put('/roles/:id', authenticateToken, async (req, res) => {
+router.put('/role/:id', authenticateToken, async (req, res) => {
 
     let role_id = req.params.id;
 
@@ -82,21 +82,21 @@ router.put('/roles/:id', authenticateToken, async (req, res) => {
     try {
         db.query('UPDATE role SET role_code = ?, role_name = ? WHERE role_id = ?', [role_code, role_name, role_id], (err, result, fields) => {
             if (err) {
-                console.error('Error updating item:', err);
+                console.error('Error updating role:', err);
                 res.status(500).json({ message: 'Internal Server Error' });
             } else {
                 res.status(200).json(result);
             }
         });
     } catch (error) {
-        console.error('Error loading user:', error);
+        console.error('Error loading role:', error);
         res.status(500).json({ error: 'Internal Server Error' });
     }
 });
 
 
 /*delete: role*/
-router.delete('/roles/:id', authenticateToken, (req, res) => {
+router.delete('/role/:id', authenticateToken, (req, res) => {
 
     let role_id = req.params.id;
 
@@ -107,14 +107,14 @@ router.delete('/roles/:id', authenticateToken, (req, res) => {
     try {
         db.query('DELETE FROM role  WHERE role_id = ?', role_id, (err, result, fields) => {
             if (err) {
-                console.error('Error deleting item:', err);
+                console.error('Error deleting role:', err);
                 res.status(500).json({ message: 'Internal Server Error'});
             } else {
                 res.status(200).json(result);
             }
         });
     } catch (error) {
-        console.error('Error loading user:', error);
+        console.error('Error loading role:', error);
         res.status(500).json({ error: 'Internal Server Error'});
     }
 });

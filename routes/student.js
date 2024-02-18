@@ -46,8 +46,8 @@ router.post('/registerStudent',  async (req, res) => {
         const {student_number,name, email, password, birthdate, role_id, dept_id} = req.body;
         const hashedPassword = await bcrypt.hash(password, 10);
 
-        const insertStudentQuery = 'INSERT INTO student (student_number,name, email, password, birthdate, role_id, dept_id) VALUES (?,?, ?, ?, ?,?,?)';
-        await db.promise().execute(insertStudentQuery, [student_number,name,email, hashedPassword, birthdate, role_id, dept_id]);
+        const insertStudentQuery = 'INSERT INTO student (student_number, name, email, password, birthdate, role_id, dept_id) VALUES (?, ?, ?, ?, ?, ?,?)';
+        await db.promise().execute(insertStudentQuery, [student_number, name, email, hashedPassword, birthdate, role_id, dept_id]);
 
         res.status(201).json({ message: 'Student registered successfully' });
     } catch (error) {
@@ -69,7 +69,7 @@ router.get('/student/:id', authenticateToken, (req, res) => {
     try {
         db.query('SELECT student_number, name, email, birthdate FROM student WHERE student_id = ?', student_id, (err, result) => {
             if (err) {
-                console.error('Error fetching items:', err);
+                console.error('Error fetching student:', err);
                 res.status(500).json({ message: 'Internal Server Error' });
             } else {
                 res.status(200).json(result);
@@ -77,7 +77,7 @@ router.get('/student/:id', authenticateToken, (req, res) => {
         });
     } catch (error) {
 
-        console.error('Error loading user:', error);
+        console.error('Error loading student:', error);
         res.status(500).json({ error: 'Internal Server Error' });
     }
 });
@@ -90,7 +90,7 @@ router.get('/students', authenticateToken, (req, res) => {
         db.query('SELECT student_number, name, email, birthdate FROM student', (err, result) => {
 
             if (err) {
-                console.error('Error fetching items:', err);
+                console.error('Error fetching students:', err);
                 res.status(500).json({ message: 'Internal Server Error' });
             } else {
                 res.status(200).json(result);
@@ -118,14 +118,14 @@ router.put('/student/:id', authenticateToken, async (req, res) => {
     try {
         db.query('UPDATE student SET password = ? WHERE student_id = ?', [hashedPassword, student_id], (err, result, fields) => {
             if (err) {
-                console.error('Error updating item:', err);
+                console.error('Error updating student:', err);
                 res.status(500).json({ message: 'Internal Server Error' });
             } else {
                 res.status(200).json(result);
             }
         });
     } catch (error) {
-        console.error('Error loading user:', error);
+        console.error('Error loading student:', error);
         res.status(500).json({ error: 'Internal Server Error' });
     }
 });
@@ -143,7 +143,7 @@ router.delete('/student/:id', authenticateToken, (req, res) => {
     try {
         db.query('DELETE FROM student WHERE student_id = ?', student_id, (err, result, fields) => {
             if (err) {
-                console.error('Error deleting item:', err);
+                console.error('Error deleting student:', err);
                 res.status(500).json({ message: 'Internal Server Error'});
             } else {
                 res.status(200).json(result);

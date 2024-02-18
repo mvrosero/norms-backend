@@ -7,17 +7,17 @@ const config =require('../app/middleware/config')
 const secretKey = config.secretKey;
 const router = express.Router();
 
-/*post: login*/
-router.post('/login', async (req, res) => {
+/*post: employee login*/
+router.post('/employeeLogin', async (req, res) => {
    
     try {
         const {employee_number, password } = req.body;
 
-        const getUserQuery = 'SELECT * FROM employee WHERE employee_number = ?';
-        const [rows] = await db.promise().execute(getUserQuery,[employee_number]);
+        const getEmployeeQuery = 'SELECT * FROM employee WHERE employee_number = ?';
+        const [rows] = await db.promise().execute(getEmployeeQuery,[employee_number]);
 
         if (rows.length === 0) {
-            return res.status(401).json({ error: 'Invalid username ' });
+            return res.status(401).json({ error: 'Invalid employee number' });
         }
 
         const user = rows[0];
@@ -37,36 +37,38 @@ router.post('/login', async (req, res) => {
         }
 });
 
-/*post: register*/
-router.post('/Employeeregister',  async (req, res) => {
+
+/*post: register employee*/
+router.post('/registerEmployee',  async (req, res) => {
 
     try {
-        const {employee_number,name, email, password, birthdate,role_id} = req.body;
+        const {employee_number, name, email, password, birthdate, role_id} = req.body;
         const hashedPassword = await bcrypt.hash(password, 10);
 
-        const insertUsersQuery = 'INSERT INTO employee (employee_number,name, email, password, birthdate,role_id) VALUES (?, ?, ?, ?,?,?)';
-        await db.promise().execute(insertUsersQuery, [employee_number,name,email, hashedPassword,birthdate,role_id]);
+        const insertEmployeeQuery = 'INSERT INTO employee (employee_number,name, email, password, birthdate, role_id) VALUES (?, ?, ?, ?, ?, ?)';
+        await db.promise().execute(insertEmployeeQuery, [employee_number, name, email, hashedPassword, birthdate, role_id]);
 
-        res.status(201).json({ message: 'User registered successfully' });
+        res.status(201).json({ message: 'Employee registered successfully' });
     } catch (error) {
-        console.error('Error registering user:', error);
+        console.error('Error registering employee:', error);
         res.status(500).json({ error: 'Internal Server Error' });
     }
 });
 
-/*get: user*/
+
+/*get: employee*/
 router.get('/employee/:id', authenticateToken, (req, res) => {
 
-    let student_id = req.params.id;
+    let employee_id = req.params.id;
 
-    if (!student_id) {
-        return res.status(400).send({ error: true, message: 'Please provide student_id' });
+    if (!employee_id) {
+        return res.status(400).send({ error: true, message: 'Please provide employee_id' });
     }
 
     try {
-        db.query('SELECT employee_number, name, email,birthdate FROM student WHERE employee_id = ?', employee_id, (err, result) => {
+        db.query('SELECT employee_number, name, email, birthdate FROM employee WHERE employee_id = ?', employee_id, (err, result) => {
             if (err) {
-                console.error('Error fetching items:', err);
+                console.error('Error fetching employee:', err);
                 res.status(500).json({ message: 'Internal Server Error' });
             } else {
                 res.status(200).json(result);
@@ -74,82 +76,84 @@ router.get('/employee/:id', authenticateToken, (req, res) => {
         });
     } catch (error) {
 
-        console.error('Error loading user:', error);
+        console.error('Error loading employee:', error);
         res.status(500).json({ error: 'Internal Server Error' });
     }
 });
 
-/*put: user*/
+
+/*get: employees*/
+router.get('/employees', authenticateToken, (req, res) => {
+
+    try {
+        db.query('SELECT employee_number,name, email, birthdate FROM employee', (err, result) => {
+
+            if (err) {
+                console.error('Error fetching employees:', err);
+                res.status(500).json({ message: 'Internal Server Error' });
+            } else {
+                res.status(200).json(result);
+            }
+        });
+    } catch (error) {
+        console.error('Error loading employees:', error);
+        res.status(500).json({ error: 'Internal Server Error'});
+    }
+});
+
+
+/*put: student*/
 router.put('/employee/:id', authenticateToken, async (req, res) => {
 
     let employee_id = req.params.id;
 
-    const {name, password} = req.body;
+    const {password} = req.body;
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    if (!employee_id || !name || !password) {
-        return res.status(400).send({ error: user, message: 'Please provide name and password' });
+    if (!employee_id || !password) {
+        return res.status(400).send({ error: user, message: 'Please provide password' });
     }
 
     try {
-        db.query('UPDATE employee SET name = ?,  password = ? WHERE student_id = ?', [name,  hashedPassword, student_id], (err, result, fields) => {
+        db.query('UPDATE employee SET password = ? WHERE employee_id = ?', [hashedPassword, employee_id], (err, result, fields) => {
             if (err) {
-                console.error('Error updating item:', err);
+                console.error('Error updating employee:', err);
                 res.status(500).json({ message: 'Internal Server Error' });
             } else {
                 res.status(200).json(result);
             }
         });
     } catch (error) {
-        console.error('Error loading user:', error);
+        console.error('Error loading employee:', error);
         res.status(500).json({ error: 'Internal Server Error' });
     }
 });
 
 
-/*delete: user*/
+/*delete: employee (for admin only)*/
 router.delete('/employee/:id', authenticateToken, (req, res) => {
 
     let employee_id = req.params.id;
 
     if (!employee_id) {
-        return res.status(400).send({ error: true, message: 'Please provide user_id' });
+        return res.status(400).send({ error: true, message: 'Please provide employee_id' });
     }
 
     try {
         db.query('DELETE FROM employee WHERE employee_id = ?', employee_id, (err, result, fields) => {
             if (err) {
-                console.error('Error deleting item:', err);
+                console.error('Error deleting employee:', err);
                 res.status(500).json({ message: 'Internal Server Error'});
             } else {
                 res.status(200).json(result);
             }
         });
     } catch (error) {
-        console.error('Error loading user:', error);
+        console.error('Error loading employee:', error);
         res.status(500).json({ error: 'Internal Server Error'});
     }
 });
 
-
-/*get: users*/
-router.get('/employee', authenticateToken, (req, res) => {
-
-    try {
-        db.query('SELECT employee_id, student_number,name,email,birthdate username FROM employee', (err, result) => {
-
-            if (err) {
-                console.error('Error fetching items:', err);
-                res.status(500).json({ message: 'Internal Server Error' });
-            } else {
-                res.status(200).json(result);
-            }
-        });
-    } catch (error) {
-        console.error('Error loading users:', error);
-        res.status(500).json({ error: 'Internal Server Error'});
-    }
-});
 
 /*export*/
 module.exports = router;
