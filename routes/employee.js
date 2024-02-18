@@ -7,6 +7,7 @@ const config =require('../app/middleware/config')
 const secretKey = config.secretKey;
 const router = express.Router();
 
+
 /*post: employee login*/
 router.post('/employeeLogin', async (req, res) => {
    
@@ -42,11 +43,11 @@ router.post('/employeeLogin', async (req, res) => {
 router.post('/registerEmployee',  async (req, res) => {
 
     try {
-        const {employee_number, name, email, password, birthdate, role_id} = req.body;
+        const {employee_number, name, email, password, birthdate, role_id, dept_id} = req.body;
         const hashedPassword = await bcrypt.hash(password, 10);
 
-        const insertEmployeeQuery = 'INSERT INTO employee (employee_number,name, email, password, birthdate, role_id) VALUES (?, ?, ?, ?, ?, ?)';
-        await db.promise().execute(insertEmployeeQuery, [employee_number, name, email, hashedPassword, birthdate, role_id]);
+        const insertEmployee]Query = 'INSERT INTO employee (employee_number, name, email, password, birthdate, role_id, dept_id) VALUES (?, ?, ?, ?, ?, ?, ?)';
+        await db.promise().execute(insertEmployeeQuery, [employee_number, name, email, hashedPassword, birthdate, role_id, dept_id]);
 
         res.status(201).json({ message: 'Employee registered successfully' });
     } catch (error) {
