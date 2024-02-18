@@ -31,7 +31,7 @@ router.get('/violation/:id',  (req, res) => {
     }
 
     try {
-        db.query('SELECT description, student_id, category_id, offense_id, sanction_id, report_id FROM report WHERE report_id = ?', report_id, (err, result) => {
+        db.query('SELECT violation_id, description, student_id, category_id, offense_id, sanction_id, report_id FROM violation WHERE violation_id = ?', violation_id, (err, result) => {
             if (err) {
                 console.error('Error fetching violation:', err);
                 res.status(500).json({ message: 'Internal Server Error' });
@@ -51,7 +51,7 @@ router.get('/violation/:id',  (req, res) => {
 router.get('/violations', authenticateToken, (req, res) => {
 
     try {
-        db.query('SELECT description, student_id, category_id, offense_id, sanction_id, report_id FROM report', (err, result) => {
+        db.query('SELECT description, student_id, category_id, offense_id, sanction_id, report_id FROM violation', (err, result) => {
 
             if (err) {
                 console.error('Error fetching violations:', err);
