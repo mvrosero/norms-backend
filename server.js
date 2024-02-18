@@ -9,26 +9,25 @@ app.use(cors());
 const PORT = process.env.PORT || 3001; /*port number*/
 
 /*import modules*/
-const student = require('./routes/student');
 const role = require('./routes/role');
+const department = require('./routes/department');
+const student = require('./routes/student');
+const employee = require('.//routes/employee');
 const category = require('./routes/category');
 const offense = require('./routes/offense');
 const sanction = require('./routes/sanction');
-const employee = require('.//routes/employee');
-const department = require('./routes/department');
 
 
 app.use(bodyParser.json());
 
 /*routes*/
-app.use('/', student);
 app.use('/', role);
+app.use('/', department);
+app.use('/', student);
+app.use('/', employee);
 app.use('/', category);
 app.use('/', offense);
 app.use('/', sanction);
-app.use('/', employee);
-app.use('/', department);
-
 
 
 /*express JS framework*/

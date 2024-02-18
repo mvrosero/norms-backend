@@ -87,7 +87,7 @@ router.get('/student/:id', authenticateToken, (req, res) => {
 router.get('/students', authenticateToken, (req, res) => {
 
     try {
-        db.query('SELECT student_number, name, email, birthdate username FROM student', (err, result) => {
+        db.query('SELECT student_number, name, email, birthdate FROM student', (err, result) => {
 
             if (err) {
                 console.error('Error fetching items:', err);

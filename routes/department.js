@@ -1,54 +1,37 @@
 const express = require('express'); /*import js*/
 const { authenticateToken } = require('../app/middleware/authentication');
 const db = require('../app/configuration/database');
-const bcrypt = require('bcrypt'); 
 const router = express.Router();
 
-/*post: roles*/
+
+/*post: department*/
 router.post('/registerDepartment', async (req, res) => {
 
     try {
         const {dept_code, dept_name} = req.body;
         
+        const insertDepartmentQuery = 'INSERT INTO department (dept_code, dept_name) VALUES ( ?, ?)';
+        await db.promise().execute(insertDepartmentQuery, [dept_code, dept_name]);
 
-        const insertRoleQuery = 'INSERT INTO department (dept_code, dept_name) VALUES ( ?, ?)';
-        await db.promise().execute(insertRoleQuery, [dept_code, dept_name]);
-
-        res.status(201).json({ message: 'Role registered successfully' });
+        res.status(201).json({ message: 'Department registered successfully' });
     } catch (error) {
-        console.error('Error registering user:', error);
+        console.error('Error registering department:', error);
         res.status(500).json({ error: 'Internal Server Error' });
     }
 });
 
 
-/*get: roles*/
-router.post('/roles', async (req, res) => {
+/*get: 1 department*/
+router.get('/department/:id',  (req, res) => {
 
-    try {
-        const {role_code, role_name} = req.body;
+    let dept_id = req.params.id;
 
-        const insertRoleQuery = 'INSERT INTO role (role_code, role_name) VALUES (?, ?)';
-        await db.promise().execute(insertRoleQuery, [role_code, role_name]);
-
-        res.status(201).json({ message: 'Role registered successfully' });
-    } catch (error) {
-        console.error('Error registering role:', error);
-        res.status(500).json({ error: 'Internal Server Error' });
-    }
-});
-
-/*get: 1 role*/
-router.get('/roles/:id',  (req, res) => {
-
-    let role_id = req.params.id;
-
-    if (!role_id) {
-        return res.status(400).send({ error: true, message: 'Please provide role_id' });
+    if (!dept_id) {
+        return res.status(400).send({ error: true, message: 'Please provide dept_id' });
     }
 
     try {
-        db.query('SELECT role_id, role_code, role_name FROM role WHERE role_id = ?', role_id, (err, result) => {
+        db.query('SELECT dept_id, dept_code, dept_name FROM department WHERE dept_id = ?', dept_id, (err, result) => {
             if (err) {
                 console.error('Error fetching items:', err);
                 res.status(500).json({ message: 'Internal Server Error' });
@@ -58,17 +41,17 @@ router.get('/roles/:id',  (req, res) => {
         });
     } catch (error) {
 
-        console.error('Error loading user:', error);
+        console.error('Error loading department:', error);
         res.status(500).json({ error: 'Internal Server Error' });
     }
 });
 
 
-/*get: roles*/
-router.get('/roles', authenticateToken, (req, res) => {
+/*get: departments*/
+router.get('/departments', authenticateToken, (req, res) => {
 
     try {
-        db.query('SELECT role_id, role_code, role_name FROM role', (err, result) => {
+        db.query('SELECT dept_id, dept_code, dept_name FROM department', (err, result) => {
 
             if (err) {
                 console.error('Error fetching items:', err);
@@ -78,25 +61,25 @@ router.get('/roles', authenticateToken, (req, res) => {
             }
         });
     } catch (error) {
-        console.error('Error loading users:', error);
+        console.error('Error loading departments:', error);
         res.status(500).json({ error: 'Internal Server Error'});
     }
 });
 
 
-/*put: role*/
-router.put('/roles/:id', authenticateToken, async (req, res) => {
+/*put: department*/
+router.put('/department/:id', authenticateToken, async (req, res) => {
 
-    let role_id = req.params.id;
+    let dept_id = req.params.id;
 
-    const {role_code, role_name} = req.body;
+    const {dept_code, dept_name} = req.body;
 
-    if (!role_id || !role_code || !role_name) {
-        return res.status(400).send({ error: user, message: 'Please provide role code and role name' });
+    if (!dept_id || !dept_code || !dept_name) {
+        return res.status(400).send({ error: user, message: 'Please provide department code and department name' });
     }
 
     try {
-        db.query('UPDATE role SET role_code = ?, role_name = ? WHERE role_id = ?', [role_code, role_name, role_id], (err, result, fields) => {
+        db.query('UPDATE department SET dept_code = ?, dept_name = ? WHERE dept_id = ?', [dept_code, dept_name, dept_id], (err, result, fields) => {
             if (err) {
                 console.error('Error updating item:', err);
                 res.status(500).json({ message: 'Internal Server Error' });
@@ -105,23 +88,23 @@ router.put('/roles/:id', authenticateToken, async (req, res) => {
             }
         });
     } catch (error) {
-        console.error('Error loading user:', error);
+        console.error('Error loading department:', error);
         res.status(500).json({ error: 'Internal Server Error' });
     }
 });
 
 
-/*delete: role*/
-router.delete('/roles/:id', authenticateToken, (req, res) => {
+/*delete: department*/
+router.delete('/department/:id', authenticateToken, (req, res) => {
 
-    let role_id = req.params.id;
+    let dept_id = req.params.id;
 
-    if (!role_id) {
-        return res.status(400).send({ error: true, message: 'Please provide role_id' });
+    if (!dept_id) {
+        return res.status(400).send({ error: true, message: 'Please provide dept_id' });
     }
 
     try {
-        db.query('DELETE FROM role  WHERE role_id = ?', role_id, (err, result, fields) => {
+        db.query('DELETE FROM department  WHERE dept_id = ?', dept_id, (err, result, fields) => {
             if (err) {
                 console.error('Error deleting item:', err);
                 res.status(500).json({ message: 'Internal Server Error'});
@@ -130,7 +113,7 @@ router.delete('/roles/:id', authenticateToken, (req, res) => {
             }
         });
     } catch (error) {
-        console.error('Error loading user:', error);
+        console.error('Error loading department:', error);
         res.status(500).json({ error: 'Internal Server Error'});
     }
 });
