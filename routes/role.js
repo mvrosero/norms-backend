@@ -1,7 +1,6 @@
 const express = require('express'); /*import js*/
 const { authenticateToken } = require('../app/middleware/authentication');
 const db = require('../app/configuration/database');
-const bcrypt = require('bcrypt'); 
 const router = express.Router();
 
 /*post: roles*/
@@ -21,22 +20,6 @@ router.post('/registerRole', async (req, res) => {
     }
 });
 
-
-/*get: roles*/
-router.post('/roles', async (req, res) => {
-
-    try {
-        const {role_code, role_name} = req.body;
-
-        const insertRoleQuery = 'INSERT INTO role (role_code, role_name) VALUES (?, ?)';
-        await db.promise().execute(insertRoleQuery, [role_code, role_name]);
-
-        res.status(201).json({ message: 'Role registered successfully' });
-    } catch (error) {
-        console.error('Error registering role:', error);
-        res.status(500).json({ error: 'Internal Server Error' });
-    }
-});
 
 /*get: 1 role*/
 router.get('/roles/:id',  (req, res) => {
