@@ -40,7 +40,6 @@ router.get('/offense/:id',  (req, res) => {
             }
         });
     } catch (error) {
-
         console.error('Error loading offense:', error);
         res.status(500).json({ error: 'Internal Server Error' });
     }
