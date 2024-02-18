@@ -3,9 +3,9 @@ const jwt = require('jsonwebtoken'); /*authentication, login is required to view
 
 const db = mysql.createPool({
     host: 'sql6.freemysqlhosting.net',
-    user: 'sql6683266',
-    password: 'D3WIxRLPi7',
-    database: 'sql6683266',
+    user: 'sql6684975',
+    password: '3yj7bX9kW2',
+    database: 'sql6684975',
 });
 
 
