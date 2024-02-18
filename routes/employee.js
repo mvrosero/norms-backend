@@ -87,7 +87,7 @@ router.get('/employee/:id', authenticateToken, (req, res) => {
 router.get('/employees', authenticateToken, (req, res) => {
 
     try {
-        db.query('SELECT employee_number,name, email, birthdate FROM employee', (err, result) => {
+        db.query('SELECT employee_number, name, email, birthdate FROM employee', (err, result) => {
 
             if (err) {
                 console.error('Error fetching employees:', err);

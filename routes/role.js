@@ -4,12 +4,11 @@ const db = require('../app/configuration/database');
 const router = express.Router();
 
 
-/*post: roles*/
+/*post: role*/
 router.post('/registerRole', async (req, res) => {
 
     try {
         const {role_code, role_name} = req.body;
-        
 
         const insertRoleQuery = 'INSERT INTO role (role_code, role_name) VALUES ( ?, ?)';
         await db.promise().execute(insertRoleQuery, [role_code, role_name]);
@@ -105,7 +104,7 @@ router.delete('/role/:id', authenticateToken, (req, res) => {
     }
 
     try {
-        db.query('DELETE FROM role  WHERE role_id = ?', role_id, (err, result, fields) => {
+        db.query('DELETE FROM role WHERE role_id = ?', role_id, (err, result, fields) => {
             if (err) {
                 console.error('Error deleting role:', err);
                 res.status(500).json({ message: 'Internal Server Error'});
