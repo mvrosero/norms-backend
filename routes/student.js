@@ -46,7 +46,7 @@ router.post('/registerStudent',  async (req, res) => {
         const {student_number,name, email, password, birthdate, role_id, dept_id} = req.body;
         const hashedPassword = await bcrypt.hash(password, 10);
 
-        const insertStudentQuery = 'INSERT INTO student (student_number, name, email, password, birthdate, role_id, dept_id) VALUES (?, ?, ?, ?, ?, ?,?)';
+        const insertStudentQuery = 'INSERT INTO student (student_number, name, email, password, birthdate, role_id, dept_id) VALUES (?, ?, ?, ?, ?, ?, ?)';
         await db.promise().execute(insertStudentQuery, [student_number, name, email, hashedPassword, birthdate, role_id, dept_id]);
 
         res.status(201).json({ message: 'Student registered successfully' });
@@ -58,7 +58,7 @@ router.post('/registerStudent',  async (req, res) => {
 
 
 /*get: student*/
-router.get('/student/:id', authenticateToken, (req, res) => {
+router.get('/student/:id', (req, res) => {
 
     let student_id = req.params.id;
 
@@ -84,7 +84,7 @@ router.get('/student/:id', authenticateToken, (req, res) => {
 
 
 /*get: students*/
-router.get('/students', authenticateToken, (req, res) => {
+router.get('/students',  (req, res) => {
 
     try {
         db.query('SELECT student_number, name, email, birthdate FROM student', (err, result) => {
@@ -104,7 +104,7 @@ router.get('/students', authenticateToken, (req, res) => {
 
 
 /*put: student*/
-router.put('/student/:id', authenticateToken, async (req, res) => {
+router.put('/student/:id', async (req, res) => {
 
     let student_id = req.params.id;
 
@@ -132,7 +132,7 @@ router.put('/student/:id', authenticateToken, async (req, res) => {
 
 
 /*delete: student (for admin only)*/
-router.delete('/student/:id', authenticateToken, (req, res) => {
+router.delete('/student/:id',  (req, res) => {
 
     let student_id = req.params.id;
 

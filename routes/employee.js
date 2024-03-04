@@ -58,7 +58,7 @@ router.post('/registerEmployee',  async (req, res) => {
 
 
 /*get: employee*/
-router.get('/employee/:id', authenticateToken, (req, res) => {
+router.get('/employee/:id',  (req, res) => {
 
     let employee_id = req.params.id;
 
@@ -84,7 +84,7 @@ router.get('/employee/:id', authenticateToken, (req, res) => {
 
 
 /*get: employees*/
-router.get('/employees', authenticateToken, (req, res) => {
+router.get('/employees',  (req, res) => {
 
     try {
         db.query('SELECT employee_number, name, email, birthdate FROM employee', (err, result) => {
@@ -104,7 +104,7 @@ router.get('/employees', authenticateToken, (req, res) => {
 
 
 /*put: student*/
-router.put('/employee/:id', authenticateToken, async (req, res) => {
+router.put('/employee/:id',  async (req, res) => {
 
     let employee_id = req.params.id;
 
@@ -132,7 +132,7 @@ router.put('/employee/:id', authenticateToken, async (req, res) => {
 
 
 /*delete: employee (for admin only)*/
-router.delete('/employee/:id', authenticateToken, (req, res) => {
+router.delete('/employee/:id',  (req, res) => {
 
     let employee_id = req.params.id;
 
