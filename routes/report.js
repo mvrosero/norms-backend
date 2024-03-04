@@ -49,7 +49,7 @@ router.get('/report/:id',  (req, res) => {
 
 
 /*get: reports*/
-router.get('/reports', authenticateToken, (req, res) => {
+router.get('/reports', (req, res) => {
 
     try {
         db.query('SELECT report_name, report_type, description, student_id FROM report', (err, result) => {
@@ -69,7 +69,7 @@ router.get('/reports', authenticateToken, (req, res) => {
 
 
 /*put: report*/
-router.put('/report/:id', authenticateToken, async (req, res) => {
+router.put('/report/:id', async (req, res) => {
 
     let report_id = req.params.id;
 
@@ -96,7 +96,7 @@ router.put('/report/:id', authenticateToken, async (req, res) => {
 
 
 /*delete: report*/
-router.delete('/report/:id', authenticateToken, (req, res) => {
+router.delete('/report/:id', (req, res) => {
 
     let report_id = req.params.id;
 

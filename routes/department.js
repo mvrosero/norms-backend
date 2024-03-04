@@ -48,7 +48,7 @@ router.get('/department/:id',  (req, res) => {
 
 
 /*get: departments*/
-router.get('/departments', authenticateToken, (req, res) => {
+router.get('/departments', (req, res) => {
 
     try {
         db.query('SELECT dept_id, dept_code, dept_name FROM department', (err, result) => {
@@ -68,7 +68,7 @@ router.get('/departments', authenticateToken, (req, res) => {
 
 
 /*put: department*/
-router.put('/department/:id', authenticateToken, async (req, res) => {
+router.put('/department/:id', async (req, res) => {
 
     let dept_id = req.params.id;
 
@@ -95,7 +95,7 @@ router.put('/department/:id', authenticateToken, async (req, res) => {
 
 
 /*delete: department*/
-router.delete('/department/:id', authenticateToken, (req, res) => {
+router.delete('/department/:id', (req, res) => {
 
     let dept_id = req.params.id;
 

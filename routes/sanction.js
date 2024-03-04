@@ -48,7 +48,7 @@ router.get('/sanction/:id',  (req, res) => {
 
 
 /*get: sanctions*/
-router.get('/sanctions', authenticateToken, (req, res) => {
+router.get('/sanctions', (req, res) => {
 
     try {
         db.query('SELECT sanction_code, sanction_name, description, offense_id FROM sanction', (err, result) => {
@@ -68,7 +68,7 @@ router.get('/sanctions', authenticateToken, (req, res) => {
 
 
 /*put: sanction*/
-router.put('/sanction/:id', authenticateToken, async (req, res) => {
+router.put('/sanction/:id', async (req, res) => {
 
     let sanction_id = req.params.id;
 
@@ -95,7 +95,7 @@ router.put('/sanction/:id', authenticateToken, async (req, res) => {
 
 
 /*delete: sanction*/
-router.delete('/sanction/:id', authenticateToken, (req, res) => {
+router.delete('/sanction/:id', (req, res) => {
 
     let sanction_id = req.params.id;
 

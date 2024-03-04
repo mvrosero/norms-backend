@@ -48,7 +48,7 @@ router.get('/role/:id',  (req, res) => {
 
 
 /*get: roles*/
-router.get('/roles', authenticateToken, (req, res) => {
+router.get('/roles', (req, res) => {
 
     try {
         db.query('SELECT role_id, role_code, role_name FROM role', (err, result) => {
@@ -68,7 +68,7 @@ router.get('/roles', authenticateToken, (req, res) => {
 
 
 /*put: role*/
-router.put('/role/:id', authenticateToken, async (req, res) => {
+router.put('/role/:id', async (req, res) => {
 
     let role_id = req.params.id;
 
@@ -95,7 +95,7 @@ router.put('/role/:id', authenticateToken, async (req, res) => {
 
 
 /*delete: role*/
-router.delete('/role/:id', authenticateToken, (req, res) => {
+router.delete('/role/:id', (req, res) => {
 
     let role_id = req.params.id;
 

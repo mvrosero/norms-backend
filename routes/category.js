@@ -48,7 +48,7 @@ router.get('/category/:id',  (req, res) => {
 
 
 /*get: categories*/
-router.get('/categories', authenticateToken, (req, res) => {
+router.get('/categories', (req, res) => {
 
     try {
         db.query('SELECT category_id, category_name FROM category', (err, result) => {
@@ -68,7 +68,7 @@ router.get('/categories', authenticateToken, (req, res) => {
 
 
 /*put: category*/
-router.put('/category/:id', authenticateToken, async (req, res) => {
+router.put('/category/:id', async (req, res) => {
 
     let category_id = req.params.id;
 
@@ -95,7 +95,7 @@ router.put('/category/:id', authenticateToken, async (req, res) => {
 
 
 /*delete: category*/
-router.delete('/category/:id', authenticateToken, (req, res) => {
+router.delete('/category/:id', (req, res) => {
 
     let category_id = req.params.id;
 

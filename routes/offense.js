@@ -47,7 +47,7 @@ router.get('/offense/:id',  (req, res) => {
 
 
 /*get: offenses*/
-router.get('/offenses', authenticateToken, (req, res) => {
+router.get('/offenses', (req, res) => {
 
     try {
         db.query('SELECT offense_code, offense_name, description, category_id FROM offense', (err, result) => {
@@ -67,7 +67,7 @@ router.get('/offenses', authenticateToken, (req, res) => {
 
 
 /*put: offense*/
-router.put('/offense/:id', authenticateToken, async (req, res) => {
+router.put('/offense/:id', async (req, res) => {
 
     let offense_id = req.params.id;
 
@@ -94,7 +94,7 @@ router.put('/offense/:id', authenticateToken, async (req, res) => {
 
 
 /*delete: offense*/
-router.delete('/offense/:id', authenticateToken, (req, res) => {
+router.delete('/offense/:id', (req, res) => {
 
     let offense_id = req.params.id;
 
