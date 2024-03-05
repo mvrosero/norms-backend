@@ -18,6 +18,7 @@ const offense = require('./routes/offense');
 const sanction = require('./routes/sanction');
 const report = require('./routes/report');
 const violation = require('./routes/violation');
+const user = require('./routes/user');
 
 
 app.use(bodyParser.json());
@@ -32,6 +33,7 @@ app.use('/', offense);
 app.use('/', sanction);
 app.use('/', report);
 app.use('/', violation);
+app.use('/', user);
 
 
 /*express JS framework*/
