@@ -116,7 +116,7 @@ router.put('/user/:id',  async (req, res) => {
     }
 
     try {
-        db.query('UPDATE user SET name = ?, user_number = ?, username = ?, email, =? password = ?, role_id = ? WHERE id = ?', [hashedPassword, id], (err, result, fields) => {
+        db.query('UPDATE user SET name = ?, user_number = ?, username = ?, email =?, password = ?, role_id = ? WHERE id = ?', [name, user_number, username, email, hashedPassword, role_id, id], (err, result, fields) => {
             if (err) {
                 console.error('Error updating user:', err);
                 res.status(500).json({ message: 'Internal Server Error' });
