@@ -108,10 +108,10 @@ router.put('/user/:id',  async (req, res) => {
 
     let id = req.params.id;
 
-    const {password} = req.body;
+    const {name,user_number,username,email,password,role_id} = req.body;
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    if (!id || !password) {
+    if (!id || !name || !user_number || !username || !email || !password || !role_id) {
         return res.status(400).send({ error: user, message: 'Please provide password' });
     }
 
