@@ -87,7 +87,7 @@ router.get('/user/:id',  (req, res) => {
 router.get('/users',  (req, res) => {
 
     try {
-        db.query('SELECT * FROM user', (err, result) => {
+        db.query('SELECT * FROM user INNER JOIN role ON user.role_id = role.role_id', (err, result) => {
 
             if (err) {
                 console.error('Error fetching users:', err);
