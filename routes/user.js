@@ -58,7 +58,7 @@ router.post('/login', async (req, res) => {
 /* Post: register user */
 router.post('/registerUser', async (req, res) => {
     try {
-        const { student_idnumber, employee_idnumber, fullname, birthdate, email, password, year_level, profile_photo_filename, role_id, department_id, program_id } = req.body;
+        const { student_idnumber, fullname, birthdate, email, password, year_level, profile_photo_filename, role_id, department_id, program_id } = req.body;
         const hashedPassword = await bcrypt.hash(password, 10);
 
         if (role_id === 6) { /* student registration */
