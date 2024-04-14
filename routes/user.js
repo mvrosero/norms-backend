@@ -60,14 +60,14 @@ router.post('/login', async (req, res) => {
 /*post: register user*/
 router.post('/registerUser', async (req, res) => {
     try {
-        const { name, user_number, username, email, password, role_id, department, program, year_level } = req.body;
+        const { student_idnumber, fullname,birthdate, email, password,yearlevel,profile_photo_filename, role_id, department_id, program_id } = req.body;
         const hashedPassword = await bcrypt.hash(password, 10);
 
         if (role_id === 6) { /*student registration*/
-            const insertStudentQuery = 'INSERT INTO user (name, user_number, username, email, password, role_id, department, program, year_level) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)';
-            await db.promise().execute(insertStudentQuery, [name, user_number, username, email, hashedPassword, role_id, department, program, year_level]);
+            const insertStudentQuery = 'INSERT INTO user (student_idnumber, fullname,birthdate, email, password,yearlevel,profile_photo_filename, role_id, department_id, program_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?,?)';
+            await db.promise().execute(insertStudentQuery, [student_idnumber, fullname, birthdate, email, hashedPassword,yearlevel,profile_photo_filename, role_id, department_id, program_id]);
         } else { /*employee registration*/
-            const insertUserQuery = 'INSERT INTO user (name, user_number, username, email, password, role_id) VALUES (?, ?, ?, ?, ?, ?)';
+            const insertUserQuery = 'INSERT INTO user (employee_idnumber, fullname, birthdate, email, password,profile_photo_filename, role_id) VALUES (?, ?, ?, ?, ?, ?,?)';
             await db.promise().execute(insertUserQuery, [name, user_number, username, email, hashedPassword, role_id]);
         }
 
