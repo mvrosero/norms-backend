@@ -58,15 +58,17 @@ router.post('/login', async (req, res) => {
 /* Post: register user */
 router.post('/registerUser', async (req, res) => {
     try {
-        const { student_idnumber, fullname, birthdate, email, password, year_level, profile_photo_filename, role_id, department_id, program_id } = req.body;
+        const { student_idnumber,fullname, birthdate, email, password, year_level, profile_photo_filename, role_id, department_id, program_id } = req.body;
         const hashedPassword = await bcrypt.hash(password, 10);
 
         if (role_id === 6) { /* student registration */
             const insertStudentQuery = 'INSERT INTO user (student_idnumber, fullname, birthdate, email, password, year_level, profile_photo_filename, role_id, department_id, program_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)';
             await db.promise().execute(insertStudentQuery, [student_idnumber, fullname, birthdate, email, hashedPassword, year_level, profile_photo_filename, role_id, department_id, program_id]);
         } else { /* employee registration */
-            const insertUserQuery = 'INSERT INTO user (employee_idnumber, fullname, birthdate, email, password, year_level, profile_photo_filename, role_id, department_id, program_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)';
-            await db.promise().execute(insertUserQuery, [employee_idnumber, fullname, birthdate, email, hashedPassword, year_level, profile_photo_filename, role_id, department_id, program_id]);
+           const { employee_idnumber,fullname, birthdate, email, password, year_level, profile_photo_filename, role_id } = req.body;
+           const hashedPassword = await bcrypt.hash(password, 10);
+            const insertUserQuery = 'INSERT INTO user (employee_idnumber, fullname, birthdate, email, password, year_level, profile_photo_filename, role_id ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)';
+            await db.promise().execute(insertUserQuery, [employee_idnumber, fullname, birthdate, email, hashedPassword, year_level, profile_photo_filename, role_id, ]);
         }
 
         res.status(201).json({ message: 'User registered successfully' });
