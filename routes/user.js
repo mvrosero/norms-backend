@@ -10,10 +10,10 @@ const router = express.Router();
 /* Post: user login */
 router.post('/login', async (req, res) => {
     try {
-        const { student_idnumber ,employee_idnumber, password } = req.body;
+        const { student_idnumber , password } = req.body;
 
-        const getUserQuery = 'SELECT * FROM user WHERE student_idnumber = ? OR employee_idnumber = ?';
-        const [rows] = await db.promise().execute(getUserQuery, [student_idnumber, employee_idnumber]);
+        const getUserQuery = 'SELECT * FROM user WHERE student_idnumber = ? ';
+        const [rows] = await db.promise().execute(getUserQuery, [student_idnumber]);
 
         if (rows.length === 0) {
             return res.status(401).json({ error: 'Invalid user_number' });
@@ -26,7 +26,7 @@ router.post('/login', async (req, res) => {
             return res.status(401).json({ error: 'Invalid password' });
         }
 
-        const token = jwt.sign({ userId: user.user_id, user_number: user.student_idnumber || user.employee_idnumber }, secretKey, { expiresIn: '1h' });
+        const token = jwt.sign({ userId: user.student_idnumber, student_idnumber: user.student_idnumber  }, secretKey, { expiresIn: '1h' });
 
         /* Redirect user based on role */
         switch (user.role_id) {
