@@ -1,17 +1,16 @@
-const express = require('express'); /*import js*/
+const express = require('express');
 const { authenticateToken } = require('../app/middleware/authentication');
 const db = require('../app/configuration/database');
-const jwt = require('jsonwebtoken'); /*authentication, login is required to view*/
-const bcrypt = require('bcrypt'); /*password encryption*/
-const config =require('../app/middleware/config')
+const jwt = require('jsonwebtoken');
+const bcrypt = require('bcrypt');
+const config = require('../app/middleware/config');
 const secretKey = config.secretKey;
 const router = express.Router();
 
-
-/*post: user login*/
+/* Post: user login */
 router.post('/login', async (req, res) => {
     try {
-        const {user_number, password} = req.body;
+        const { user_number, password } = req.body;
 
         const getUserQuery = 'SELECT * FROM user WHERE student_idnumber = ? OR employee_idnumber = ?';
         const [rows] = await db.promise().execute(getUserQuery, [user_number, user_number]);
@@ -29,26 +28,26 @@ router.post('/login', async (req, res) => {
 
         const token = jwt.sign({ userId: user.user_id, user_number: user.student_idnumber || user.employee_idnumber }, secretKey, { expiresIn: '1h' });
 
-        /*redirect user based on role*/
+        /* Redirect user based on role */
         switch (user.role_id) {
-            case 1: /*administrator role*/
-                res.redirect('/administrator/login');  
+            case 1: /* administrator role */
+                res.redirect('/administrator/login');
                 break;
-            case 2: /*coordinator role*/
-                res.redirect('/coordinator/login'); 
+            case 2: /* coordinator role */
+                res.redirect('/coordinator/login');
                 break;
-            case 3: /*osa staff role*/
-                res.redirect('/osa_staff/login'); 
+            case 3: /* osa staff role */
+                res.redirect('/osa_staff/login');
                 break;
-            case 4: /*ncf_staff role*/
-                res.redirect('/ncf_staff/login'); 
+            case 4: /* ncf_staff role */
+                res.redirect('/ncf_staff/login');
                 break;
-            case 5: /*security role*/
-                res.redirect('/security/login'); 
+            case 5: /* security role */
+                res.redirect('/security/login');
                 break;
-            case 6: /*student role*/
-            res.redirect('/student/login'); 
-            break;
+            case 6: /* student role */
+                res.redirect('/student/login');
+                break;
         }
     } catch (error) {
         console.error('Error logging in user:', error);
@@ -56,19 +55,18 @@ router.post('/login', async (req, res) => {
     }
 });
 
-
-/*post: register user*/
+/* Post: register user */
 router.post('/registerUser', async (req, res) => {
     try {
-        const { student_idnumber, fullname,birthdate, email, password,yearlevel,profile_photo_filename, role_id, department_id, program_id } = req.body;
+        const { student_idnumber, fullname, birthdate, email, password, year_level, profile_photo_filename, role_id, department_id, program_id } = req.body;
         const hashedPassword = await bcrypt.hash(password, 10);
 
-        if (role_id === 6) { /*student registration*/
-            const insertStudentQuery = 'INSERT INTO user (student_idnumber, fullname,birthdate, email, password,yearlevel,profile_photo_filename, role_id, department_id, program_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?,?)';
-            await db.promise().execute(insertStudentQuery, [student_idnumber, fullname, birthdate, email, hashedPassword,yearlevel,profile_photo_filename, role_id, department_id, program_id]);
-        } else { /*employee registration*/
-            const insertUserQuery = 'INSERT INTO user (employee_idnumber, fullname, birthdate, email, password,profile_photo_filename, role_id) VALUES (?, ?, ?, ?, ?, ?,?)';
-            await db.promise().execute(insertUserQuery, [name, user_number, username, email, hashedPassword, role_id]);
+        if (role_id === 6) { /* student registration */
+            const insertStudentQuery = 'INSERT INTO user (student_idnumber, fullname, birthdate, email, password, year_level, profile_photo_filename, role_id, department_id, program_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)';
+            await db.promise().execute(insertStudentQuery, [student_idnumber, fullname, birthdate, email, hashedPassword, year_level, profile_photo_filename, role_id, department_id, program_id]);
+        } else { /* employee registration */
+            const insertUserQuery = 'INSERT INTO user (employee_idnumber, fullname, birthdate, email, password, role_id) VALUES (?, ?, ?, ?, ?, ?)';
+            await db.promise().execute(insertUserQuery, [student_idnumber, fullname, birthdate, email, hashedPassword, role_id]);
         }
 
         res.status(201).json({ message: 'User registered successfully' });
@@ -78,10 +76,8 @@ router.post('/registerUser', async (req, res) => {
     }
 });
 
-
-/*get: user*/
-router.get('/user/:id',  (req, res) => {
-
+/* Get: user */
+router.get('/user/:id', (req, res) => {
     let id = req.params.id;
 
     if (!id) {
@@ -89,7 +85,7 @@ router.get('/user/:id',  (req, res) => {
     }
 
     try {
-        db.query('SELECT name, user_number, username, email FROM user WHERE id = ?', id, (err, result) => {
+        db.query('SELECT name, user_number, email FROM user WHERE user_id = ?', id, (err, result) => {
             if (err) {
                 console.error('Error fetching user:', err);
                 res.status(500).json({ message: 'Internal Server Error' });
@@ -98,19 +94,15 @@ router.get('/user/:id',  (req, res) => {
             }
         });
     } catch (error) {
-
         console.error('Error loading user:', error);
         res.status(500).json({ error: 'Internal Server Error' });
     }
 });
 
-
-/*get: users*/
-router.get('/users',  (req, res) => {
-
+/* Get: users */
+router.get('/users', (req, res) => {
     try {
         db.query('SELECT * FROM user INNER JOIN role ON user.role_id = role.role_id', (err, result) => {
-
             if (err) {
                 console.error('Error fetching users:', err);
                 res.status(500).json({ message: 'Internal Server Error' });
@@ -120,25 +112,23 @@ router.get('/users',  (req, res) => {
         });
     } catch (error) {
         console.error('Error loading users:', error);
-        res.status(500).json({ error: 'Internal Server Error'});
+        res.status(500).json({ error: 'Internal Server Error' });
     }
 });
 
-
-/*put: user*/
-router.put('/user/:id',  async (req, res) => {
-
+/* Put: user */
+router.put('/user/:id', async (req, res) => {
     let user_id = req.params.id;
 
-    const {name,user_number,username,email,password,role_id} = req.body;
+    const { name, user_number, email, password, role_id } = req.body;
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    if (!user_id || !name || !user_number || !username || !email || !password || !role_id) {
-        return res.status(400).send({ error: user, message: 'Please provide password' });
+    if (!user_id || !name || !user_number || !email || !password || !role_id) {
+        return res.status(400).send({ error: true, message: 'Please provide all required fields' });
     }
 
     try {
-        db.query('UPDATE user SET name = ?, user_number = ?, username = ?, email =?, password = ?, role_id = ? WHERE user_id = ?', [name, user_number, username, email, hashedPassword, role_id, user_id], (err, result, fields) => {
+        db.query('UPDATE user SET name = ?, user_number = ?, email =?, password = ?, role_id = ? WHERE user_id = ?', [name, user_number, email, hashedPassword, role_id, user_id], (err, result) => {
             if (err) {
                 console.error('Error updating user:', err);
                 res.status(500).json({ message: 'Internal Server Error' });
@@ -152,10 +142,8 @@ router.put('/user/:id',  async (req, res) => {
     }
 });
 
-
-/*delete: user*/
-router.delete('/user/:id',  (req, res) => {
-
+/* Delete: user */
+router.delete('/user/:id', (req, res) => {
     let user_id = req.params.id;
 
     if (!user_id) {
@@ -163,21 +151,18 @@ router.delete('/user/:id',  (req, res) => {
     }
 
     try {
-        db.query('DELETE FROM user WHERE user_id = ?', id, (err, result, fields) => {
+        db.query('DELETE FROM user WHERE user_id = ?', user_id, (err, result) => {
             if (err) {
                 console.error('Error deleting user:', err);
-                res.status(500).json({ message: 'Internal Server Error'});
+                res.status(500).json({ message: 'Internal Server Error' });
             } else {
                 res.status(200).json(result);
             }
         });
     } catch (error) {
         console.error('Error loading user:', error);
-        res.status(500).json({ error: 'Internal Server Error'});
+        res.status(500).json({ error: 'Internal Server Error' });
     }
 });
 
-
-/*export*/
 module.exports = router;
-
