@@ -9,10 +9,10 @@ const router = express.Router();
 router.post('/registerUnifDefiance', async (req, res) => {
 
     try {
-        const {sanction_code, sanction_name, description, offense_id} = req.body;
+        const {student_idnumber, violation_nature,photo_video_filename,status,  submitted_by} = req.body;
         
-        const insertSanctionQuery = 'INSERT INTO sanction (sanction_code, sanction_name, description, offense_id) VALUES ( ?, ?, ?, ?)';
-        await db.promise().execute(insertSanctionQuery, [sanction_code, sanction_name, description, offense_id]);
+        const insertSanctionQuery = 'INSERT INTO uniform_defiance (student_idnumber, violation_nature, photo_video_filename, status,submitted_by) VALUES ( ?, ?, ?, ?,?)';
+        await db.promise().execute(insertSanctionQuery, [student_idnumber, violation_nature, photo_video_filename, status,submitted_by]);
 
         res.status(201).json({ message: 'Sanction registered successfully' });
     } catch (error) {
