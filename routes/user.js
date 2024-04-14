@@ -10,10 +10,10 @@ const router = express.Router();
 /* Post: user login */
 router.post('/login', async (req, res) => {
     try {
-        const { user_number, password } = req.body;
+        const { student_idnumber ,employee_idnumber, password } = req.body;
 
         const getUserQuery = 'SELECT * FROM user WHERE student_idnumber = ? OR employee_idnumber = ?';
-        const [rows] = await db.promise().execute(getUserQuery, [user_number, user_number]);
+        const [rows] = await db.promise().execute(getUserQuery, [student_idnumber, employee_idnumber]);
 
         if (rows.length === 0) {
             return res.status(401).json({ error: 'Invalid user_number' });
