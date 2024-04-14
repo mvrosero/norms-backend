@@ -1,4 +1,4 @@
-const express = require('express'); /*import js*/
+const express = require('express'); 
 const { authenticateToken } = require('../app/middleware/authentication');
 const db = require('../app/configuration/database');
 const router = express.Router();

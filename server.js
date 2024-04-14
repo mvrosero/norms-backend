@@ -9,31 +9,34 @@ app.use(cors());
 const PORT = process.env.PORT || 3001; /*port number*/
 
 /*import modules*/
+const permission = require('./routes/permission');
 const role = require('./routes/role');
-const department = require('./routes/department');
-const student = require('./routes/student');
-const employee = require('.//routes/employee');
+const user = require('./routes/user');
+const incident_report = require('./routes/incident_report');
+
 const category = require('./routes/category');
 const offense = require('./routes/offense');
 const sanction = require('./routes/sanction');
-const report = require('./routes/report');
-const violation = require('./routes/violation');
-const user = require('./routes/user');
+const violation_record = require('./routes/violation_record');
+
+
 
 
 app.use(bodyParser.json());
 
-/*routes*/
+/*define routes*/
+app.use('/', permission);
 app.use('/', role);
-app.use('/', department);
-app.use('/', student);
-app.use('/', employee);
+app.use('/', user);
+app.use('/', incident_report);
+
 app.use('/', category);
 app.use('/', offense);
 app.use('/', sanction);
-app.use('/', report);
-app.use('/', violation);
+app.use('/', violation_record);
 app.use('/', user);
+
+
 
 
 /*express JS framework*/
