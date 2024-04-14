@@ -18,6 +18,7 @@ const category = require('./routes/category');
 const offense = require('./routes/offense');
 const sanction = require('./routes/sanction');
 const violation_record = require('./routes/violation_record');
+const uniformDefiance = require('./routes/uniform_defiance');
 
 
 
@@ -35,6 +36,7 @@ app.use('/', offense);
 app.use('/', sanction);
 app.use('/', violation_record);
 app.use('/', user);
+app.use('/', uniformDefiance);
 
 
 
