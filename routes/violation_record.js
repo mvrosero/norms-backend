@@ -8,10 +8,10 @@ const router = express.Router();
 router.post('/createViolation', async (req, res) => {
 
     try {
-        const {description, student_id, category_id, offense_id, sanction_id, report_id} = req.body;
+        const {description, student_idnumber, category_id, offense_id, sanction_id, report_id} = req.body;
         
-        const insertViolationQuery = 'INSERT INTO violation (description, student_id, category_id, offense_id, sanction_id, report_id) VALUES ( ?, ?, ?, ?, ?, ?)';
-        await db.promise().execute(insertViolationQuery, [description, student_id, category_id, offense_id, sanction_id, report_id]);
+        const insertViolationQuery = 'INSERT INTO violation (description, student_idnumber, category_id, offense_id, sanction_id, report_id) VALUES ( ?, ?, ?, ?, ?, ?)';
+        await db.promise().execute(insertViolationQuery, [description, student_idnumber, category_id, offense_id, sanction_id, report_id]);
 
         res.status(201).json({ message: 'Violation recorded successfully' });
     } catch (error) {
@@ -51,7 +51,7 @@ router.get('/violation/:id',  (req, res) => {
 router.get('/violations', (req, res) => {
 
     try {
-        db.query('SELECT description, student_id, category_id, offense_id, sanction_id, report_id FROM violation', (err, result) => {
+        db.query('SELECT student_idnumber, description, created_at, updated_by, created_by, academic_year,semester,category_id,offense_id,sanction_id FROM violation_record', (err, result) => {
 
             if (err) {
                 console.error('Error fetching violations:', err);

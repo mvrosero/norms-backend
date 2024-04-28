@@ -13,13 +13,13 @@ const permission = require('./routes/permission');
 const role = require('./routes/role');
 const user = require('./routes/user');
 const incident_report = require('./routes/incident_report');
-
+const departments = require('./routes/department');
 const category = require('./routes/category');
 const offense = require('./routes/offense');
 const sanction = require('./routes/sanction');
 const violation_record = require('./routes/violation_record');
 const uniformDefiance = require('./routes/uniform_defiance');
-
+const programRoutes = require('./routes/programs')
 
 
 
@@ -30,6 +30,7 @@ app.use('/', permission);
 app.use('/', role);
 app.use('/', user);
 app.use('/', incident_report);
+app.use('/', departments);
 
 app.use('/', category);
 app.use('/', offense);
@@ -37,6 +38,7 @@ app.use('/', sanction);
 app.use('/', violation_record);
 app.use('/', user);
 app.use('/', uniformDefiance);
+app.use('/', programRoutes);
 
 
 

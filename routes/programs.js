@@ -48,10 +48,10 @@ router.get('/department/:id',  (req, res) => {
 
 
 /*get: departments*/
-router.get('/departments', (req, res) => {
+router.get('/programs', (req, res) => {
 
     try {
-        db.query('SELECT department_id, department_code, department_name FROM department', (err, result) => {
+        db.query('SELECT program_id, program_code, program_name FROM program', (err, result) => {
 
             if (err) {
                 console.error('Error fetching departments:', err);
