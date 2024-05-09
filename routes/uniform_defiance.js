@@ -5,22 +5,24 @@ const bcrypt = require('bcrypt');
 const router = express.Router();
 
 
-/*post: sanction*/
 router.post('/registerUnifDefiance', async (req, res) => {
-
     try {
-        const {student_idnumber, violation_nature,photo_video_filename,status,  submitted_by} = req.body;
+        const { student_idnumber, violation_nature, photo_video_filename, status, submitted_by } = req.body;
         
-        const insertSanctionQuery = 'INSERT INTO uniform_defiance (student_idnumber, violation_nature, photo_video_filename, status,submitted_by) VALUES ( ?, ?, ?, ?,?)';
-        await db.promise().execute(insertSanctionQuery, [student_idnumber, violation_nature, photo_video_filename, status,submitted_by]);
+        // SQL query to insert a new record into the uniform_defiance table
+        const insertQuery = 'INSERT INTO uniform_defiance (student_idnumber, violation_nature, photo_video_filename, status, submitted_by) VALUES (?, ?, ?, ?, ?)';
+        
+        // Execute the query
+        await db.execute(insertQuery, [student_idnumber, violation_nature, photo_video_filename, status, submitted_by]);
 
-        res.status(201).json({ message: 'Sanction registered successfully' });
+        // Send a success response
+        res.status(201).json({ message: 'Uniform defiance record registered successfully' });
     } catch (error) {
-        console.error('Error registering sanction:', error);
+        console.error('Error registering uniform defiance record:', error);
+        // Send an error response
         res.status(500).json({ error: 'Internal Server Error' });
     }
 });
-
 
 /*get: 1 sanction*/
 router.get('/sanction/:id',  (req, res) => {
@@ -48,10 +50,10 @@ router.get('/sanction/:id',  (req, res) => {
 
 
 /*get: sanctions*/
-router.get('/sanctions', (req, res) => {
+router.get('/uniformDefiances', (req, res) => {
 
     try {
-        db.query('SELECT sanction_code, sanction_name, description, offense_id FROM sanction', (err, result) => {
+        db.query('SELECT * FROM uniform_defiance', (err, result) => {
 
             if (err) {
                 console.error('Error fetching sanctions:', err);

@@ -51,7 +51,7 @@ router.get('/sanction/:id',  (req, res) => {
 router.get('/sanctions', (req, res) => {
 
     try {
-        db.query('SELECT sanction_code, sanction_name, description, offense_id FROM sanction', (err, result) => {
+        db.query('SELECT sanction_code, sanction_name, description FROM sanction', (err, result) => {
 
             if (err) {
                 console.error('Error fetching sanctions:', err);
