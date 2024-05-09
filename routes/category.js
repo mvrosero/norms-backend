@@ -1,11 +1,10 @@
-const express = require('express'); /*import js*/
-const { authenticateToken } = require('../app/middleware/authentication');
+const express = require('express'); 
 const db = require('../app/configuration/database');
 const router = express.Router();
 
 
 /*post: category*/
-router.post('/registerCategory', async (req, res) => {
+router.post('/register-category', async (req, res) => {
 
     try {
         const {category_name} = req.body;
@@ -51,7 +50,7 @@ router.get('/category/:id',  (req, res) => {
 router.get('/categories', (req, res) => {
 
     try {
-        db.query('SELECT category_id, category_name FROM category', (err, result) => {
+        db.query('SELECT * FROM category', (err, result) => {
 
             if (err) {
                 console.error('Error fetching categories:', err);
@@ -119,6 +118,5 @@ router.delete('/category/:id', (req, res) => {
 });
 
 
-/*export*/
 module.exports = router;
 

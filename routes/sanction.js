@@ -1,18 +1,16 @@
-const express = require('express'); /*import js*/
-const { authenticateToken } = require('../app/middleware/authentication');
+const express = require('express'); 
 const db = require('../app/configuration/database');
-const bcrypt = require('bcrypt'); 
 const router = express.Router();
 
 
 /*post: sanction*/
-router.post('/registerSanction', async (req, res) => {
+router.post('/register-sanction', async (req, res) => {
 
     try {
-        const {sanction_code, sanction_name, description, offense_id} = req.body;
+        const {sanction_code, sanction_name, status} = req.body;
         
-        const insertSanctionQuery = 'INSERT INTO sanction (sanction_code, sanction_name, description, offense_id) VALUES ( ?, ?, ?, ?)';
-        await db.promise().execute(insertSanctionQuery, [sanction_code, sanction_name, description, offense_id]);
+        const insertSanctionQuery = 'INSERT INTO sanction (sanction_code, sanction_name, status) VALUES ( ?, ?, ?)';
+        await db.promise().execute(insertSanctionQuery, [sanction_code, sanction_name, status]);
 
         res.status(201).json({ message: 'Sanction registered successfully' });
     } catch (error) {
@@ -32,7 +30,7 @@ router.get('/sanction/:id',  (req, res) => {
     }
 
     try {
-        db.query('SELECT sanction_id, sanction_code, sanction_name, description, offense_id FROM sanction WHERE sanction_id = ?', sanction_id, (err, result) => {
+        db.query('SELECT sanction_id, sanction_code, sanction_name FROM sanction WHERE sanction_id = ?', sanction_id, (err, result) => {
             if (err) {
                 console.error('Error fetching sanction:', err);
                 res.status(500).json({ message: 'Internal Server Error' });
@@ -41,6 +39,7 @@ router.get('/sanction/:id',  (req, res) => {
             }
         });
     } catch (error) {
+
         console.error('Error loading sanction:', error);
         res.status(500).json({ error: 'Internal Server Error' });
     }
@@ -51,7 +50,7 @@ router.get('/sanction/:id',  (req, res) => {
 router.get('/sanctions', (req, res) => {
 
     try {
-        db.query('SELECT sanction_code, sanction_name, description FROM sanction', (err, result) => {
+        db.query('SELECT * FROM sanction', (err, result) => {
 
             if (err) {
                 console.error('Error fetching sanctions:', err);
@@ -72,14 +71,14 @@ router.put('/sanction/:id', async (req, res) => {
 
     let sanction_id = req.params.id;
 
-    const {sanction_code, sanction_name, description} = req.body;
+    const {sanction_code, sanction_name} = req.body;
 
-    if (!sanction_id || !sanction_code || !sanction_name || !description) {
-        return res.status(400).send({ error: user, message: 'Please provide sanction code, sanction name and description' });
+    if (!sanction_id || !sanction_code || !sanction_name) {
+        return res.status(400).send({ error: user, message: 'Please provide information' });
     }
 
     try {
-        db.query('UPDATE sanction SET sanction_code = ?, sanction_name = ?, description = ? WHERE sanction_id = ?', [sanction_code, sanction_name, description, sanction_id], (err, result, fields) => {
+        db.query('UPDATE sanction SET sanction_code = ?, sanction_name = ? WHERE sanction_id = ?', [sanction_code, sanction_name, sanction_id], (err, result, fields) => {
             if (err) {
                 console.error('Error updating sanction:', err);
                 res.status(500).json({ message: 'Internal Server Error' });
@@ -94,31 +93,4 @@ router.put('/sanction/:id', async (req, res) => {
 });
 
 
-/*delete: sanction*/
-router.delete('/sanction/:id', (req, res) => {
-
-    let sanction_id = req.params.id;
-
-    if (!sanction_id) {
-        return res.status(400).send({ error: true, message: 'Please provide sanction_id' });
-    }
-
-    try {
-        db.query('DELETE FROM sanction WHERE sanction_id = ?', sanction_id, (err, result, fields) => {
-            if (err) {
-                console.error('Error deleting sanction:', err);
-                res.status(500).json({ message: 'Internal Server Error'});
-            } else {
-                res.status(200).json(result);
-            }
-        });
-    } catch (error) {
-        console.error('Error loading sanction:', error);
-        res.status(500).json({ error: 'Internal Server Error'});
-    }
-});
-
-
-
-/*export*/
 module.exports = router;

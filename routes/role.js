@@ -1,11 +1,10 @@
 const express = require('express'); 
-const { authenticateToken } = require('../app/middleware/authentication');
 const db = require('../app/configuration/database');
 const router = express.Router();
 
 
 /*post: role*/
-router.post('/registerRole', async (req, res) => {
+router.post('/register-role', async (req, res) => {
 
     try {
         const {role_code, role_name} = req.body;
@@ -119,5 +118,4 @@ router.delete('/role/:id', (req, res) => {
 });
 
 
-/*export*/
 module.exports = router;

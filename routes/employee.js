@@ -1,5 +1,4 @@
 const express = require('express');
-const { authenticateToken } = require('../app/middleware/authentication');
 const db = require('../app/configuration/database');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcrypt');
@@ -7,7 +6,8 @@ const config = require('../app/middleware/config');
 const secretKey = config.secretKey;
 const router = express.Router();
 
-/* post: employee login */
+
+/*post: employee login*/
 router.post('/employee-login', async (req, res) => {
     try {
         const { employee_idnumber, password } = req.body;
@@ -26,13 +26,13 @@ router.post('/employee-login', async (req, res) => {
             return res.status(401).json({ error: 'Invalid password' });
         }
 
-        // Retrieve the role_id from the user data
+        /*retrieve the role_id from the user data*/
         const { role_id } = user;
 
-        // generate JWT token
+        /*generate JWT token*/
         const token = jwt.sign({ userId: user.employee_idnumber, employee_idnumber: user.employee_idnumber }, secretKey, { expiresIn: '1h' });
 
-        // return token and role_id in response
+        /*return token and role_id in response*/
         res.status(200).json({ token, role_id });
     } catch (error) {
         console.error('Error logging in employee:', error);
@@ -40,13 +40,14 @@ router.post('/employee-login', async (req, res) => {
     }
 });
 
+
 /* post: register employee */
 router.post('/register-employee', async (req, res) => {
     try {
-        const { employee_idnumber, first_name,middle_name,last_name,suffix, birthdate, email, password,profile_photo_filename, role_id, department_id } = req.body;
+        const { employee_idnumber, first_name, middle_name, last_name, suffix, birthdate, email, password, profile_photo_filename, role_id } = req.body;
         const hashedPassword = await bcrypt.hash(password, 10);
-        const insertEmployeeQuery = 'INSERT INTO user (employee_idnumber, first_name,middle_name,last_name,suffix, birthdate, email, password,profile_photo_filename, role_id, department_id) VALUES (?, ?, ?, ?, ?, ?, ?,?,?,?,?)';
-        await db.promise().execute(insertEmployeeQuery, [employee_idnumber, first_name,middle_name,last_name,suffix, birthdate, email, hashedPassword,profile_photo_filename, role_id, department_id]);
+        const insertEmployeeQuery = 'INSERT INTO user (employee_idnumber, first_name, middle_name, last_name, suffix, birthdate, email, password, profile_photo_filename, role_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)';
+        await db.promise().execute(insertEmployeeQuery, [employee_idnumber, first_name, middle_name, last_name, suffix, birthdate, email, hashedPassword, profile_photo_filename, role_id]);
 
         res.status(201).json({ message: 'Employee registered successfully' });
     } catch (error) {
@@ -55,10 +56,37 @@ router.post('/register-employee', async (req, res) => {
     }
 });
 
-/* get: employees */
+
+/*get: 1 employee*/
+router.get('/employee/:id',  (req, res) => {
+
+    let user_id = req.params.id;
+
+    if (!user_id) {
+        return res.status(400).send({ error: true, message: 'Please provide user_id' });
+    }
+
+    try {
+        db.query('SELECT employee_idnumber, first_name,middle_name,last_name,suffix, birthdate, email, profile_photo_filename, role_id, status  FROM user WHERE user_id = ?', user_id, (err, result) => {
+            if (err) {
+                console.error('Error fetching employee:', err);
+                res.status(500).json({ message: 'Internal Server Error' });
+            } else {
+                res.status(200).json(result);
+            }
+        });
+    } catch (error) {
+
+        console.error('Error loading employee:', error);
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
+
+
+/*get: employees*/
 router.get('/employees', (req, res) => {
     try {
-        db.query(`SELECT employee_idnumber, first_name,middle_name,last_name,suffix, birthdate, email, profile_photo_filename, role_id, department_id ,status  FROM user WHERE employee_idnumber IS NOT NULL`, (err, result) => {
+        db.query(`SELECT * FROM user WHERE employee_idnumber IS NOT NULL`, (err, result) => {
             if (err) {
                 console.error('Error fetching employees:', err);
                 res.status(500).json({ message: 'Internal Server Error' });
@@ -71,5 +99,57 @@ router.get('/employees', (req, res) => {
         res.status(500).json({ error: 'Internal Server Error' });
     }
 });
+
+
+/*put: employee*/
+router.put('/employee/:id', async (req, res) => {
+
+    let user_id = req.params.id;
+
+    const { employee_idnumber, first_name, middle_name, last_name, suffix, birthdate, email, profile_photo_filename, role_id, status } = req.body;
+
+    if (!user_id || !employee_idnumber || !first_name || !last_name || !birthdate || !email || !profile_photo_filename || !role_id || !status) {
+        return res.status(400).send({ error: 'Please provide all details' });
+    }
+
+    try {
+        db.query('UPDATE user SET employee_idnumber = ?, first_name = ?, middle_name = ?, last_name = ?, suffix = ?, birthdate = ?, email = ?, profile_photo_filename = ?, role_id = ?, status = ? WHERE user_id = ?', [employee_idnumber, first_name, middle_name, last_name, suffix, birthdate, email, profile_photo_filename, role_id, status, user_id], (err, result, fields) => {
+            if (err) {
+                console.error('Error updating employee:', err);
+                return res.status(500).json({ message: 'Internal Server Error' });
+            }
+            res.status(200).json(result);
+        });
+    } catch (error) {
+        console.error('Error updating employee:', error);
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
+
+
+/*delete: employee*/
+router.delete('/employee/:id', (req, res) => {
+
+    let user_id = req.params.id;
+
+    if (!user_id) {
+        return res.status(400).send({ error: true, message: 'Please provide user_id' });
+    }
+
+    try {
+        db.query('DELETE FROM user WHERE user_id = ?', user_id, (err, result, fields) => {
+            if (err) {
+                console.error('Error deleting employee:', err);
+                res.status(500).json({ message: 'Internal Server Error'});
+            } else {
+                res.status(200).json(result);
+            }
+        });
+    } catch (error) {
+        console.error('Error loading employee:', error);
+        res.status(500).json({ error: 'Internal Server Error'});
+    }
+});
+
 
 module.exports = router;

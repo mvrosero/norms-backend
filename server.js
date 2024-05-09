@@ -1,49 +1,43 @@
-const express = require('express'); /*import js*/
-const bodyParser = require('body-parser'); /*route*/
+const express = require('express'); 
+const bodyParser = require('body-parser'); 
 
 /*enables cors for all routes*/
 const app = express();
-const cors = require('cors'); /*enables submitting data*/
+/*enables submitting data*/
+const cors = require('cors'); 
 app.use(cors());
 
-const PORT = process.env.PORT || 9000; /*port number*/
+/*port number*/
+const PORT = process.env.PORT || 9000; 
 
 /*import modules*/
 const student = require('./routes/student')
-const permission = require('./routes/permission');
 const role = require('./routes/role');
 const employee = require('./routes/employee');
-const incident_report = require('./routes/incident_report');
-const departments = require('./routes/department');
+const department = require('./routes/department');
 const category = require('./routes/category');
 const offense = require('./routes/offense');
 const sanction = require('./routes/sanction');
 const violation_record = require('./routes/violation_record');
-const uniformDefiance = require('./routes/uniform_defiance');
-const programRoutes = require('./routes/programs');
-const UserRoutes = require('./routes/users');
+const program = require('./routes/program');
+const users = require('./routes/users');
+const academic_year = require('./routes/academic_year');
 
 
 app.use(bodyParser.json());
 
 /*define routes*/
 app.use('/', student);
-app.use('/', permission);
 app.use('/', role);
 app.use('/', employee);
-app.use('/', incident_report);
-app.use('/', departments);
-
+app.use('/', department);
 app.use('/', category);
 app.use('/', offense);
 app.use('/', sanction);
 app.use('/', violation_record);
-app.use('/', uniformDefiance);
-app.use('/', programRoutes);
-app.use('/', UserRoutes);
-
-
-
+app.use('/', program);
+app.use('/', users);
+app.use('/', academic_year);
 
 
 /*express JS framework*/
