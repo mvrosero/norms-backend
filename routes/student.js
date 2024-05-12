@@ -57,26 +57,29 @@ router.post('/register-student', async (req, res) => {
 });
 
 
-/*get: 1 student*/
-router.get('/student/:id',  (req, res) => {
 
-    let user_id = req.params.id;
+/*get: 1 student using student_idnumber*/
+router.get('/student/:student_idnumber', (req, res) => {
+    let student_idnumber = req.params.student_idnumber;
 
-    if (!user_id) {
-        return res.status(400).send({ error: true, message: 'Please provide user_id' });
+    if (!student_idnumber) {
+        return res.status(400).send({ error: true, message: 'Please provide student_idnumber' });
     }
 
     try {
-        db.query('SELECT student_idnumber, first_name, middle_name, last_name, suffix, birthdate, email, profile_photo_filename, year_level, department_id, program_id, role_id, status  FROM user WHERE user_id = ?', user_id, (err, result) => {
-            if (err) {
-                console.error('Error fetching student:', err);
-                res.status(500).json({ message: 'Internal Server Error' });
-            } else {
-                res.status(200).json(result);
+        db.query(
+            'SELECT u.student_idnumber, u.first_name, u.middle_name, u.last_name, u.suffix, u.birthdate, u.email, u.profile_photo_filename, u.year_level, d.department_name, p.program_name, u.role_id, u.status FROM user u JOIN department d ON u.department_id = d.department_id JOIN program p ON u.program_id = p.program_id WHERE u.student_idnumber = ?',
+            student_idnumber,
+            (err, result) => {
+                if (err) {
+                    console.error('Error fetching student:', err);
+                    res.status(500).json({ message: 'Internal Server Error' });
+                } else {
+                    res.status(200).json(result);
+                }
             }
-        });
+        );
     } catch (error) {
-
         console.error('Error loading student:', error);
         res.status(500).json({ error: 'Internal Server Error' });
     }
@@ -106,14 +109,14 @@ router.put('/student/:id', async (req, res) => {
 
     let user_id = req.params.id;
 
-    const { student_idnumber, first_name, middle_name, last_name, suffix, birthdate, email, profile_photo_filename, year_level, department_id, program_id, role_id, status } = req.body;
+    const { student_idnumber, first_name, middle_name, last_name, suffix, birthdate, email, profile_photo_filename, year_level, department_id, program_id, status } = req.body;
 
-    if (!user_id || !student_idnumber || !first_name || !last_name || !birthdate || !email || !profile_photo_filename || ! year_level || ! department_id || ! program_id || !role_id || !status) {
+    if (!user_id || !student_idnumber || !first_name || !last_name || !birthdate || !email || !profile_photo_filename || ! year_level || ! department_id || ! program_id || !status) {
         return res.status(400).send({ error: 'Please provide all details' });
     }
 
     try {
-        db.query('UPDATE user SET student_idnumber = ?, first_name = ?, middle_name = ?, last_name = ?, suffix = ?, birthdate = ?, email = ?, profile_photo_filename = ?, year_level = ?, department_id = ?, program_id = ?, role_id = ?, status = ? WHERE user_id = ?', [student_idnumber, first_name, middle_name, last_name, suffix, birthdate, email, profile_photo_filename, year_level, department_id, program_id, role_id, status, user_id], (err, result, fields) => {
+        db.query('UPDATE user SET student_idnumber = ?, first_name = ?, middle_name = ?, last_name = ?, suffix = ?, birthdate = ?, email = ?, profile_photo_filename = ?, year_level = ?, department_id = ?, program_id = ?, status = ? WHERE user_id = ?', [student_idnumber, first_name, middle_name, last_name, suffix, birthdate, email, profile_photo_filename, year_level, department_id, program_id, status, user_id], (err, result, fields) => {
             if (err) {
                 console.error('Error updating student:', err);
                 return res.status(500).json({ message: 'Internal Server Error' });

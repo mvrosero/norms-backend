@@ -22,7 +22,8 @@ const violation_record = require('./routes/violation_record');
 const program = require('./routes/program');
 const users = require('./routes/users');
 const academic_year = require('./routes/academic_year');
-
+const administrator = require('./routes/administrator');
+const semester = require('./routes/semester');
 
 app.use(bodyParser.json());
 
@@ -38,6 +39,9 @@ app.use('/', violation_record);
 app.use('/', program);
 app.use('/', users);
 app.use('/', academic_year);
+app.use('/', administrator);
+app.use('/', semester);
+
 
 
 /*express JS framework*/

@@ -2,14 +2,13 @@ const express = require('express');
 const db = require('../app/configuration/database');
 const router = express.Router();
 
-
-/*post: academic year*/
+/* post: academic year */
 router.post('/register-academicyear', async (req, res) => {
     try {
-        const { acadyear_name, semester, status } = req.body;
+        const { acadyear_name, status } = req.body;
         
-        const insertAcademicYearQuery = 'INSERT INTO academic_year (acadyear_name, semester, status) VALUES (?, ?, ?)';
-        await db.promise().execute(insertAcademicYearQuery, [acadyear_name, semester, status]);
+        const insertAcademicYearQuery = 'INSERT INTO academic_year (acadyear_name, status) VALUES (?, ?)';
+        await db.promise().execute(insertAcademicYearQuery, [acadyear_name, status]);
 
         res.status(201).json({ message: 'Academic year registered successfully' });
     } catch (error) {
@@ -18,8 +17,7 @@ router.post('/register-academicyear', async (req, res) => {
     }
 });
 
-
-/*get: 1 academic year*/
+/* get: 1 academic year */
 router.get('/academic_year/:id', (req, res) => {
     let acadyear_id = req.params.id;
 
@@ -28,7 +26,7 @@ router.get('/academic_year/:id', (req, res) => {
     }
 
     try {
-        db.query('SELECT acadyear_id, acadyear_name, semester, status FROM academic_year WHERE acadyear_id = ?', acadyear_id, (err, result) => {
+        db.query('SELECT acadyear_id, acadyear_name, status FROM academic_year WHERE acadyear_id = ?', acadyear_id, (err, result) => {
             if (err) {
                 console.error('Error fetching academic year:', err);
                 res.status(500).json({ message: 'Internal Server Error' });
@@ -42,7 +40,7 @@ router.get('/academic_year/:id', (req, res) => {
     }
 });
 
-/*get: academic years*/
+/* get: academic years */
 router.get('/academic_years', (req, res) => {
     try {
         db.query('SELECT * FROM academic_year', (err, result) => {
@@ -56,6 +54,30 @@ router.get('/academic_years', (req, res) => {
     } catch (error) {
         console.error('Error loading academic years:', error);
         res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
+
+/*delete: academic year*/
+router.delete('/academic_year/:id', (req, res) => {
+
+    let acadyear_id = req.params.id;
+
+    if (!acadyear_id) {
+        return res.status(400).send({ error: true, message: 'Please provide acadyear_id' });
+    }
+
+    try {
+        db.query('DELETE FROM academic_year WHERE acadyear_id = ?', acadyear_id, (err, result, fields) => {
+            if (err) {
+                console.error('Error deleting academic year:', err);
+                res.status(500).json({ message: 'Internal Server Error'});
+            } else {
+                res.status(200).json(result);
+            }
+        });
+    } catch (error) {
+        console.error('Error loading academic year:', error);
+        res.status(500).json({ error: 'Internal Server Error'});
     }
 });
 

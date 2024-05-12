@@ -103,28 +103,33 @@ router.get('/employees', (req, res) => {
 
 /*put: employee*/
 router.put('/employee/:id', async (req, res) => {
-
-    let user_id = req.params.id;
-
-    const { employee_idnumber, first_name, middle_name, last_name, suffix, birthdate, email, profile_photo_filename, role_id, status } = req.body;
-
-    if (!user_id || !employee_idnumber || !first_name || !last_name || !birthdate || !email || !profile_photo_filename || !role_id || !status) {
-        return res.status(400).send({ error: 'Please provide all details' });
-    }
-
     try {
-        db.query('UPDATE user SET employee_idnumber = ?, first_name = ?, middle_name = ?, last_name = ?, suffix = ?, birthdate = ?, email = ?, profile_photo_filename = ?, role_id = ?, status = ? WHERE user_id = ?', [employee_idnumber, first_name, middle_name, last_name, suffix, birthdate, email, profile_photo_filename, role_id, status, user_id], (err, result, fields) => {
-            if (err) {
-                console.error('Error updating employee:', err);
-                return res.status(500).json({ message: 'Internal Server Error' });
+        const user_id = req.params.id;
+        const { employee_idnumber, first_name, middle_name, last_name, suffix, birthdate, email, password, profile_photo_filename, role_id, status } = req.body;
+
+        // Validate required fields
+        if (!user_id || !employee_idnumber || !first_name || !last_name || !birthdate || !email || !profile_photo_filename || !role_id || !status) {
+            return res.status(400).json({ error: 'Please provide all required details' });
+        }
+
+        // Perform database update
+        db.query(
+            'UPDATE user SET employee_idnumber = ?, first_name = ?, middle_name = ?, last_name = ?, suffix = ?, birthdate = ?, email = ?, password = ?, profile_photo_filename = ?, role_id = ?, status = ? WHERE user_id = ?', 
+            [employee_idnumber, first_name, middle_name, last_name, suffix, birthdate, email, password, profile_photo_filename, role_id, status, user_id], 
+            (err, result) => {
+                if (err) {
+                    console.error('Error updating employee:', err);
+                    return res.status(500).json({ error: 'Internal Server Error' });
+                }
+                res.status(200).json({ message: 'Employee updated successfully', result });
             }
-            res.status(200).json(result);
-        });
+        );
     } catch (error) {
         console.error('Error updating employee:', error);
         res.status(500).json({ error: 'Internal Server Error' });
     }
 });
+
 
 
 /*delete: employee*/
