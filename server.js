@@ -43,7 +43,7 @@ app.use('/', administrator);
 app.use('/', semester);
 
 
-
+  
 /*express JS framework*/
 app.get('/', (req, res) => {
     res.json({message: 'Restful API Backend Using ExpressJS'});

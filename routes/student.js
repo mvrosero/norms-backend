@@ -32,8 +32,8 @@ router.post('/student-login', async (req, res) => {
         /*generate JWT token*/
         const token = jwt.sign({ userId: user.student_idnumber, student_idnumber: user.student_idnumber }, secretKey, { expiresIn: '1h' });
 
-        /*return token and role_id in response*/
-        res.status(200).json({ token, role_id });
+        /*return token, role_id, and student_idnumber in response*/
+        res.status(200).json({ token, role_id, student_idnumber: user.student_idnumber });
     } catch (error) {
         console.error('Error logging in student:', error);
         res.status(500).json({ error: 'Internal Server Error' });
