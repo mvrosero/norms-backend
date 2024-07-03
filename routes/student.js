@@ -26,14 +26,18 @@ router.post('/student-login', async (req, res) => {
             return res.status(401).json({ error: 'Invalid password' });
         }
 
-        /*retrieve the role_id from the user data*/
-        const { role_id } = user;
+        /*retrieve the role_id and first_name from the user data*/
+        const { role_id, first_name } = user;
 
         /*generate JWT token*/
-        const token = jwt.sign({ userId: user.student_idnumber, student_idnumber: user.student_idnumber }, secretKey, { expiresIn: '1h' });
+        const token = jwt.sign(
+            { student_idnumber: user.student_idnumber, first_name },
+            secretKey,
+            { expiresIn: '1h' }
+        );
 
         /*return token, role_id, and student_idnumber in response*/
-        res.status(200).json({ token, role_id, student_idnumber: user.student_idnumber });
+        res.status(200).json({ token, role_id, student_idnumber: user.student_idnumber, first_name });
     } catch (error) {
         console.error('Error logging in student:', error);
         res.status(500).json({ error: 'Internal Server Error' });
@@ -109,14 +113,14 @@ router.put('/student/:id', async (req, res) => {
 
     let user_id = req.params.id;
 
-    const { student_idnumber, first_name, middle_name, last_name, suffix, birthdate, email, profile_photo_filename, year_level, department_id, program_id, status } = req.body;
+    const { student_idnumber, first_name, middle_name, last_name, suffix, birthdate, email, year_level, department_id, program_id, status } = req.body;
 
-    if (!user_id || !student_idnumber || !first_name || !last_name || !birthdate || !email || !profile_photo_filename || ! year_level || ! department_id || ! program_id || !status) {
+    if (!user_id || !student_idnumber || !first_name || !last_name || !birthdate || !email || ! year_level || ! department_id || ! program_id || !status) {
         return res.status(400).send({ error: 'Please provide all details' });
     }
 
     try {
-        db.query('UPDATE user SET student_idnumber = ?, first_name = ?, middle_name = ?, last_name = ?, suffix = ?, birthdate = ?, email = ?, profile_photo_filename = ?, year_level = ?, department_id = ?, program_id = ?, status = ? WHERE user_id = ?', [student_idnumber, first_name, middle_name, last_name, suffix, birthdate, email, profile_photo_filename, year_level, department_id, program_id, status, user_id], (err, result, fields) => {
+        db.query('UPDATE user SET student_idnumber = ?, first_name = ?, middle_name = ?, last_name = ?, suffix = ?, birthdate = ?, email = ?, year_level = ?, department_id = ?, program_id = ?, status = ? WHERE user_id = ?', [student_idnumber, first_name, middle_name, last_name, suffix, birthdate, email, year_level, department_id, program_id, status, user_id], (err, result, fields) => {
             if (err) {
                 console.error('Error updating student:', err);
                 return res.status(500).json({ message: 'Internal Server Error' });
