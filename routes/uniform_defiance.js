@@ -1,22 +1,36 @@
 const express = require('express');
 const db = require('../app/configuration/database');
 const router = express.Router();
+const multer = require('multer'); // For handling file uploads
+const path = require('path');
 
+// Multer setup - define storage and file filter
+const storage = multer.diskStorage({
+    destination: function (req, file, cb) {
+        cb(null, 'uploads/'); // Directory where files will be uploaded
+    },
+    filename: function (req, file, cb) {
+        cb(null, Date.now() + path.extname(file.originalname)); // Unique filename
+    }
+});
 
-/*post: uniform defiance*/
-router.post('/create-uniformdefiance', async (req, res) => {
+const upload = multer({ storage: storage });
+
+/* post: uniform defiance */
+router.post('/create-uniformdefiance', upload.single('photo_video_file'), async (req, res) => {
     try {
-        const { student_idnumber, violation_nature, photo_video_filename, status, submitted_by } = req.body;
+        const { student_idnumber, violation_nature, submitted_by } = req.body;
+        const photo_video_filename = req.file.filename; // Retrieve uploaded file name
 
         // Check if any required fields are missing
-        if (!student_idnumber || !violation_nature || !photo_video_filename || !status || !submitted_by) {
+        if (!student_idnumber || !violation_nature || !photo_video_filename || !submitted_by) {
             return res.status(400).json({ error: 'Missing required fields' });
         }
 
         const currentTimestamp = new Date().toISOString().slice(0, 19).replace('T', ' ');
-        const insertDefianceQuery = 'INSERT INTO uniform_defiance (student_idnumber, violation_nature, photo_video_filename, status, created_at, submitted_by) VALUES (?, ?, ?, ?, ?, ?)';
-        
-        await db.promise().execute(insertDefianceQuery, [student_idnumber, violation_nature, photo_video_filename, status, currentTimestamp, submitted_by]);
+        const insertDefianceQuery = 'INSERT INTO uniform_defiance (student_idnumber, violation_nature, photo_video_filename, created_at, submitted_by) VALUES (?, ?, ?, ?, ?)';
+
+        await db.promise().execute(insertDefianceQuery, [student_idnumber, violation_nature, photo_video_filename, currentTimestamp, submitted_by]);
 
         res.status(201).json({ message: 'Uniform defiance recorded successfully' });
     } catch (error) {
