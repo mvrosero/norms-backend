@@ -11,37 +11,40 @@ app.use(cors());
 const PORT = process.env.PORT || 9000; 
 
 /*import modules*/
-const student = require('./routes/student')
 const role = require('./routes/role');
+const users = require('./routes/users');
+const student = require('./routes/student');
+const administrator = require('./routes/administrator');
 const employee = require('./routes/employee');
 const department = require('./routes/department');
+const program = require('./routes/program');
+const academic_year = require('./routes/academic_year');
+const semester = require('./routes/semester');
 const category = require('./routes/category');
 const offense = require('./routes/offense');
 const sanction = require('./routes/sanction');
 const violation_record = require('./routes/violation_record');
-const program = require('./routes/program');
-const users = require('./routes/users');
-const academic_year = require('./routes/academic_year');
-const administrator = require('./routes/administrator');
-const semester = require('./routes/semester');
+const uniform_defiance = require('./routes/uniform_defiance');
+const announcement = require('./routes/announcement');
 
 app.use(bodyParser.json());
 
 /*define routes*/
-app.use('/', student);
 app.use('/', role);
+app.use('/', users);
+app.use('/', student);
 app.use('/', employee);
+app.use('/', administrator);
 app.use('/', department);
+app.use('/', program);
+app.use('/', academic_year);
+app.use('/', semester);
 app.use('/', category);
 app.use('/', offense);
 app.use('/', sanction);
 app.use('/', violation_record);
-app.use('/', program);
-app.use('/', users);
-app.use('/', academic_year);
-app.use('/', administrator);
-app.use('/', semester);
-
+app.use('/', uniform_defiance);
+app.use('/', announcement);
 
   
 /*express JS framework*/
