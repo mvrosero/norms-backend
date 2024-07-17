@@ -47,6 +47,7 @@ router.post('/create-uniformdefiance', upload.single('photo_video_file'), async 
     }
 });
 
+
 /*get: 1 uniform_defiance*/
 router.get('/uniform_defiance/:id', (req, res) => {
     let slip_id = req.params.id;
@@ -61,7 +62,24 @@ router.get('/uniform_defiance/:id', (req, res) => {
                 console.error('Error fetching uniform defiance:', err);
                 res.status(500).json({ message: 'Internal Server Error' });
             } else {
-                res.status(200).json(result);
+                if (result.length > 0) {
+                    const { photo_video_filename } = result[0];
+                    const fileExtension = photo_video_filename.split('.').pop().toLowerCase();
+
+                    if (fileExtension === 'mp4' || fileExtension === 'avi' || fileExtension === 'mov') {
+                        // Return video file
+                        const filePath = path.join(__dirname, `../uploads/${photo_video_filename}`);
+                        res.sendFile(filePath);
+                    } else if (fileExtension === 'jpg' || fileExtension === 'jpeg' || fileExtension === 'png' || fileExtension === 'gif') {
+                        // Return image file
+                        const filePath = path.join(__dirname, `../uploads/${photo_video_filename}`);
+                        res.sendFile(filePath);
+                    } else {
+                        res.status(400).json({ message: 'Unsupported file format' });
+                    }
+                } else {
+                    res.status(404).json({ message: 'Record not found' });
+                }
             }
         });
     } catch (error) {
@@ -69,6 +87,7 @@ router.get('/uniform_defiance/:id', (req, res) => {
         res.status(500).json({ error: 'Internal Server Error' });
     }
 });
+
 
 /*get: uniform_defiances*/
 router.get('/uniform_defiances', (req, res) => {
