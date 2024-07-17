@@ -1,28 +1,28 @@
 const express = require('express');
 const db = require('../app/configuration/database');
 const router = express.Router();
-const multer = require('multer'); // For handling file uploads
+const multer = require('multer'); 
 const path = require('path');
 
-// Multer setup - define storage and file filter
+/*multer setup - define storage and file filter*/
 const storage = multer.diskStorage({
     destination: function (req, file, cb) {
-        cb(null, 'uploads/'); // Directory where files will be uploaded
+        cb(null, 'uploads/'); 
     },
     filename: function (req, file, cb) {
-        cb(null, Date.now() + path.extname(file.originalname)); // Unique filename
+        cb(null, Date.now() + path.extname(file.originalname)); 
     }
 });
 
 const upload = multer({ storage: storage });
 
-/* post: uniform defiance */
+/*post: uniform defiance*/
 router.post('/create-uniformdefiance', upload.single('photo_video_file'), async (req, res) => {
     try {
         const { student_idnumber, violation_nature, submitted_by } = req.body;
-        const photo_video_filename = req.file.filename; // Retrieve uploaded file name
+        const photo_video_filename = req.file.filename; /*retrieve uploaded file name*/
 
-        // Check if any required fields are missing
+        /*check if any required fields are missing*/
         if (!student_idnumber || !violation_nature || !photo_video_filename || !submitted_by) {
             return res.status(400).json({ error: 'Missing required fields' });
         }
@@ -47,7 +47,7 @@ router.post('/create-uniformdefiance', upload.single('photo_video_file'), async 
     }
 });
 
-/* get: 1 uniform_defiance */
+/*get: 1 uniform_defiance*/
 router.get('/uniform_defiance/:id', (req, res) => {
     let slip_id = req.params.id;
 
@@ -70,7 +70,7 @@ router.get('/uniform_defiance/:id', (req, res) => {
     }
 });
 
-/* get: uniform_defiances */
+/*get: uniform_defiances*/
 router.get('/uniform_defiances', (req, res) => {
     try {
         db.query('SELECT * FROM uniform_defiance WHERE slip_id IS NOT NULL', (err, result) => {
@@ -87,18 +87,18 @@ router.get('/uniform_defiances', (req, res) => {
     }
 });
 
-/* put: uniform_defiance */
+/*put: uniform_defiance*/
 router.put('/uniform_defiance/:id', async (req, res) => {
     try {
         const slip_id = req.params.id;
         const { status } = req.body;
 
-        // Validate required fields
+        /*validate required fields*/
         if (!slip_id || !status) {
             return res.status(400).json({ error: 'Please provide all required details' });
         }
 
-        // Perform database update
+        /*perform database update*/
         db.query(
             'UPDATE uniform_defiance SET status = ? WHERE slip_id = ?', 
             [status, slip_id], 
