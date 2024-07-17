@@ -19,18 +19,26 @@ const upload = multer({ storage: storage });
 /* post: uniform defiance */
 router.post('/create-uniformdefiance', upload.single('photo_video_file'), async (req, res) => {
     try {
-        const { student_idnumber, violation_nature } = req.body;
+        const { student_idnumber, violation_nature, submitted_by } = req.body;
         const photo_video_filename = req.file.filename; // Retrieve uploaded file name
 
         // Check if any required fields are missing
-        if (!student_idnumber || !violation_nature || !photo_video_filename) {
+        if (!student_idnumber || !violation_nature || !photo_video_filename || !submitted_by) {
             return res.status(400).json({ error: 'Missing required fields' });
         }
 
         const currentTimestamp = new Date().toISOString().slice(0, 19).replace('T', ' ');
-        const insertDefianceQuery = 'INSERT INTO uniform_defiance (student_idnumber, violation_nature, photo_video_filename, created_at) VALUES (?, ?, ?, ?)';
+        const insertDefianceQuery = 'INSERT INTO uniform_defiance (student_idnumber, violation_nature, photo_video_filename, created_at, submitted_by) VALUES (?, ?, ?, ?, ?)';
 
-        await db.promise().execute(insertDefianceQuery, [student_idnumber, violation_nature, photo_video_filename, currentTimestamp]);
+        console.log('Inserting into database:', {
+            student_idnumber,
+            violation_nature,
+            photo_video_filename,
+            created_at: currentTimestamp,
+            submitted_by
+        });
+
+        await db.promise().execute(insertDefianceQuery, [student_idnumber, violation_nature, photo_video_filename, currentTimestamp, submitted_by]);
 
         res.status(201).json({ message: 'Uniform defiance recorded successfully' });
     } catch (error) {
@@ -48,7 +56,7 @@ router.get('/uniform_defiance/:id', (req, res) => {
     }
 
     try {
-        db.query('SELECT slip_id, student_idnumber, violation_nature, photo_video_filename, status, created_at FROM uniform_defiance WHERE slip_id = ?', [slip_id], (err, result) => {
+        db.query('SELECT slip_id, student_idnumber, violation_nature, photo_video_filename, status, created_at, submitted_by FROM uniform_defiance WHERE slip_id = ?', [slip_id], (err, result) => {
             if (err) {
                 console.error('Error fetching uniform defiance:', err);
                 res.status(500).json({ message: 'Internal Server Error' });
