@@ -149,11 +149,6 @@ router.get('/uniform_defiances/:student_idnumber', (req, res) => {
 });
 
 
-
-
-
-
-
 /*put: uniform_defiance*/
 router.put('/uniform_defiance/:id', async (req, res) => {
     try {
