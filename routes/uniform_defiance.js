@@ -108,6 +108,52 @@ router.get('/uniform_defiances', (req, res) => {
 });
 
 
+/*get: 1 uniform_defiance (student_idnumber)*/
+router.get('/uniform_defiances/:student_idnumber', (req, res) => {
+    let student_idnumber = req.params.student_idnumber;
+
+    if (!student_idnumber) {
+        return res.status(400).send({ error: true, message: 'Please provide student_idnumber' });
+    }
+
+    try {
+        db.query(`
+            SELECT 
+                slip_id,
+                student_idnumber,
+                violation_nature,
+                photo_video_filename,
+                status,
+                created_at,
+                submitted_by
+            FROM 
+                uniform_defiance
+            WHERE 
+                student_idnumber = ?`, student_idnumber, (err, result) => {
+            if (err) {
+                console.error('Error fetching uniform defiance records:', err);
+                res.status(500).json({ message: 'Internal Server Error' });
+            } else {
+                if (result.length === 0) {
+                    // No records found for the student_idnumber
+                    res.status(404).json({ message: 'No records found' });
+                } else {
+                    res.status(200).json(result);
+                }
+            }
+        });
+    } catch (error) {
+        console.error('Error fetching uniform defiance records:', error);
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
+
+
+
+
+
+
+
 /*put: uniform_defiance*/
 router.put('/uniform_defiance/:id', async (req, res) => {
     try {
