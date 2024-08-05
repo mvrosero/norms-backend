@@ -16,6 +16,7 @@ const storage = multer.diskStorage({
 
 const upload = multer({ storage: storage });
 
+
 /*post: uniform defiance*/
 router.post('/create-uniformdefiance', upload.single('photo_video_file'), async (req, res) => {
     try {
@@ -105,6 +106,7 @@ router.get('/uniform_defiances', (req, res) => {
         res.status(500).json({ error: 'Internal Server Error' });
     }
 });
+
 
 /*put: uniform_defiance*/
 router.put('/uniform_defiance/:id', async (req, res) => {
