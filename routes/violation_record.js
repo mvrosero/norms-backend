@@ -59,8 +59,6 @@ router.post('/create-violationrecord/:student_idnumber', async (req, res) => {
 });
 
 
-
-
 /*get: 1 violation (student_idnumber)*/
 router.get('/myrecords/:student_idnumber', (req, res) => {
     let student_idnumber = req.params.student_idnumber;
