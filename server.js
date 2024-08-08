@@ -26,6 +26,7 @@ const sanction = require('./routes/sanction');
 const violation_record = require('./routes/violation_record');
 const uniform_defiance = require('./routes/uniform_defiance');
 const announcement = require('./routes/announcement');
+const settings = require('./routes/settings');
 
 app.use(bodyParser.json());
 
@@ -45,6 +46,7 @@ app.use('/', sanction);
 app.use('/', violation_record);
 app.use('/', uniform_defiance);
 app.use('/', announcement);
+app.use('/', settings);
 
   
 /*express JS framework*/
