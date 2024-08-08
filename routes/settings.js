@@ -34,6 +34,9 @@ function authenticateUser(req, res, next) {
 
         // Attach the identifier to the request object
         req.identifier = decoded.employee_idnumber || decoded.student_idnumber;
+        if (!req.identifier) {
+            return res.status(401).json({ error: 'Unauthorized - User identifier missing in token' });
+        }
         next();
     });
 }
