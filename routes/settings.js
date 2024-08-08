@@ -2,10 +2,11 @@ const express = require('express');
 const multer = require('multer'); 
 const path = require('path');
 const jwt = require('jsonwebtoken');
-
+const db = require('../app/configuration/database'); // Ensure this is properly imported
+const config = require('../app/middleware/config');
+const secretKey = config.secretKey; // Ensure secretKey is correctly imported from config
 
 const router = express.Router();
-const secretKey = 'your_secret_key'; // Replace with your actual secret key
 
 /* Multer setup - define storage */
 const storage = multer.diskStorage({
@@ -23,12 +24,12 @@ const upload = multer({ storage: storage });
 function authenticateUser(req, res, next) {
     const token = req.headers.authorization?.split(' ')[1];
     if (!token) {
-        return res.status(401).json({ error: 'Unauthorized' });
+        return res.status(401).json({ error: 'Unauthorized - No token provided' });
     }
 
     jwt.verify(token, secretKey, (err, decoded) => {
         if (err) {
-            return res.status(401).json({ error: 'Unauthorized' });
+            return res.status(401).json({ error: 'Unauthorized - Invalid token' });
         }
 
         // Attach the identifier to the request object
@@ -44,7 +45,11 @@ router.put('/user/photo', authenticateUser, upload.single('profile_photo'), asyn
         const profile_photo_filename = req.file ? req.file.filename : null;
 
         if (!profile_photo_filename) {
-            return res.status(400).json({ error: 'Please provide a profile photo' });
+            return res.status(400).json({ error: 'No profile photo provided' });
+        }
+
+        if (!identifier) {
+            return res.status(400).json({ error: 'User identifier is missing' });
         }
 
         // Update the profile photo based on the identifier
