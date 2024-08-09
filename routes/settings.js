@@ -16,7 +16,7 @@ const storage = multer.diskStorage({
 
 const upload = multer({ storage: storage });
 
-/* POST: Upload profile photo */
+/*post: upload profile photo */
 router.post('/upload-profile-photo/:user_id', upload.single('profile_photo_filename'), async (req, res) => {
     try {
         const { user_id } = req.params; // Get user_id from URL parameter
