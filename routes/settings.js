@@ -1,45 +1,64 @@
 const express = require('express');
-const db = require('../app/configuration/database');
-const router = express.Router();
-const multer = require('multer'); 
 const path = require('path');
+const db = require('../app/configuration/database');
+const multer = require('multer');
+const router = express.Router();
 
-/* Multer setup - define storage and file filter */
+// Multer setup
 const storage = multer.diskStorage({
     destination: function (req, file, cb) {
-        cb(null, 'uploads/profile_photo'); 
+        cb(null, path.join(__dirname, '..', 'uploads', 'profile_photo'));
     },
     filename: function (req, file, cb) {
-        cb(null, Date.now() + path.extname(file.originalname)); 
+        cb(null, Date.now() + path.extname(file.originalname));
     }
 });
 
 const upload = multer({ storage: storage });
 
-/*post: upload profile photo */
+// Serve static files from the 'uploads/profile_photo' directory
+router.use('/uploads/profile_photo', express.static(path.join(__dirname, '..', 'uploads', 'profile_photo')));
+
+// Endpoint to upload profile photo
 router.post('/upload-profile-photo/:user_id', upload.single('profile_photo_filename'), async (req, res) => {
     try {
-        const { user_id } = req.params; // Get user_id from URL parameter
-        const profile_photo_filename = req.file.filename; // Retrieve uploaded file name
+        const { user_id } = req.params;
+        const profile_photo_filename = req.file.filename;
 
-        // Check if the file and user_id are present
         if (!user_id || !profile_photo_filename) {
             return res.status(400).json({ error: 'Missing required fields' });
         }
 
-        // Update the user's profile photo filename in the database
         const updateProfilePhotoQuery = 'UPDATE user SET profile_photo_filename = ? WHERE user_id = ?';
-
-        console.log('Updating database:', {
-            profile_photo_filename,
-            user_id
-        });
-
         await db.promise().execute(updateProfilePhotoQuery, [profile_photo_filename, user_id]);
 
         res.status(200).json({ message: 'Profile photo uploaded successfully' });
     } catch (error) {
         console.error('Error uploading profile photo:', error);
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
+
+// Endpoint to retrieve profile photo filename
+router.get('/profile-photo/:user_id', async (req, res) => {
+    try {
+        const { user_id } = req.params;
+
+        if (!user_id) {
+            return res.status(400).json({ error: 'Missing user_id' });
+        }
+
+        const getProfilePhotoQuery = 'SELECT profile_photo_filename FROM user WHERE user_id = ?';
+        const [rows] = await db.promise().execute(getProfilePhotoQuery, [user_id]);
+
+        if (rows.length === 0) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+
+        const filename = rows[0].profile_photo_filename;
+        res.status(200).json({ profile_photo_filename: filename });
+    } catch (error) {
+        console.error('Error retrieving profile photo:', error);
         res.status(500).json({ error: 'Internal Server Error' });
     }
 });
