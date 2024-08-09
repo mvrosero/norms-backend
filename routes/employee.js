@@ -29,19 +29,19 @@ router.post('/employee-login', async (req, res) => {
 
         // Generate JWT token with minimal payload
         const tokenPayload = {
+            user_id: user.user_id, // Include user_id
             userId: user.employee_idnumber,
             role_id: user.role_id
         };
         const token = jwt.sign(tokenPayload, secretKey, { expiresIn: '1h' });
 
         // Return token and role_id in response
-        res.status(200).json({ token, role_id: user.role_id });
+        res.status(200).json({ token, user_id: user.user_id, role_id: user.role_id });
     } catch (error) {
         console.error('Error logging in employee:', error);
         res.status(500).json({ error: 'Internal Server Error' });
     }
 });
-
 
 
 /* post: register employee */

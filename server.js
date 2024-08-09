@@ -28,6 +28,7 @@ const uniform_defiance = require('./routes/uniform_defiance');
 const announcement = require('./routes/announcement');
 const settings = require('./routes/settings');
 
+
 app.use(bodyParser.json());
 
 /*define routes*/

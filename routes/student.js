@@ -26,18 +26,18 @@ router.post('/student-login', async (req, res) => {
             return res.status(401).json({ error: 'Invalid password' });
         }
 
-        /*retrieve the role_id and first_name from the user data*/
-        const { role_id, first_name } = user;
+        // Retrieve the role_id, first_name, and user_id from the user data
+        const { role_id, first_name, user_id } = user;
 
-        /*generate JWT token*/
+        // Generate JWT token
         const token = jwt.sign(
             { student_idnumber: user.student_idnumber, first_name },
             secretKey,
             { expiresIn: '1h' }
         );
 
-        /*return token, role_id, and student_idnumber in response*/
-        res.status(200).json({ token, role_id, student_idnumber: user.student_idnumber, first_name });
+        // Return token, role_id, student_idnumber, first_name, and user_id in response
+        res.status(200).json({ token, role_id, student_idnumber: user.student_idnumber, first_name, user_id });
     } catch (error) {
         console.error('Error logging in student:', error);
         res.status(500).json({ error: 'Internal Server Error' });
