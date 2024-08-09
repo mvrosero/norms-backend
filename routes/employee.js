@@ -134,6 +134,55 @@ router.put('/employee/:id', async (req, res) => {
 });
 
 
+/*put: employee password*/
+router.put('/password-change/:id', async (req, res) => {
+    const user_id = req.params.id;
+    const { current_password, new_password } = req.body;
+
+    // Validate required fields
+    if (!user_id || !current_password || !new_password) {
+        return res.status(400).json({ error: 'Please provide all required details' });
+    }
+
+    try {
+        // Fetch the current hashed password from the database
+        db.query('SELECT password FROM user WHERE user_id = ?', [user_id], async (err, results) => {
+            if (err) {
+                console.error('Error fetching user:', err);
+                return res.status(500).json({ error: 'Internal Server Error' });
+            }
+
+            if (results.length === 0) {
+                return res.status(404).json({ error: 'User not found' });
+            }
+
+            const hashedPassword = results[0].password;
+
+            // Verify the current password
+            const match = await bcrypt.compare(current_password, hashedPassword);
+            if (!match) {
+                return res.status(401).json({ error: 'Current password is incorrect' });
+            }
+
+            // Hash the new password
+            const newHashedPassword = await bcrypt.hash(new_password, 10);
+
+            // Update the new password in the database
+            db.query('UPDATE user SET password = ? WHERE user_id = ?', [newHashedPassword, user_id], (err, result) => {
+                if (err) {
+                    console.error('Error updating password:', err);
+                    return res.status(500).json({ error: 'Internal Server Error' });
+                }
+                res.status(200).json({ message: 'Password updated successfully' });
+            });
+        });
+    } catch (error) {
+        console.error('Error updating password:', error);
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
+
+
 /*delete: employee*/
 router.delete('/employee/:id', (req, res) => {
 
