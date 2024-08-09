@@ -93,4 +93,28 @@ router.put('/program/:id', async (req, res) => {
 });
 
 
+/*delete: program*/
+router.delete('/program/:id', async (req, res) => {
+    let program_id = req.params.id;
+
+    if (!program_id) {
+        return res.status(400).send({ error: true, message: 'Please provide program_id' });
+    }
+
+    try {
+        // Use a transaction to ensure atomicity if needed
+        const deleteProgramQuery = 'DELETE FROM program WHERE program_id = ?';
+        const [result] = await db.promise().execute(deleteProgramQuery, [program_id]);
+
+        if (result.affectedRows === 0) {
+            return res.status(404).json({ message: 'Program not found' });
+        }
+
+        res.status(200).json({ message: 'Program deleted successfully' });
+    } catch (error) {
+        console.error('Error deleting program:', error);
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
+
 module.exports = router;

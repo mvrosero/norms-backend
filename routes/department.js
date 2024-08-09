@@ -92,6 +92,7 @@ router.put('/department/:id', async (req, res) => {
     }
 });
 
+
 /*delete: department*/
 router.delete('/department/:id', async (req, res) => {
     let department_id = req.params.id;
