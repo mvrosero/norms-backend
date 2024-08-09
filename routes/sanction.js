@@ -93,4 +93,32 @@ router.put('/sanction/:id', async (req, res) => {
 });
 
 
+/*delete: sanction*/
+router.delete('/sanction/:id', async (req, res) => {
+    let sanction_id = req.params.id;
+
+    if (!sanction_id) {
+        return res.status(400).send({ error: true, message: 'Please provide sanction_id' });
+    }
+
+    try {
+        db.query('DELETE FROM sanction WHERE sanction_id = ?', [sanction_id], (err, result) => {
+            if (err) {
+                console.error('Error deleting sanction:', err);
+                res.status(500).json({ message: 'Internal Server Error' });
+            } else {
+                if (result.affectedRows === 0) {
+                    res.status(404).json({ message: 'Sanction not found' });
+                } else {
+                    res.status(200).json({ message: 'Sanction deleted successfully' });
+                }
+            }
+        });
+    } catch (error) {
+        console.error('Error deleting sanction:', error);
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
+
+
 module.exports = router;

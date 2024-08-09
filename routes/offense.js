@@ -92,4 +92,32 @@ router.put('/offense/:id', async (req, res) => {
 });
 
 
+/*delete: offense*/
+router.delete('/offense/:id', async (req, res) => {
+    let offense_id = req.params.id;
+
+    if (!offense_id) {
+        return res.status(400).send({ error: true, message: 'Please provide offense_id' });
+    }
+
+    try {
+        db.query('DELETE FROM offense WHERE offense_id = ?', [offense_id], (err, result) => {
+            if (err) {
+                console.error('Error deleting offense:', err);
+                res.status(500).json({ message: 'Internal Server Error' });
+            } else {
+                if (result.affectedRows === 0) {
+                    res.status(404).json({ message: 'Offense not found' });
+                } else {
+                    res.status(200).json({ message: 'Offense deleted successfully' });
+                }
+            }
+        });
+    } catch (error) {
+        console.error('Error deleting offense:', error);
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
+
+
 module.exports = router;
