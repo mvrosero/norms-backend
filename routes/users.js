@@ -50,15 +50,15 @@ router.get('/user-counts', (req, res) => {
 
 
 /*get users by department*/
-router.get('/users-by-department/:departmentName', (req, res) => {
+router.get('/admin-usermanagement/:departmentCode', (req, res) => {
     try {
-        const departmentName = req.params.departmentName;
+        const departmentCode = req.params.departmentCode;
 
         db.query(`
             SELECT * FROM user u
             INNER JOIN department d ON u.department_id = d.department_id
-            WHERE d.department_name = ?
-        `, [departmentName], (err, result) => {
+            WHERE d.department_code = ?
+        `, [departmentCode], (err, result) => {
             if (err) {
                 console.error('Error fetching users by department:', err);
                 res.status(500).json({ message: 'Internal Server Error' });
@@ -71,7 +71,6 @@ router.get('/users-by-department/:departmentName', (req, res) => {
         res.status(500).json({ error: 'Internal Server Error' });
     }
 });
-
 
 
 
