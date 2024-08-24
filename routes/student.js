@@ -185,7 +185,6 @@ router.put('/password-change/:id', async (req, res) => {
 
 /*delete: student*/
 router.delete('/student/:id', (req, res) => {
-
     let user_id = req.params.id;
 
     if (!user_id) {
@@ -193,19 +192,20 @@ router.delete('/student/:id', (req, res) => {
     }
 
     try {
-        db.query('DELETE FROM user WHERE user_id = ?', user_id, (err, result, fields) => {
+        db.query('DELETE FROM user WHERE user_id = ?', [user_id], (err, result, fields) => {
             if (err) {
                 console.error('Error deleting student:', err);
-                res.status(500).json({ message: 'Internal Server Error'});
+                return res.status(500).json({ message: 'Internal Server Error', details: err });
             } else {
-                res.status(200).json(result);
+                res.status(200).json({ message: 'Student deleted successfully', result });
             }
         });
     } catch (error) {
         console.error('Error loading student:', error);
-        res.status(500).json({ error: 'Internal Server Error'});
+        res.status(500).json({ error: 'Internal Server Error', details: error });
     }
 });
+
 
 
 module.exports = router;
