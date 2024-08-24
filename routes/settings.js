@@ -63,4 +63,35 @@ router.get('/profile-photo/:user_id', async (req, res) => {
     }
 });
 
+
+// Endpoint to view the profile photo file
+router.get('/view-profile-photo/:user_id', async (req, res) => {
+    try {
+        const { user_id } = req.params;
+
+        if (!user_id) {
+            return res.status(400).json({ error: 'Missing user_id' });
+        }
+
+        // Retrieve the filename of the profile photo from the database
+        const getProfilePhotoQuery = 'SELECT profile_photo_filename FROM user WHERE user_id = ?';
+        const [rows] = await db.promise().execute(getProfilePhotoQuery, [user_id]);
+
+        if (rows.length === 0) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+
+        const filename = rows[0].profile_photo_filename;
+
+        // Serve the profile photo file
+        const filePath = path.join(__dirname, '..', 'uploads', 'profile_photo', filename);
+        res.sendFile(filePath);
+
+    } catch (error) {
+        console.error('Error retrieving profile photo:', error);
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
+
+
 module.exports = router;

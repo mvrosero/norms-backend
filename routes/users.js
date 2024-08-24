@@ -74,5 +74,4 @@ router.get('/admin-usermanagement/:department_code', (req, res) => {
 });
 
 
-
 module.exports = router;
