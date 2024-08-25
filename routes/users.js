@@ -74,4 +74,31 @@ router.get('/admin-usermanagement/:department_code', (req, res) => {
 });
 
 
+/* Get users by department code */
+router.get('/coordinator-studentrecords/:department_code', (req, res) => {
+    const department_code = req.params.department_code;
+
+    if (!department_code) {
+        return res.status(400).json({ message: 'Department code is required' });
+    }
+
+    db.query(`
+        SELECT u.*, d.department_name
+        FROM user u
+        INNER JOIN department d ON u.department_id = d.department_id
+        WHERE d.department_code = ?
+    `, [department_code], (err, result) => {
+        if (err) {
+            console.error('Error fetching users by department:', err);
+            return res.status(500).json({ message: 'Internal Server Error', error: err.message });
+        }
+
+        if (result.length === 0) {
+            return res.status(404).json({ message: 'No users found for the given department code' });
+        }
+
+        res.status(200).json(result);
+    });
+});
+
 module.exports = router;
