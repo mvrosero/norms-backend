@@ -40,9 +40,9 @@ router.post('/create-announcement', upload.single('photo_video_filename'), async
             currentTimestamp
         ]);
 
-        res.status(201).json({ message: 'Announcement registered successfully' });
+        res.status(201).json({ message: 'Announcement created successfully' });
     } catch (error) {
-        console.error('Error registering announcement:', error);
+        console.error('Error creating announcement:', error);
         res.status(500).json({ error: 'Internal Server Error' });
     }
 });
@@ -118,15 +118,18 @@ router.put('/announcement/:id', upload.single('photo_video_filename'), async (re
 
         const updateAnnouncementQuery = `
             UPDATE announcement 
-            SET title = ?, content = ?, status = ?, photo_video_filename = ?
+            SET title = ?, content = ?, status = ?, photo_video_filename = ?, updated_at = ?
             WHERE announcement_id = ?
         `;
+
+        const currentTimestamp = new Date().toISOString().slice(0, 19).replace('T', ' ');
 
         await db.promise().execute(updateAnnouncementQuery, [
             title,
             content,
             status,
             photoVideoFilename,
+            currentTimestamp,
             announcement_id
         ]);
 
