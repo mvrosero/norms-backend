@@ -19,7 +19,7 @@ const upload = multer({ storage });
 // Helper function to update filenames
 const updateFilenames = (existingFilenames, newFilenames) => {
     const existingFiles = existingFilenames ? existingFilenames.split(',') : [];
-    return [...existingFiles, ...newFilenames].join(',');
+    return [...existingFiles, ...newFilenames].join(','); // Ensure no commas in the filenames
 };
 
 // POST: Create an announcement with file uploads
@@ -128,7 +128,7 @@ router.put('/announcement/:id', upload.array('files'), async (req, res) => {
 
         let filenames = existingData.filenames || '';
         if (newFiles.length > 0) {
-            const newFilenames = newFiles.map(file => file.filename).join(',');
+            const newFilenames = newFiles.map(file => file.filename);
             filenames = updateFilenames(filenames, newFilenames);
         }
 
