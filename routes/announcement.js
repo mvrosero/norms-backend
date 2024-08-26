@@ -1,5 +1,6 @@
 const express = require('express');
 const multer = require('multer');
+const fs = require('fs');
 const path = require('path');
 const db = require('../app/configuration/database');
 const router = express.Router();
@@ -156,6 +157,61 @@ router.put('/announcement/:id', upload.array('files'), async (req, res) => {
         res.status(500).json({ error: 'Internal Server Error' });
     }
 });
+
+
+// DELETE: Remove a file attached to an announcement
+router.delete('/announcement/:id/file/:filename', async (req, res) => {
+    const announcement_id = req.params.id;
+    const filename = req.params.filename;
+
+    if (!announcement_id || !filename) {
+        return res.status(400).json({ error: 'Announcement ID and filename are required' });
+    }
+
+    try {
+        // Fetch existing announcement to get current filenames
+        const [existingAnnouncement] = await db.promise().query('SELECT filenames FROM announcement WHERE announcement_id = ?', [announcement_id]);
+
+        // Ensure the announcement exists
+        if (existingAnnouncement.length === 0) {
+            return res.status(404).json({ error: 'Announcement not found' });
+        }
+
+        const existingData = existingAnnouncement[0];
+        const filenames = existingData.filenames.split(',');
+
+        // Remove the filename from the list
+        const updatedFilenames = filenames.filter(file => file !== filename);
+
+        // Remove the file from the filesystem
+        const filePath = path.join(__dirname, '../uploads', filename);
+        fs.unlink(filePath, (err) => {
+            if (err) {
+                console.error('Error deleting file:', err);
+                return res.status(500).json({ error: 'Internal Server Error' });
+            }
+        });
+
+        // Update the announcement entry in the database
+        const updateAnnouncementQuery = `
+            UPDATE announcement 
+            SET filenames = ?
+            WHERE announcement_id = ?
+        `;
+
+        await db.promise().execute(updateAnnouncementQuery, [
+            updatedFilenames.join(','),
+            announcement_id
+        ]);
+
+        res.status(200).json({ message: 'File removed successfully' });
+    } catch (error) {
+        console.error('Error removing file:', error);
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
+
+
 
 /* DELETE: Remove an announcement by ID */
 router.delete('/announcement/:id', (req, res) => {
