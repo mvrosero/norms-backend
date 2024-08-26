@@ -2,21 +2,30 @@ const express = require('express');
 const db = require('../app/configuration/database');
 const router = express.Router();
 
-
-/*post: announcement*/
+/* POST: Create an announcement */
 router.post('/create-announcement', async (req, res) => {
     try {
         const { title, content, status, photo_video_filename } = req.body;
 
-        // Check if any required fields are missing
-        if (!title || !content || !status || !photo_video_filename) {
-            return res.status(400).json({ error: 'Missing required fields' });
+        // Check if required fields are missing
+        if (!title || !content || !status) {
+            return res.status(400).json({ error: 'Title, content, and status are required' });
         }
 
         const currentTimestamp = new Date().toISOString().slice(0, 19).replace('T', ' ');
-        const insertAnnouncementQuery = 'INSERT INTO announcement (title, content, status, photo_video_filename, created_at) VALUES (?, ?, ?, ?, ?)';
-        
-        await db.promise().execute(insertAnnouncementQuery, [title, content, status, photo_video_filename, currentTimestamp]);
+        const insertAnnouncementQuery = `
+            INSERT INTO announcement (title, content, status, photo_video_filename, created_at) 
+            VALUES (?, ?, ?, ?, ?)
+        `;
+
+        // Insert the announcement; handle the case where photo_video_filename might be empty or undefined
+        await db.promise().execute(insertAnnouncementQuery, [
+            title, 
+            content, 
+            status, 
+            photo_video_filename || null, // Set to null if not provided
+            currentTimestamp
+        ]);
 
         res.status(201).json({ message: 'Announcement registered successfully' });
     } catch (error) {
@@ -25,38 +34,39 @@ router.post('/create-announcement', async (req, res) => {
     }
 });
 
-
-/*get: 1 announcement*/
-router.get('/announcement/:id',  (req, res) => {
-
-    let announcement_id = req.params.id;
+/* GET: Retrieve a specific announcement by ID */
+router.get('/announcement/:id', (req, res) => {
+    const announcement_id = req.params.id;
 
     if (!announcement_id) {
         return res.status(400).send({ error: true, message: 'Please provide announcement_id' });
     }
 
     try {
-        db.query('SELECT title, content, status, photo_video_filename, created_at, updated_at FROM announcement WHERE announcement_id = ?', announcement_id, (err, result) => {
-            if (err) {
-                console.error('Error fetching announcement:', err);
-                res.status(500).json({ message: 'Internal Server Error' });
-            } else {
-                res.status(200).json(result);
+        db.query(
+            'SELECT title, content, status, photo_video_filename, created_at, updated_at FROM announcement WHERE announcement_id = ?', 
+            [announcement_id], 
+            (err, result) => {
+                if (err) {
+                    console.error('Error fetching announcement:', err);
+                    res.status(500).json({ message: 'Internal Server Error' });
+                } else if (result.length === 0) {
+                    res.status(404).json({ message: 'Announcement not found' });
+                } else {
+                    res.status(200).json(result[0]);
+                }
             }
-        });
+        );
     } catch (error) {
         console.error('Error loading announcement:', error);
         res.status(500).json({ error: 'Internal Server Error' });
     }
 });
 
-
-/*get: announcements*/
+/* GET: Retrieve all announcements */
 router.get('/announcements', (req, res) => {
-
     try {
         db.query('SELECT * FROM announcement', (err, result) => {
-
             if (err) {
                 console.error('Error fetching announcements:', err);
                 res.status(500).json({ message: 'Internal Server Error' });
@@ -66,24 +76,33 @@ router.get('/announcements', (req, res) => {
         });
     } catch (error) {
         console.error('Error loading announcements:', error);
-        res.status(500).json({ error: 'Internal Server Error'});
+        res.status(500).json({ error: 'Internal Server Error' });
     }
 });
 
-
-/*put: announcement*/
+/* PUT: Update an announcement by ID */
 router.put('/announcement/:id', async (req, res) => {
-
     const announcement_id = req.params.id;
     const { title, content, status, photo_video_filename } = req.body;
 
-    if (!announcement_id || !title || !content || !status || !photo_video_filename) {
-        return res.status(400).json({ error: 'Please provide all required information' });
+    if (!announcement_id || !title || !content || !status) {
+        return res.status(400).json({ error: 'Please provide all required information (title, content, and status)' });
     }
 
     try {
-        const updateAnnouncementQuery = 'UPDATE announcement SET title = ?, content = ?, status = ?, photo_video_filename = ? WHERE announcement_id = ?';
-        await db.promise().execute(updateAnnouncementQuery, [title, content, status, photo_video_filename, announcement_id]);
+        const updateAnnouncementQuery = `
+            UPDATE announcement 
+            SET title = ?, content = ?, status = ?, photo_video_filename = ?
+            WHERE announcement_id = ?
+        `;
+
+        await db.promise().execute(updateAnnouncementQuery, [
+            title, 
+            content, 
+            status, 
+            photo_video_filename || null, // Set to null if not provided
+            announcement_id
+        ]);
 
         res.status(200).json({ message: 'Announcement updated successfully' });
     } catch (error) {
@@ -92,30 +111,29 @@ router.put('/announcement/:id', async (req, res) => {
     }
 });
 
-
-/*delete: announcement*/
+/* DELETE: Remove an announcement by ID */
 router.delete('/announcement/:id', (req, res) => {
-
-    let announcement_id = req.params.id;
+    const announcement_id = req.params.id;
 
     if (!announcement_id) {
         return res.status(400).send({ error: true, message: 'Please provide announcement_id' });
     }
 
     try {
-        db.query('DELETE FROM announcement WHERE announcement_id = ?', announcement_id, (err, result, fields) => {
+        db.query('DELETE FROM announcement WHERE announcement_id = ?', [announcement_id], (err, result) => {
             if (err) {
                 console.error('Error deleting announcement:', err);
-                res.status(500).json({ message: 'Internal Server Error'});
+                res.status(500).json({ message: 'Internal Server Error' });
+            } else if (result.affectedRows === 0) {
+                res.status(404).json({ message: 'Announcement not found' });
             } else {
-                res.status(200).json(result);
+                res.status(200).json({ message: 'Announcement deleted successfully' });
             }
         });
     } catch (error) {
-        console.error('Error loading announcement:', error);
-        res.status(500).json({ error: 'Internal Server Error'});
+        console.error('Error deleting announcement:', error);
+        res.status(500).json({ error: 'Internal Server Error' });
     }
 });
-
 
 module.exports = router;

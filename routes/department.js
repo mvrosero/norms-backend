@@ -118,4 +118,37 @@ router.delete('/department/:id', async (req, res) => {
 });
 
 
+
+
+/* get: department by department_code */
+router.get('/department/:department_code', (req, res) => {
+    const department_code = req.params.department_code;
+
+    if (!department_code) {
+        return res.status(400).json({ error: true, message: 'Please provide department_code' });
+    }
+
+    console.log(`Fetching department with code: ${department_code}`);
+
+    try {
+        db.query('SELECT department_id, department_code, department_name FROM department WHERE department_code = ?', [department_code], (err, result) => {
+            if (err) {
+                console.error('Error fetching department:', err);
+                return res.status(500).json({ message: 'Internal Server Error' });
+            }
+            
+            console.log('Query result:', result);
+            
+            if (result.length === 0) {
+                return res.status(404).json({ message: 'Department not found' });
+            }
+            
+            res.status(200).json(result[0]); // Send the first result
+        });
+    } catch (error) {
+        console.error('Error loading department:', error);
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
+
 module.exports = router;
