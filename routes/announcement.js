@@ -116,6 +116,7 @@ router.put('/announcement/:id', upload.array('files'), async (req, res) => {
         // Fetch existing announcement to get current values
         const [existingAnnouncement] = await db.promise().query('SELECT * FROM announcement WHERE announcement_id = ?', [announcement_id]);
 
+        // Ensure the announcement exists
         if (existingAnnouncement.length === 0) {
             return res.status(404).json({ error: 'Announcement not found' });
         }
@@ -125,7 +126,7 @@ router.put('/announcement/:id', upload.array('files'), async (req, res) => {
         const updatedContent = content || existingData.content;
         const updatedStatus = status || existingData.status;
 
-        let filenames = existingData.filenames;
+        let filenames = existingData.filenames || '';
         if (newFiles.length > 0) {
             const newFilenames = newFiles.map(file => file.filename).join(',');
             filenames = updateFilenames(filenames, newFilenames);
@@ -139,6 +140,7 @@ router.put('/announcement/:id', upload.array('files'), async (req, res) => {
 
         const currentTimestamp = new Date().toISOString().slice(0, 19).replace('T', ' ');
 
+        // Execute the update query
         await db.promise().execute(updateAnnouncementQuery, [
             updatedTitle,
             updatedContent,
