@@ -1,29 +1,42 @@
-const express = require('express'); 
+const express = require('express');
+const multer = require('multer');
+const path = require('path');
 const db = require('../app/configuration/database');
 const router = express.Router();
 
-/* POST: Create an announcement */
-router.post('/create-announcement', async (req, res) => {
-    try {
-        const { title, content, status, photo_video_filename } = req.body;
+// Set up storage for uploaded files
+const storage = multer.diskStorage({
+    destination: (req, file, cb) => {
+        cb(null, 'uploads/');
+    },
+    filename: (req, file, cb) => {
+        cb(null, `${Date.now()}_${file.originalname}`);
+    }
+});
 
-        // Check if required fields are missing
+const upload = multer({ storage });
+
+// POST: Create an announcement with file upload
+router.post('/create-announcement', upload.single('photo_video_filename'), async (req, res) => {
+    try {
+        const { title, content, status } = req.body;
+        const photoVideoFilename = req.file ? req.file.filename : null;
+
         if (!title || !content || !status) {
             return res.status(400).json({ error: 'Title, content, and status are required' });
         }
 
         const currentTimestamp = new Date().toISOString().slice(0, 19).replace('T', ' ');
         const insertAnnouncementQuery = `
-            INSERT INTO announcement (title, content, status, photo_video_filename, created_at) 
+            INSERT INTO announcement (title, content, status, photo_video_filename, created_at)
             VALUES (?, ?, ?, ?, ?)
         `;
 
-        // Insert the announcement; handle the case where photo_video_filename might be empty or undefined
         await db.promise().execute(insertAnnouncementQuery, [
-            title, 
-            content, 
-            status, 
-            photo_video_filename || null, // Set to null if not provided
+            title,
+            content,
+            status,
+            photoVideoFilename,
             currentTimestamp
         ]);
 
@@ -135,5 +148,8 @@ router.delete('/announcement/:id', (req, res) => {
         res.status(500).json({ error: 'Internal Server Error' });
     }
 });
+
+// Serve static files from the uploads directory
+router.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
 module.exports = router;
