@@ -102,27 +102,34 @@ router.get('/announcements', (req, res) => {
     }
 });
 
-// PUT: Update an announcement by ID
+// PUT: Update announcement fields individually
 router.put('/announcement/:id', upload.array('files'), async (req, res) => {
     const announcement_id = req.params.id;
     const { title, content, status } = req.body;
     const newFiles = req.files; // Array of new files
 
-    if (!announcement_id || !title || !content || !status) {
-        return res.status(400).json({ error: 'Please provide all required information (title, content, and status)' });
+    if (!announcement_id) {
+        return res.status(400).json({ error: 'Announcement ID is required' });
     }
 
     try {
-        // Fetch existing announcement to get current filenames
-        const [existingAnnouncement] = await db.promise().query('SELECT filenames FROM announcement WHERE announcement_id = ?', [announcement_id]);
+        // Fetch existing announcement to get current values
+        const [existingAnnouncement] = await db.promise().query('SELECT * FROM announcement WHERE announcement_id = ?', [announcement_id]);
 
         if (existingAnnouncement.length === 0) {
             return res.status(404).json({ error: 'Announcement not found' });
         }
 
-        const existingFilenames = existingAnnouncement[0].filenames;
-        const newFilenames = newFiles.map(file => file.filename).join(',');
-        const filenames = updateFilenames(existingFilenames, newFilenames);
+        const existingData = existingAnnouncement[0];
+        const updatedTitle = title || existingData.title;
+        const updatedContent = content || existingData.content;
+        const updatedStatus = status || existingData.status;
+
+        let filenames = existingData.filenames;
+        if (newFiles.length > 0) {
+            const newFilenames = newFiles.map(file => file.filename).join(',');
+            filenames = updateFilenames(filenames, newFilenames);
+        }
 
         const updateAnnouncementQuery = `
             UPDATE announcement 
@@ -133,9 +140,9 @@ router.put('/announcement/:id', upload.array('files'), async (req, res) => {
         const currentTimestamp = new Date().toISOString().slice(0, 19).replace('T', ' ');
 
         await db.promise().execute(updateAnnouncementQuery, [
-            title,
-            content,
-            status,
+            updatedTitle,
+            updatedContent,
+            updatedStatus,
             filenames,
             currentTimestamp,
             announcement_id
