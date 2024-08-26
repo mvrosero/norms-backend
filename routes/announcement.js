@@ -94,15 +94,28 @@ router.get('/announcements', (req, res) => {
 });
 
 /* PUT: Update an announcement by ID */
-router.put('/announcement/:id', async (req, res) => {
+router.put('/announcement/:id', upload.single('photo_video_filename'), async (req, res) => {
     const announcement_id = req.params.id;
-    const { title, content, status, photo_video_filename } = req.body;
+    const { title, content, status } = req.body;
+    const newFile = req.file; // New file if uploaded
 
     if (!announcement_id || !title || !content || !status) {
         return res.status(400).json({ error: 'Please provide all required information (title, content, and status)' });
     }
 
     try {
+        // Fetch existing announcement to get current photo_video_filename
+        const [existingAnnouncement] = await db.promise().query('SELECT photo_video_filename FROM announcement WHERE announcement_id = ?', [announcement_id]);
+
+        if (existingAnnouncement.length === 0) {
+            return res.status(404).json({ error: 'Announcement not found' });
+        }
+
+        const existingFilename = existingAnnouncement[0].photo_video_filename;
+
+        // If a new file is uploaded, use it; otherwise, keep the existing filename
+        const photoVideoFilename = newFile ? newFile.filename : existingFilename;
+
         const updateAnnouncementQuery = `
             UPDATE announcement 
             SET title = ?, content = ?, status = ?, photo_video_filename = ?
@@ -110,10 +123,10 @@ router.put('/announcement/:id', async (req, res) => {
         `;
 
         await db.promise().execute(updateAnnouncementQuery, [
-            title, 
-            content, 
-            status, 
-            photo_video_filename || null, // Set to null if not provided
+            title,
+            content,
+            status,
+            photoVideoFilename,
             announcement_id
         ]);
 
