@@ -16,19 +16,28 @@ const storage = multer.diskStorage({
 
 const upload = multer({ storage });
 
-// POST: Create an announcement with file upload
-router.post('/create-announcement', upload.single('photo_video_filename'), async (req, res) => {
+// Helper function to update filenames
+const updateFilenames = (existingFilenames, newFilenames) => {
+    const existingFiles = existingFilenames ? existingFilenames.split(',') : [];
+    return [...existingFiles, ...newFilenames].join(',');
+};
+
+// POST: Create an announcement with file uploads
+router.post('/create-announcement', upload.array('files'), async (req, res) => {
     try {
         const { title, content, status } = req.body;
-        const photoVideoFilename = req.file ? req.file.filename : null;
+        const files = req.files; // Array of files
 
         if (!title || !content || !status) {
             return res.status(400).json({ error: 'Title, content, and status are required' });
         }
 
+        // Handle filenames
+        const filenames = files.map(file => file.filename).join(',');
+
         const currentTimestamp = new Date().toISOString().slice(0, 19).replace('T', ' ');
         const insertAnnouncementQuery = `
-            INSERT INTO announcement (title, content, status, photo_video_filename, created_at)
+            INSERT INTO announcement (title, content, status, filenames, created_at)
             VALUES (?, ?, ?, ?, ?)
         `;
 
@@ -36,7 +45,7 @@ router.post('/create-announcement', upload.single('photo_video_filename'), async
             title,
             content,
             status,
-            photoVideoFilename,
+            filenames,
             currentTimestamp
         ]);
 
@@ -57,7 +66,7 @@ router.get('/announcement/:id', (req, res) => {
 
     try {
         db.query(
-            'SELECT title, content, status, photo_video_filename, created_at, updated_at FROM announcement WHERE announcement_id = ?', 
+            'SELECT title, content, status, filenames, created_at, updated_at FROM announcement WHERE announcement_id = ?', 
             [announcement_id], 
             (err, result) => {
                 if (err) {
@@ -93,32 +102,31 @@ router.get('/announcements', (req, res) => {
     }
 });
 
-/* PUT: Update an announcement by ID */
-router.put('/announcement/:id', upload.single('photo_video_filename'), async (req, res) => {
+// PUT: Update an announcement by ID
+router.put('/announcement/:id', upload.array('files'), async (req, res) => {
     const announcement_id = req.params.id;
     const { title, content, status } = req.body;
-    const newFile = req.file; // New file if uploaded
+    const newFiles = req.files; // Array of new files
 
     if (!announcement_id || !title || !content || !status) {
         return res.status(400).json({ error: 'Please provide all required information (title, content, and status)' });
     }
 
     try {
-        // Fetch existing announcement to get current photo_video_filename
-        const [existingAnnouncement] = await db.promise().query('SELECT photo_video_filename FROM announcement WHERE announcement_id = ?', [announcement_id]);
+        // Fetch existing announcement to get current filenames
+        const [existingAnnouncement] = await db.promise().query('SELECT filenames FROM announcement WHERE announcement_id = ?', [announcement_id]);
 
         if (existingAnnouncement.length === 0) {
             return res.status(404).json({ error: 'Announcement not found' });
         }
 
-        const existingFilename = existingAnnouncement[0].photo_video_filename;
-
-        // If a new file is uploaded, use it; otherwise, keep the existing filename
-        const photoVideoFilename = newFile ? newFile.filename : existingFilename;
+        const existingFilenames = existingAnnouncement[0].filenames;
+        const newFilenames = newFiles.map(file => file.filename).join(',');
+        const filenames = updateFilenames(existingFilenames, newFilenames);
 
         const updateAnnouncementQuery = `
             UPDATE announcement 
-            SET title = ?, content = ?, status = ?, photo_video_filename = ?, updated_at = ?
+            SET title = ?, content = ?, status = ?, filenames = ?, updated_at = ?
             WHERE announcement_id = ?
         `;
 
@@ -128,7 +136,7 @@ router.put('/announcement/:id', upload.single('photo_video_filename'), async (re
             title,
             content,
             status,
-            photoVideoFilename,
+            filenames,
             currentTimestamp,
             announcement_id
         ]);
