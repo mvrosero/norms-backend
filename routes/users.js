@@ -1,10 +1,14 @@
 const express = require('express');
+const multer = require('multer');
+const fs = require('fs');
+const csv = require('csv-parser');
 const db = require('../app/configuration/database');
-const config = require('../app/middleware/config');
 const router = express.Router();
 
+// Multer setup for file uploads
+const upload = multer({ dest: 'uploads/' });
 
-/*get all - users*/
+/* Get all - users */
 router.get('/users', (req, res) => {
     try {
         db.query(`SELECT * FROM user`, (err, result) => {
@@ -21,8 +25,7 @@ router.get('/users', (req, res) => {
     }
 });
 
-
-/*get user counts for each department*/
+/* Get user counts for each department */
 router.get('/user-counts', (req, res) => {
     try {
         db.query(`
@@ -48,8 +51,7 @@ router.get('/user-counts', (req, res) => {
     }
 });
 
-
-/*get users by department*/
+/* Get users by department */
 router.get('/admin-usermanagement/:department_code', (req, res) => {
     try {
         const department_code = req.params.department_code;
@@ -72,7 +74,6 @@ router.get('/admin-usermanagement/:department_code', (req, res) => {
         res.status(500).json({ error: 'Internal Server Error' });
     }
 });
-
 
 /* Get users by department code */
 router.get('/coordinator-studentrecords/:department_code', (req, res) => {
@@ -100,5 +101,67 @@ router.get('/coordinator-studentrecords/:department_code', (req, res) => {
         res.status(200).json(result);
     });
 });
+
+/* Import users from CSV */
+router.post('/import-csv', upload.single('file'), (req, res) => {
+    const filePath = req.file.path;
+    
+    const users = [];
+
+    fs.createReadStream(filePath)
+        .pipe(csv())
+        .on('data', (row) => {
+            // Create a user object based on CSV columns
+            const user = {
+                student_idnumber: row.student_idnumber,
+                first_name: row.first_name,
+                middle_name: row.middle_name,
+                last_name: row.last_name,
+                suffix: row.suffix,
+                email: row.email,
+                year_level: row.year_level,
+                program_id: row.program_id,
+                status: row.status // Must be 'active' or 'inactive'
+            };
+            users.push(user);
+        })
+        .on('end', () => {
+            // Insert users into the database
+            const values = users.map(user => [
+                user.student_idnumber,
+                user.first_name,
+                user.middle_name,
+                user.last_name,
+                user.suffix,
+                user.email,
+                user.year_level,
+                user.program_id,
+                user.status
+            ]);
+
+            db.query(`
+                INSERT INTO user (
+                    student_idnumber,
+                    first_name,
+                    middle_name,
+                    last_name,
+                    suffix,
+                    email,
+                    year_level,
+                    program_id,
+                    status
+                ) VALUES ?
+            `, [values], (err, result) => {
+                if (err) {
+                    console.error('Error importing CSV data:', err);
+                    res.status(500).json({ message: 'Internal Server Error' });
+                } else {
+                    res.status(200).json({ message: 'CSV data imported successfully' });
+                }
+            });
+        });
+});
+
+
 
 module.exports = router;
