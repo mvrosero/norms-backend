@@ -122,13 +122,6 @@ router.get('/employees/:employee_idnumber', async (req, res) => {
 
 
 
-
-
-
-
-
-
-
 /*get: employees*/
 router.get('/employees', (req, res) => {
     try {
