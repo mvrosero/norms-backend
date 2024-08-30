@@ -86,6 +86,49 @@ router.get('/employee/:id',  (req, res) => {
 });
 
 
+// Get employee by employee_idnumber
+router.get('/employees/:employee_idnumber', async (req, res) => {
+    const employee_idnumber = req.params.employee_idnumber.trim(); // Trim spaces
+
+    if (!employee_idnumber) {
+        return res.status(400).json({ error: 'Please provide employee_idnumber' });
+    }
+
+    const sqlQuery = `
+        SELECT 
+            CONCAT_WS(' ', first_name, COALESCE(middle_name, ''), last_name, COALESCE(suffix, '')) AS full_name
+        FROM user
+        WHERE employee_idnumber = ?
+    `;
+
+    console.log('Executing SQL Query:', sqlQuery);
+    console.log('With Parameter:', employee_idnumber);
+
+    try {
+        const [rows] = await db.promise().execute(sqlQuery, [employee_idnumber]);
+
+        console.log('Query Result:', rows);
+
+        if (rows.length === 0) {
+            return res.status(404).json({ error: 'Employee not found' });
+        }
+
+        res.status(200).json({ name: rows[0].full_name });
+    } catch (error) {
+        console.error('Error fetching employee:', error);
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
+
+
+
+
+
+
+
+
+
+
 /*get: employees*/
 router.get('/employees', (req, res) => {
     try {
