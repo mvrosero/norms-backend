@@ -2,7 +2,7 @@ const express = require('express');
 const db = require('../app/configuration/database');
 const router = express.Router();
 
-/* POST: Create a new violation nature */
+/* post: violation nature */
 router.post('/create-violationnature', async (req, res) => {
     try {
         const { nature_code, nature_name, status } = req.body;
@@ -21,7 +21,8 @@ router.post('/create-violationnature', async (req, res) => {
     }
 });
 
-/* GET: Retrieve all violation natures */
+
+/* get: violation natures */
 router.get('/violation-natures', (req, res) => {
     try {
         db.query(`SELECT * FROM violation_nature`, (err, result) => {
@@ -38,7 +39,8 @@ router.get('/violation-natures', (req, res) => {
     }
 });
 
-/* GET: Retrieve a violation nature by ID */
+
+/* get 1: violation nature */
 router.get('/violation-nature/:id', (req, res) => {
     const nature_id = req.params.id;
 
@@ -67,7 +69,8 @@ router.get('/violation-nature/:id', (req, res) => {
     }
 });
 
-/* PUT: Update a violation nature */
+
+/* put: violation nature */
 router.put('/violation-nature/:id', async (req, res) => {
     const nature_id = req.params.id;
     const { nature_code, nature_name, status } = req.body;
@@ -94,7 +97,8 @@ router.put('/violation-nature/:id', async (req, res) => {
     }
 });
 
-/* DELETE: Remove a violation nature */
+
+/* delete: violation nature */
 router.delete('/violation-nature/:id', (req, res) => {
     const nature_id = req.params.id;
 
