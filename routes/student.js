@@ -67,7 +67,6 @@ router.post('/register-student', async (req, res) => {
 });
 
 
-
 /* get: 1 student using student_idnumber */
 router.get('/student/:student_idnumber', (req, res) => {
     let student_idnumber = req.params.student_idnumber;

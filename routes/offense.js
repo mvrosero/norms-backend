@@ -2,15 +2,13 @@ const express = require('express');
 const db = require('../app/configuration/database');
 const router = express.Router();
 
-
-/*post: offense*/
+/* post: register offense */
 router.post('/register-offense', async (req, res) => {
-
     try {
-        const {offense_code, offense_name, category_id, status} = req.body;
+        const { offense_code, offense_name, category_id, subcategory_id, status } = req.body; // Added subcategory_id
         
-        const insertOffenseQuery = 'INSERT INTO offense (offense_code, offense_name, category_id, status) VALUES ( ?, ?, ?, ?)';
-        await db.promise().execute(insertOffenseQuery, [offense_code, offense_name, category_id, status]);
+        const insertOffenseQuery = 'INSERT INTO offense (offense_code, offense_name, category_id, subcategory_id, status) VALUES (?, ?, ?, ?, ?)';
+        await db.promise().execute(insertOffenseQuery, [offense_code, offense_name, category_id, subcategory_id, status]);
 
         res.status(201).json({ message: 'Offense registered successfully' });
     } catch (error) {
@@ -19,10 +17,8 @@ router.post('/register-offense', async (req, res) => {
     }
 });
 
-
-/*get: 1 offense*/
-router.get('/offense/:id',  (req, res) => {
-
+/* get: 1 offense */
+router.get('/offense/:id', (req, res) => {
     let offense_id = req.params.id;
 
     if (!offense_id) {
@@ -30,7 +26,7 @@ router.get('/offense/:id',  (req, res) => {
     }
 
     try {
-        db.query('SELECT offense_id, offense_code, offense_name, status, category_id FROM offense WHERE offense_id = ?', offense_id, (err, result) => {
+        db.query('SELECT offense_id, offense_code, offense_name, status, category_id, subcategory_id FROM offense WHERE offense_id = ?', offense_id, (err, result) => {
             if (err) {
                 console.error('Error fetching offense:', err);
                 res.status(500).json({ message: 'Internal Server Error' });
@@ -44,13 +40,10 @@ router.get('/offense/:id',  (req, res) => {
     }
 });
 
-
-/*get: offenses*/
+/* get: offenses */
 router.get('/offenses', (req, res) => {
-
     try {
         db.query('SELECT * FROM offense', (err, result) => {
-
             if (err) {
                 console.error('Error fetching offenses:', err);
                 res.status(500).json({ message: 'Internal Server Error' });
@@ -60,24 +53,22 @@ router.get('/offenses', (req, res) => {
         });
     } catch (error) {
         console.error('Error loading offenses:', error);
-        res.status(500).json({ error: 'Internal Server Error'});
+        res.status(500).json({ error: 'Internal Server Error' });
     }
 });
 
-
-/*put: offense*/
+/* put: offense */
 router.put('/offense/:id', async (req, res) => {
-
     let offense_id = req.params.id;
 
-    const {offense_code, offense_name, status, category_id} = req.body;
+    const { offense_code, offense_name, status, category_id, subcategory_id } = req.body; // Added subcategory_id
 
-    if (!offense_id || !offense_code || !offense_name || !status || !category_id) {
-        return res.status(400).send({ error: user, message: 'Please provide information' });
+    if (!offense_id || !offense_code || !offense_name || !status || !category_id || !subcategory_id) { // Updated to include subcategory_id check
+        return res.status(400).send({ error: true, message: 'Please provide all required information' });
     }
 
     try {
-        db.query('UPDATE offense SET offense_code = ?, offense_name = ?, status = ?, category_id = ? WHERE offense_id = ?', [offense_code, offense_name, status, category_id, offense_id], (err, result, fields) => {
+        db.query('UPDATE offense SET offense_code = ?, offense_name = ?, status = ?, category_id = ?, subcategory_id = ? WHERE offense_id = ?', [offense_code, offense_name, status, category_id, subcategory_id, offense_id], (err, result) => {
             if (err) {
                 console.error('Error updating offense:', err);
                 res.status(500).json({ message: 'Internal Server Error' });
@@ -91,8 +82,7 @@ router.put('/offense/:id', async (req, res) => {
     }
 });
 
-
-/*delete: offense*/
+/* delete: offense */
 router.delete('/offense/:id', async (req, res) => {
     let offense_id = req.params.id;
 
@@ -118,6 +108,5 @@ router.delete('/offense/:id', async (req, res) => {
         res.status(500).json({ error: 'Internal Server Error' });
     }
 });
-
 
 module.exports = router;
