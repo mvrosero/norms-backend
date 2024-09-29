@@ -21,9 +21,11 @@ const program = require('./routes/program');
 const academic_year = require('./routes/academic_year');
 const semester = require('./routes/semester');
 const category = require('./routes/category');
+const subcategory = require('./routes/subcategory');
 const offense = require('./routes/offense');
 const sanction = require('./routes/sanction');
 const violation_record = require('./routes/violation_record');
+const violation_nature = require('./routes/violation_nature');
 const uniform_defiance = require('./routes/uniform_defiance');
 const announcement = require('./routes/announcement');
 const settings = require('./routes/settings');
@@ -42,12 +44,15 @@ app.use('/', program);
 app.use('/', academic_year);
 app.use('/', semester);
 app.use('/', category);
+app.use('/', subcategory);
 app.use('/', offense);
 app.use('/', sanction);
 app.use('/', violation_record);
+app.use('/', violation_nature);
 app.use('/', uniform_defiance);
 app.use('/', announcement);
 app.use('/', settings);
+
 
   
 /*express JS framework*/
