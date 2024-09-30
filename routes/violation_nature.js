@@ -21,7 +21,6 @@ router.post('/create-violationnature', async (req, res) => {
     }
 });
 
-
 /* get: violation natures */
 router.get('/violation-natures', (req, res) => {
     try {
@@ -39,7 +38,6 @@ router.get('/violation-natures', (req, res) => {
     }
 });
 
-
 /* get 1: violation nature */
 router.get('/violation-nature/:id', (req, res) => {
     const nature_id = req.params.id;
@@ -50,7 +48,7 @@ router.get('/violation-nature/:id', (req, res) => {
 
     try {
         db.query(
-            `SELECT * FROM violation_nature WHERE nature_id = ?`,
+            `SELECT nature_id, nature_code, nature_name, status FROM violation_nature WHERE nature_id = ?`,
             [nature_id],
             (err, result) => {
                 if (err) {
@@ -65,6 +63,29 @@ router.get('/violation-nature/:id', (req, res) => {
         );
     } catch (error) {
         console.error('Error loading violation nature:', error);
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
+
+
+/* get: uniform defiance records */
+router.get('/uniform-defiance', (req, res) => {
+    try {
+        const query = `
+            SELECT ud.*, vn.nature_name
+            FROM uniform_defiance ud
+            LEFT JOIN violation_nature vn ON ud.nature_id = vn.nature_id
+        `;
+
+        db.query(query, (err, result) => {
+            if (err) {
+                console.error('Error fetching uniform defiance records:', err);
+                return res.status(500).json({ message: 'Internal Server Error' });
+            }
+            res.status(200).json(result);
+        });
+    } catch (error) {
+        console.error('Error loading uniform defiance records:', error);
         res.status(500).json({ error: 'Internal Server Error' });
     }
 });
@@ -97,7 +118,6 @@ router.put('/violation-nature/:id', async (req, res) => {
     }
 });
 
-
 /* delete: violation nature */
 router.delete('/violation-nature/:id', (req, res) => {
     const nature_id = req.params.id;
@@ -119,5 +139,6 @@ router.delete('/violation-nature/:id', (req, res) => {
         res.status(500).json({ error: 'Internal Server Error', details: error });
     }
 });
+
 
 module.exports = router;

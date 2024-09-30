@@ -19,29 +19,32 @@ const upload = multer({ storage: storage });
 // Post: uniform defiance
 router.post('/create-uniformdefiance', upload.array('photo_video_files'), async (req, res) => {
     try {
-        const { student_idnumber, violation_nature, submitted_by } = req.body;
+        const { student_idnumber, nature_id, submitted_by } = req.body;
         const files = req.files;
 
         // Retrieve filenames of all uploaded files
         const photo_video_filenames = files.map(file => file.filename).join(',');
 
         // Check if any required fields are missing
-        if (!student_idnumber || !violation_nature || !photo_video_filenames || !submitted_by) {
+        if (!student_idnumber || !nature_id || !photo_video_filenames || !submitted_by) {
             return res.status(400).json({ error: 'Missing required fields' });
         }
 
         const currentTimestamp = new Date().toISOString().slice(0, 19).replace('T', ' ');
-        const insertDefianceQuery = 'INSERT INTO uniform_defiance (student_idnumber, violation_nature, photo_video_filenames, created_at, submitted_by) VALUES (?, ?, ?, ?, ?)';
+        const insertDefianceQuery = `
+            INSERT INTO uniform_defiance 
+            (student_idnumber, photo_video_filenames, created_at, submitted_by, nature_id) 
+            VALUES (?, ?, ?, ?, ?)`;
 
         console.log('Inserting into database:', {
             student_idnumber,
-            violation_nature,
             photo_video_filenames,
             created_at: currentTimestamp,
-            submitted_by
+            submitted_by,
+            nature_id
         });
 
-        await db.promise().execute(insertDefianceQuery, [student_idnumber, violation_nature, photo_video_filenames, currentTimestamp, submitted_by]);
+        await db.promise().execute(insertDefianceQuery, [student_idnumber, photo_video_filenames, currentTimestamp, submitted_by, nature_id]);
 
         res.status(201).json({ message: 'Uniform defiance recorded successfully' });
     } catch (error) {
@@ -59,7 +62,13 @@ router.get('/uniform_defiance/:id', (req, res) => {
     }
 
     try {
-        db.query('SELECT * FROM uniform_defiance WHERE slip_id = ?', [slip_id], (err, result) => {
+        const query = `
+            SELECT ud.*, vn.nature_name
+            FROM uniform_defiance ud
+            LEFT JOIN violation_nature vn ON ud.nature_id = vn.nature_id
+            WHERE ud.slip_id = ?`;
+
+        db.query(query, [slip_id], (err, result) => {
             if (err) {
                 console.error('Error fetching uniform defiance:', err);
                 res.status(500).json({ message: 'Internal Server Error' });
@@ -78,11 +87,16 @@ router.get('/uniform_defiance/:id', (req, res) => {
     }
 });
 
-
 // Get: uniform_defiances
 router.get('/uniform_defiances', (req, res) => {
     try {
-        db.query('SELECT * FROM uniform_defiance WHERE slip_id IS NOT NULL', (err, result) => {
+        const query = `
+            SELECT ud.*, vn.nature_name
+            FROM uniform_defiance ud
+            LEFT JOIN violation_nature vn ON ud.nature_id = vn.nature_id
+            WHERE ud.slip_id IS NOT NULL`;
+
+        db.query(query, (err, result) => {
             if (err) {
                 console.error('Error fetching uniform defiances:', err);
                 res.status(500).json({ message: 'Internal Server Error' });
@@ -105,7 +119,13 @@ router.get('/uniform_defiances/:student_idnumber', (req, res) => {
     }
 
     try {
-        db.query('SELECT * FROM uniform_defiance WHERE student_idnumber = ?', [student_idnumber], (err, result) => {
+        const query = `
+            SELECT ud.*, vn.nature_name
+            FROM uniform_defiance ud
+            LEFT JOIN violation_nature vn ON ud.nature_id = vn.nature_id
+            WHERE ud.student_idnumber = ?`;
+
+        db.query(query, [student_idnumber], (err, result) => {
             if (err) {
                 console.error('Error fetching uniform defiance records:', err);
                 res.status(500).json({ message: 'Internal Server Error' });
@@ -122,7 +142,6 @@ router.get('/uniform_defiances/:student_idnumber', (req, res) => {
         res.status(500).json({ error: 'Internal Server Error' });
     }
 });
-
 
 // Put: uniform_defiance
 router.put('/uniform_defiance/:id', async (req, res) => {
