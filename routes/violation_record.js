@@ -2,21 +2,20 @@ const express = require('express');
 const db = require('../app/configuration/database');
 const router = express.Router();
 
-
-/*post: violation record*/
+/* Post: Create violation record */
 router.post('/create-violationrecord', async (req, res) => {
     try {
-        const { user_id, description, category_id, offense_id, sanction_id, acadyear_id, semester_id } = req.body;
+        const { user_id, description, category_id, offense_id, sanction_id, acadyear_id, semester_id, subcategory_id } = req.body;
 
         // Check if any required fields are missing
-        if (!user_id || !description || !category_id || !offense_id || !sanction_id || !acadyear_id || !semester_id) {
+        if (!user_id || !description || !category_id || !offense_id || !sanction_id || !acadyear_id || !semester_id || !subcategory_id) {
             return res.status(400).json({ error: 'Missing required fields' });
         }
 
         const currentTimestamp = new Date().toISOString().slice(0, 19).replace('T', ' ');
-        const insertViolationQuery = 'INSERT INTO violation_record (user_id, description, created_at, category_id, offense_id, sanction_id, acadyear_id, semester_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)';
+        const insertViolationQuery = 'INSERT INTO violation_record (user_id, description, created_at, category_id, offense_id, sanction_id, acadyear_id, semester_id, subcategory_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)';
         
-        await db.promise().execute(insertViolationQuery, [user_id, description, currentTimestamp, category_id, offense_id, sanction_id, acadyear_id, semester_id]);
+        await db.promise().execute(insertViolationQuery, [user_id, description, currentTimestamp, category_id, offense_id, sanction_id, acadyear_id, semester_id, subcategory_id]);
 
         res.status(201).json({ message: 'Violation recorded successfully' });
     } catch (error) {
@@ -25,15 +24,14 @@ router.post('/create-violationrecord', async (req, res) => {
     }
 });
 
-
-/*post: violation record by student_idnumber */
+/* Post: Create violation record by student_idnumber */
 router.post('/create-violationrecord/:student_idnumber', async (req, res) => {
     try {
         const student_idnumber = req.params.student_idnumber;
-        const { description, category_id, offense_id, sanction_id, acadyear_id, semester_id } = req.body;
+        const { description, category_id, offense_id, sanction_id, acadyear_id, semester_id, subcategory_id } = req.body;
 
         // Check if any required fields are missing
-        if (!description || !category_id || !offense_id || !sanction_id || !acadyear_id || !semester_id) {
+        if (!description || !category_id || !offense_id || !sanction_id || !acadyear_id || !semester_id || !subcategory_id) {
             return res.status(400).json({ error: 'Missing required fields' });
         }
 
@@ -47,9 +45,9 @@ router.post('/create-violationrecord/:student_idnumber', async (req, res) => {
         const user_id = userResult[0].user_id;
 
         const currentTimestamp = new Date().toISOString().slice(0, 19).replace('T', ' ');
-        const insertViolationQuery = 'INSERT INTO violation_record (user_id, description, created_at, category_id, offense_id, sanction_id, acadyear_id, semester_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)';
+        const insertViolationQuery = 'INSERT INTO violation_record (user_id, description, created_at, category_id, offense_id, sanction_id, acadyear_id, semester_id, subcategory_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)';
 
-        await db.promise().execute(insertViolationQuery, [user_id, description, currentTimestamp, category_id, offense_id, sanction_id, acadyear_id, semester_id]);
+        await db.promise().execute(insertViolationQuery, [user_id, description, currentTimestamp, category_id, offense_id, sanction_id, acadyear_id, semester_id, subcategory_id]);
 
         res.status(201).json({ message: 'Violation recorded successfully' });
     } catch (error) {
@@ -58,8 +56,7 @@ router.post('/create-violationrecord/:student_idnumber', async (req, res) => {
     }
 });
 
-
-/*get: 1 violation (student_idnumber)*/
+/* Get: 1 violation (student_idnumber) */
 router.get('/myrecords/:student_idnumber', (req, res) => {
     let student_idnumber = req.params.student_idnumber;
 
@@ -96,8 +93,7 @@ router.get('/myrecords/:student_idnumber', (req, res) => {
     }
 });
 
-
-/*get: 1 violation (user)*/
+/* Get: 1 violation (user) */
 router.get('/violation_record/:student_idnumber', (req, res) => {
     let student_idnumber = req.params.student_idnumber;
 
@@ -117,7 +113,8 @@ router.get('/violation_record/:student_idnumber', (req, res) => {
         vr.offense_id,
         vr.sanction_id,
         vr.acadyear_id,
-        vr.semester_id
+        vr.semester_id,
+        vr.subcategory_id -- Include subcategory_id in the selection
     FROM 
         violation_record AS vr
     INNER JOIN 
@@ -142,9 +139,7 @@ router.get('/violation_record/:student_idnumber', (req, res) => {
     }
 });
 
-
-
-/*get: 1 violation (record)*/
+/* Get: 1 violation (record) */
 router.get('/violation_record/record/:record_id', (req, res) => {
     let record_id = req.params.record_id;
 
@@ -167,13 +162,10 @@ router.get('/violation_record/record/:record_id', (req, res) => {
     }
 });
 
-
-/*get: violations*/
+/* Get: violations */
 router.get('/violation_records', (req, res) => {
-
     try {
         db.query('SELECT * FROM violation_record', (err, result) => {
-
             if (err) {
                 console.error('Error fetching violation records:', err);
                 res.status(500).json({ message: 'Internal Server Error' });
@@ -183,9 +175,8 @@ router.get('/violation_records', (req, res) => {
         });
     } catch (error) {
         console.error('Error loading violation records:', error);
-        res.status(500).json({ error: 'Internal Server Error'});
+        res.status(500).json({ error: 'Internal Server Error' });
     }
 });
-
 
 module.exports = router;
