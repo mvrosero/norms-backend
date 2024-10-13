@@ -180,7 +180,7 @@ router.get('/violation_record/record/:record_id', (req, res) => {
     }
 });
 
-/* Get: violations */
+/*get all: violations*/
 router.get('/violation_records', (req, res) => {
     try {
         db.query('SELECT * FROM violation_record', (err, result) => {
