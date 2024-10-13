@@ -5,12 +5,21 @@ const router = express.Router();
 /* Post: Create violation record */
 router.post('/create-violationrecord', async (req, res) => {
     try {
-        const { user_id, description, category_id, offense_id, sanction_id, acadyear_id, semester_id, subcategory_id } = req.body;
+        const { user_id, description, category_id, offense_id, sanction_id, acadyear_id, semester_id } = req.body;
 
         // Check if any required fields are missing
-        if (!user_id || !description || !category_id || !offense_id || !sanction_id || !acadyear_id || !semester_id || !subcategory_id) {
+        if (!user_id || !description || !category_id || !offense_id || !sanction_id || !acadyear_id || !semester_id) {
             return res.status(400).json({ error: 'Missing required fields' });
         }
+
+        // Fetch subcategory_id based on the offense_id
+        const [offenseRows] = await db.promise().query('SELECT subcategory_id FROM offense WHERE offense_id = ?', [offense_id]);
+        
+        if (offenseRows.length === 0) {
+            return res.status(404).json({ error: 'Offense not found' });
+        }
+
+        const subcategory_id = offenseRows[0].subcategory_id; // Automatically set subcategory_id
 
         const currentTimestamp = new Date().toISOString().slice(0, 19).replace('T', ' ');
         const insertViolationQuery = 'INSERT INTO violation_record (user_id, description, created_at, category_id, offense_id, sanction_id, acadyear_id, semester_id, subcategory_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)';
@@ -28,10 +37,10 @@ router.post('/create-violationrecord', async (req, res) => {
 router.post('/create-violationrecord/:student_idnumber', async (req, res) => {
     try {
         const student_idnumber = req.params.student_idnumber;
-        const { description, category_id, offense_id, sanction_id, acadyear_id, semester_id, subcategory_id } = req.body;
+        const { description, category_id, offense_id, sanction_id, acadyear_id, semester_id } = req.body;
 
         // Check if any required fields are missing
-        if (!description || !category_id || !offense_id || !sanction_id || !acadyear_id || !semester_id || !subcategory_id) {
+        if (!description || !category_id || !offense_id || !sanction_id || !acadyear_id || !semester_id) {
             return res.status(400).json({ error: 'Missing required fields' });
         }
 
@@ -43,6 +52,15 @@ router.post('/create-violationrecord/:student_idnumber', async (req, res) => {
         }
 
         const user_id = userResult[0].user_id;
+
+        // Fetch subcategory_id based on the offense_id
+        const [offenseRows] = await db.promise().query('SELECT subcategory_id FROM offense WHERE offense_id = ?', [offense_id]);
+
+        if (offenseRows.length === 0) {
+            return res.status(404).json({ error: 'Offense not found' });
+        }
+
+        const subcategory_id = offenseRows[0].subcategory_id; // Automatically set subcategory_id
 
         const currentTimestamp = new Date().toISOString().slice(0, 19).replace('T', ' ');
         const insertViolationQuery = 'INSERT INTO violation_record (user_id, description, created_at, category_id, offense_id, sanction_id, acadyear_id, semester_id, subcategory_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)';
