@@ -68,24 +68,28 @@ router.get('/sanctions', (req, res) => {
 
 /*put: sanction*/
 router.put('/sanction/:id', async (req, res) => {
-
     let sanction_id = req.params.id;
 
-    const {sanction_code, sanction_name} = req.body;
+    const { sanction_code, sanction_name, status } = req.body;
 
-    if (!sanction_id || !sanction_code || !sanction_name) {
-        return res.status(400).send({ error: user, message: 'Please provide information' });
+    if (!sanction_id || !sanction_code || !sanction_name || !status) {
+        return res.status(400).send({ error: 'User', message: 'Please provide all required information' });
     }
 
     try {
-        db.query('UPDATE sanction SET sanction_code = ?, sanction_name = ? WHERE sanction_id = ?', [sanction_code, sanction_name, sanction_id], (err, result, fields) => {
-            if (err) {
-                console.error('Error updating sanction:', err);
-                res.status(500).json({ message: 'Internal Server Error' });
-            } else {
-                res.status(200).json(result);
+        db.query(
+            'UPDATE sanction SET sanction_code = ?, sanction_name = ?, status = ? WHERE sanction_id = ?',
+            [sanction_code, sanction_name, status, sanction_id],
+            (err, result, fields) => {
+                if (err) {
+                    console.error('Error updating sanction:', err);
+                    res.status(500).json({ message: 'Internal Server Error' });
+                } else {
+                    // Removed the success message from the response
+                    res.status(200).json(result); // Only return the result of the update
+                }
             }
-        });
+        );
     } catch (error) {
         console.error('Error loading sanction:', error);
         res.status(500).json({ error: 'Internal Server Error' });
