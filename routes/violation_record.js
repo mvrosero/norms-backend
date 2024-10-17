@@ -5,30 +5,55 @@ const router = express.Router();
 /* Post: Create violation record */
 router.post('/create-violationrecord', async (req, res) => {
     try {
-        const { user_id, description, category_id, offense_id, sanction_id, acadyear_id, semester_id } = req.body;
+        const { 
+            description, 
+            category_id, 
+            offense_id, 
+            acadyear_id, 
+            semester_id, 
+            users,      // Array of user IDs
+            sanctions   // Array of sanction IDs
+        } = req.body;
 
-        // Check if any required fields are missing
-        if (!user_id || !description || !category_id || !offense_id || !sanction_id || !acadyear_id || !semester_id) {
+        // Ensure all required fields are present
+        if (!description || !category_id || !offense_id || !acadyear_id || !semester_id || !users || !sanctions) {
             return res.status(400).json({ error: 'Missing required fields' });
         }
 
-        // Fetch subcategory_id based on the offense_id
-        const [offenseRows] = await db.promise().query('SELECT subcategory_id FROM offense WHERE offense_id = ?', [offense_id]);
-        
-        if (offenseRows.length === 0) {
-            return res.status(404).json({ error: 'Offense not found' });
-        }
+        // Insert the violation record
+        const insertViolationQuery = `
+            INSERT INTO violation_record 
+            (description, category_id, offense_id, acadyear_id, semester_id) 
+            VALUES (?, ?, ?, ?, ?)
+        `;
+        const [violationResult] = await db.promise().execute(insertViolationQuery, [
+            description, category_id, offense_id, acadyear_id, semester_id
+        ]);
 
-        const subcategory_id = offenseRows[0].subcategory_id; // Automatically set subcategory_id
+        const record_id = violationResult.insertId; // Get the new violation record ID
 
-        const currentTimestamp = new Date().toISOString().slice(0, 19).replace('T', ' ');
-        const insertViolationQuery = 'INSERT INTO violation_record (user_id, description, created_at, category_id, offense_id, sanction_id, acadyear_id, semester_id, subcategory_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)';
-        
-        await db.promise().execute(insertViolationQuery, [user_id, description, currentTimestamp, category_id, offense_id, sanction_id, acadyear_id, semester_id, subcategory_id]);
+        // Insert multiple users linked to the violation
+        const userInsertPromises = users.map((user_id) =>
+            db.promise().execute(
+                'INSERT INTO violation_user (record_id, user_id) VALUES (?, ?)',
+                [record_id, user_id]
+            )
+        );
 
-        res.status(201).json({ message: 'Violation recorded successfully' });
+        // Insert multiple sanctions linked to the violation
+        const sanctionInsertPromises = sanctions.map((sanction_id) =>
+            db.promise().execute(
+                'INSERT INTO violation_sanction (record_id, sanction_id) VALUES (?, ?)',
+                [record_id, sanction_id]
+            )
+        );
+
+        // Execute all insertion promises in parallel
+        await Promise.all([...userInsertPromises, ...sanctionInsertPromises]);
+
+        res.status(201).json({ message: 'Violation record created successfully with multiple users and sanctions' });
     } catch (error) {
-        console.error('Error registering violation:', error);
+        console.error('Error creating violation record:', error);
         res.status(500).json({ error: 'Internal Server Error' });
     }
 });
@@ -53,19 +78,13 @@ router.post('/create-violationrecord/:student_idnumber', async (req, res) => {
 
         const user_id = userResult[0].user_id;
 
-        // Fetch subcategory_id based on the offense_id
-        const [offenseRows] = await db.promise().query('SELECT subcategory_id FROM offense WHERE offense_id = ?', [offense_id]);
-
-        if (offenseRows.length === 0) {
-            return res.status(404).json({ error: 'Offense not found' });
-        }
-
-        const subcategory_id = offenseRows[0].subcategory_id; // Automatically set subcategory_id
-
         const currentTimestamp = new Date().toISOString().slice(0, 19).replace('T', ' ');
-        const insertViolationQuery = 'INSERT INTO violation_record (user_id, description, created_at, category_id, offense_id, sanction_id, acadyear_id, semester_id, subcategory_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)';
+        const insertViolationQuery = `
+            INSERT INTO violation_record (description, created_at, category_id, offense_id, acadyear_id, semester_id, user_id) 
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        `;
 
-        await db.promise().execute(insertViolationQuery, [user_id, description, currentTimestamp, category_id, offense_id, sanction_id, acadyear_id, semester_id, subcategory_id]);
+        await db.promise().execute(insertViolationQuery, [description, currentTimestamp, category_id, offense_id, acadyear_id, semester_id, user_id]);
 
         res.status(201).json({ message: 'Violation recorded successfully' });
     } catch (error) {
@@ -74,128 +93,38 @@ router.post('/create-violationrecord/:student_idnumber', async (req, res) => {
     }
 });
 
-/* Get: 1 violation (student_idnumber) */
-router.get('/myrecords/:student_idnumber', (req, res) => {
-    let student_idnumber = req.params.student_idnumber;
 
-    if (!student_idnumber) {
-        return res.status(400).send({ error: true, message: 'Please provide student_idnumber' });
-    }
-
-    try {
-        // Fetch user_id associated with the provided student_idnumber
-        db.query('SELECT user_id FROM user WHERE student_idnumber = ?', student_idnumber, (err, result) => {
-            if (err) {
-                console.error('Error fetching user ID:', err);
-                res.status(500).json({ message: 'Internal Server Error' });
-            } else {
-                if (result.length === 0) {
-                    return res.status(404).json({ message: 'User not found' });
-                }
-                const user_id = result[0].user_id;
-
-                // Fetch violation records associated with the user_id
-                db.query('SELECT * FROM violation_record WHERE user_id = ?', user_id, (err, records) => {
-                    if (err) {
-                        console.error('Error fetching violation records:', err);
-                        res.status(500).json({ message: 'Internal Server Error' });
-                    } else {
-                        res.status(200).json(records);
-                    }
-                });
-            }
-        });
-    } catch (error) {
-        console.error('Error fetching violation records:', error);
-        res.status(500).json({ error: 'Internal Server Error' });
-    }
-});
-
-/* Get: 1 violation (user) */
-router.get('/violation_record/:student_idnumber', (req, res) => {
-    let student_idnumber = req.params.student_idnumber;
-
-    if (!student_idnumber) {
-        return res.status(400).send({ error: true, message: 'Please provide user_id' });
-    }
-
-    try {
-        db.query(`SELECT 
-        vr.record_id,
-        u.student_idnumber,
-        u.first_name,
-        u.last_name,
-        vr.description,
-        vr.created_at,
-        vr.category_id,
-        vr.offense_id,
-        vr.sanction_id,
-        vr.acadyear_id,
-        vr.semester_id,
-        vr.subcategory_id -- Include subcategory_id in the selection
-    FROM 
-        violation_record AS vr
-    INNER JOIN 
-        user AS u ON vr.user_id = u.user_id
-    WHERE 
-        u.student_idnumber = ?`, student_idnumber, (err, result) => {
-            if (err) {
-                console.error('Error fetching violation records:', err);
-                res.status(500).json({ message: 'Internal Server Error' });
-            } else {
-                if (result.length === 0) {
-                    // No records found for the user_id
-                    res.status(404).json({ message: 'No records found' });
-                } else {
-                    res.status(200).json(result);
-                }
-            }
-        });
-    } catch (error) {
-        console.error('Error fetching violation records:', error);
-        res.status(500).json({ error: 'Internal Server Error' });
-    }
-});
-
-/* Get: 1 violation (record) */
-router.get('/violation_record/record/:record_id', (req, res) => {
-    let record_id = req.params.record_id;
+/* Get: Violation record by record_id */
+router.get('/violation_record/record/:record_id', async (req, res) => {
+    const record_id = req.params.record_id;
 
     if (!record_id) {
-        return res.status(400).send({ error: true, message: 'Please provide record_id' });
+        return res.status(400).json({ error: 'Please provide record_id' });
     }
 
     try {
-        db.query('SELECT * FROM violation_record WHERE record_id = ?', record_id, (err, result) => {
-            if (err) {
-                console.error('Error fetching violation records:', err);
-                res.status(500).json({ message: 'Internal Server Error' });
-            } else {
-                res.status(200).json(result);
-            }
-        });
+        const [result] = await db.promise().query('SELECT * FROM violation_record WHERE record_id = ?', [record_id]);
+
+        if (result.length === 0) {
+            return res.status(404).json({ message: 'No record found' });
+        }
+
+        res.status(200).json(result);
     } catch (error) {
         console.error('Error fetching violation records:', error);
         res.status(500).json({ error: 'Internal Server Error' });
     }
 });
 
-/*get all: violations*/
-router.get('/violation_records', (req, res) => {
+/* Get: All violation records */
+router.get('/violation_records', async (req, res) => {
     try {
-        db.query('SELECT * FROM violation_record', (err, result) => {
-            if (err) {
-                console.error('Error fetching violation records:', err);
-                res.status(500).json({ message: 'Internal Server Error' });
-            } else {
-                res.status(200).json(result);
-            }
-        });
+        const [result] = await db.promise().query('SELECT * FROM violation_record');
+        res.status(200).json(result);
     } catch (error) {
         console.error('Error loading violation records:', error);
         res.status(500).json({ error: 'Internal Server Error' });
     }
 });
-
 
 module.exports = router;
