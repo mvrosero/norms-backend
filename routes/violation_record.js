@@ -197,4 +197,5 @@ router.get('/violation_records', (req, res) => {
     }
 });
 
+
 module.exports = router;
