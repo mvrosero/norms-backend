@@ -17,7 +17,7 @@ router.post('/create-violationrecord', async (req, res) => {
         } = req.body;
 
         // Ensure all required fields are present
-        if (!description || !category_id || !offense_id || !acadyear_id || !semester_id || !users || !sanctions) {
+        if (!description || !category_id || !offense_id || !acadyear_id || !semester_id || !Array.isArray(users) || !Array.isArray(sanctions)) {
             return res.status(400).json({ error: 'Missing required fields' });
         }
 
@@ -59,7 +59,6 @@ router.post('/create-violationrecord', async (req, res) => {
     }
 });
 
-
 /* Post: Create violation record by student_idnumber */
 router.post('/create-violationrecord/:student_idnumber', async (req, res) => {
     try {
@@ -74,14 +73,12 @@ router.post('/create-violationrecord/:student_idnumber', async (req, res) => {
         } = req.body;
 
         // Ensure all required fields are present
-        if (!description || !category_id || !offense_id || !sanctions || !acadyear_id || !semester_id) {
+        if (!description || !category_id || !offense_id || !Array.isArray(sanctions) || !acadyear_id || !semester_id) {
             return res.status(400).json({ error: 'Missing required fields' });
         }
 
         // Fetch the user_id associated with the provided student_idnumber
-        const [userResult] = await db
-            .promise()
-            .query('SELECT user_id FROM user WHERE student_idnumber = ?', [student_idnumber]);
+        const [userResult] = await db.promise().query('SELECT user_id FROM user WHERE student_idnumber = ?', [student_idnumber]);
 
         if (userResult.length === 0) {
             return res.status(404).json({ error: 'User not found' });
@@ -96,23 +93,21 @@ router.post('/create-violationrecord/:student_idnumber', async (req, res) => {
             VALUES (?, ?, ?, ?, ?)
         `;
 
-        const [violationResult] = await db
-            .promise()
-            .execute(insertViolationQuery, [
-                description, 
-                category_id, 
-                offense_id, 
-                acadyear_id, 
-                semester_id
-            ]);
+        const [violationResult] = await db.promise().execute(insertViolationQuery, [
+            description, 
+            category_id, 
+            offense_id, 
+            acadyear_id, 
+            semester_id
+        ]);
 
         const record_id = violationResult.insertId;  // Get the newly created violation record ID
 
         // Link the user to the violation record
-        const insertViolationUserQuery = `
-            INSERT INTO violation_user (record_id, user_id) VALUES (?, ?)
-        `;
-        await db.promise().execute(insertViolationUserQuery, [record_id, user_id]);
+        await db.promise().execute(
+            'INSERT INTO violation_user (record_id, user_id) VALUES (?, ?)',
+            [record_id, user_id]
+        );
 
         // Insert multiple sanctions linked to the violation record
         const sanctionInsertPromises = sanctions.map((sanction_id) =>
