@@ -99,6 +99,41 @@ router.get('/student/:student_idnumber', (req, res) => {
 });
 
 
+/* get: students by department_code */
+router.get('/students/:department_code', (req, res) => {
+    const department_code = req.params.department_code;
+
+    if (!department_code) {
+        return res.status(400).send({ error: true, message: 'Please provide department_code' });
+    }
+
+    try {
+        db.query(`
+            SELECT u.student_idnumber, u.first_name, u.middle_name, u.last_name, 
+                   u.suffix, u.birthdate, u.email, u.profile_photo_filename, 
+                   u.year_level, u.batch, d.department_name, 
+                   p.program_name, u.role_id, u.status 
+            FROM user u 
+            JOIN department d ON u.department_id = d.department_id 
+            JOIN program p ON u.program_id = p.program_id 
+            WHERE d.department_code = ?`, 
+            [department_code],
+            (err, result) => {
+                if (err) {
+                    console.error('Error fetching students by department code:', err);
+                    res.status(500).json({ message: 'Internal Server Error' });
+                } else {
+                    res.status(200).json(result);
+                }
+            }
+        );
+    } catch (error) {
+        console.error('Error loading students by department code:', error);
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
+
+
 /*get: students*/
 router.get('/students', (req, res) => {
     try {
