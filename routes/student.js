@@ -3,6 +3,8 @@ const fs = require('fs');
 const db = require('../app/configuration/database');
 const bcrypt = require('bcrypt');
 const csv = require('csv-parser');
+const jwt = require('jsonwebtoken'); // Import jsonwebtoken
+const secretKey = 'your_secret_key'; // Change to your actual secret key
 const router = express.Router();
 const multer = require('multer');
 
@@ -106,7 +108,7 @@ router.post('/register-student', upload.single('file'), async (req, res) => {
 
 
 
-/*post: student login*/
+/* post: student login */
 router.post('/student-login', async (req, res) => {
     try {
         const { student_idnumber, password } = req.body;
@@ -125,7 +127,7 @@ router.post('/student-login', async (req, res) => {
             return res.status(401).json({ error: 'Invalid password' });
         }
 
-        // Retrieve the role_id, and user_id from the user data
+        // Retrieve the role_id and user_id from the user data
         const { role_id, user_id } = user;
 
         // Generate JWT token
@@ -355,6 +357,85 @@ router.delete('/student/:id', (req, res) => {
         res.status(500).json({ error: 'Internal Server Error', details: error });
     }
 });
+
+
+
+
+
+// DELETE: Batch delete students
+router.delete('/students', async (req, res) => {
+    const { student_ids } = req.body; // Receive an array of student IDs to delete
+
+    if (!Array.isArray(student_ids) || student_ids.length === 0) {
+        return res.status(400).json({ error: 'Please provide valid student IDs' });
+    }
+
+    try {
+        const deleteQuery = `DELETE FROM user WHERE student_idnumber IN (?)`;
+        await db.promise().execute(deleteQuery, [student_ids]);
+        res.status(200).json({ message: 'Students deleted successfully' });
+    } catch (error) {
+        console.error('Error deleting students:', error);
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
+
+
+// PUT: Batch update students
+router.put('/students', async (req, res) => {
+    const { students } = req.body; // Receive an array of student objects to update
+
+    if (!Array.isArray(students) || students.length === 0) {
+        return res.status(400).json({ error: 'Please provide valid student records' });
+    }
+
+    const connection = await db.promise().getConnection(); // Use connection for transactions
+
+    try {
+        await connection.beginTransaction(); // Start transaction
+
+        const updatePromises = students.map((student) => {
+            const {
+                student_idnumber,
+                year_level,
+                department_id,
+                program_id,
+                status,
+            } = student;
+
+            const updateQuery = `
+                UPDATE user 
+                SET year_level = COALESCE(?, year_level),
+                    department_id = COALESCE(?, department_id),
+                    program_id = COALESCE(?, program_id),
+                    status = COALESCE(?, status)
+                WHERE student_idnumber = ?
+            `;
+
+            return connection.execute(updateQuery, [
+                year_level,
+                department_id,
+                program_id,
+                status,
+                student_idnumber,
+            ]);
+        });
+
+        await Promise.all(updatePromises); // Execute updates in parallel
+        await connection.commit(); // Commit transaction
+
+        res.status(200).json({ message: 'Students updated successfully' });
+
+    } catch (error) {
+        await connection.rollback(); // Roll back transaction on error
+        console.error('Error updating students:', error);
+        res.status(500).json({ error: 'Internal Server Error' });
+    } finally {
+        connection.release(); // Release connection
+    }
+});
+
+
 
 
 

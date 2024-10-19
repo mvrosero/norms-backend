@@ -4,9 +4,12 @@ const db = require('../app/configuration/database');
 const bcrypt = require('bcrypt');
 const csv = require('csv-parser');
 const multer = require('multer');
-
+const jwt = require('jsonwebtoken'); // Import jsonwebtoken
 const router = express.Router();
 const upload = multer({ dest: 'uploads/' });
+
+// Secret key for JWT signing (ensure this is secure and not hard-coded in production)
+const secretKey = 'your_secret_key'; // Change to your actual secret key
 
 /* POST: Import Employee CSV */
 router.post('/register-employee', upload.single('file'), async (req, res) => {
@@ -91,8 +94,7 @@ router.post('/register-employee', upload.single('file'), async (req, res) => {
     }
 });
 
-
-/*post: employee login*/
+/* post: employee login */
 router.post('/employee-login', async (req, res) => {
     try {
         const { employee_idnumber, password } = req.body;
@@ -118,7 +120,7 @@ router.post('/employee-login', async (req, res) => {
             userId: user.employee_idnumber,
             role_id: user.role_id
         };
-        const token = jwt.sign(tokenPayload, secretKey, { expiresIn: '1h' });
+        const token = jwt.sign(tokenPayload, secretKey, { expiresIn: '1h' }); // Use the secret key here
 
         // Return token and role_id in response
         res.status(200).json({ token, user_id: user.user_id, role_id: user.role_id });
@@ -127,7 +129,6 @@ router.post('/employee-login', async (req, res) => {
         res.status(500).json({ error: 'Internal Server Error' });
     }
 });
-
 
 /* post: register employee */
 router.post('/register-employee', async (req, res) => {
@@ -144,10 +145,8 @@ router.post('/register-employee', async (req, res) => {
     }
 });
 
-
 /*get: 1 employee*/
-router.get('/employee/:id',  (req, res) => {
-
+router.get('/employee/:id', (req, res) => {
     let user_id = req.params.id;
 
     if (!user_id) {
@@ -164,12 +163,10 @@ router.get('/employee/:id',  (req, res) => {
             }
         });
     } catch (error) {
-
         console.error('Error loading employee:', error);
         res.status(500).json({ error: 'Internal Server Error' });
     }
 });
-
 
 // Get employee by employee_idnumber
 router.get('/employees/:employee_idnumber', async (req, res) => {
@@ -205,8 +202,6 @@ router.get('/employees/:employee_idnumber', async (req, res) => {
     }
 });
 
-
-
 /*get: employees*/
 router.get('/employees', (req, res) => {
     try {
@@ -224,109 +219,99 @@ router.get('/employees', (req, res) => {
     }
 });
 
-
 /*put: employee*/
 router.put('/employee/:id', async (req, res) => {
     try {
         const user_id = req.params.id;
-        const { employee_idnumber, first_name, middle_name, last_name, suffix, birthdate, email, password, role_id, status } = req.body;
+        const { employee_idnumber, first_name, middle_name, last_name, suffix, birthdate, email, password, role_id } = req.body;
 
-        // Validate required fields
-        if (!user_id || !employee_idnumber || !first_name || !last_name || !birthdate || !email || !role_id || !status) {
-            return res.status(400).json({ error: 'Please provide all required details' });
+        // Check if employee exists
+        const checkEmployeeQuery = 'SELECT * FROM user WHERE user_id = ?';
+        const [rows] = await db.promise().execute(checkEmployeeQuery, [user_id]);
+
+        if (rows.length === 0) {
+            return res.status(404).json({ message: 'Employee not found' });
         }
 
-        // Perform database update
-        db.query(
-            'UPDATE user SET employee_idnumber = ?, first_name = ?, middle_name = ?, last_name = ?, suffix = ?, birthdate = ?, email = ?, password = ?, role_id = ?, status = ? WHERE user_id = ?', 
-            [employee_idnumber, first_name, middle_name, last_name, suffix, birthdate, email, password, role_id, status, user_id], 
-            (err, result) => {
-                if (err) {
-                    console.error('Error updating employee:', err);
-                    return res.status(500).json({ error: 'Internal Server Error' });
-                }
-                res.status(200).json({ message: 'Employee updated successfully', result });
-            }
-        );
+        const updates = [];
+        const params = [];
+
+        if (employee_idnumber) {
+            updates.push('employee_idnumber = ?');
+            params.push(employee_idnumber);
+        }
+        if (first_name) {
+            updates.push('first_name = ?');
+            params.push(first_name);
+        }
+        if (middle_name) {
+            updates.push('middle_name = ?');
+            params.push(middle_name);
+        }
+        if (last_name) {
+            updates.push('last_name = ?');
+            params.push(last_name);
+        }
+        if (suffix) {
+            updates.push('suffix = ?');
+            params.push(suffix);
+        }
+        if (birthdate) {
+            updates.push('birthdate = ?');
+            params.push(birthdate);
+        }
+        if (email) {
+            updates.push('email = ?');
+            params.push(email);
+        }
+        if (password) {
+            const hashedPassword = await bcrypt.hash(password, 10);
+            updates.push('password = ?');
+            params.push(hashedPassword);
+        }
+        if (role_id) {
+            updates.push('role_id = ?');
+            params.push(role_id);
+        }
+
+        if (updates.length === 0) {
+            return res.status(400).json({ message: 'No fields to update' });
+        }
+
+        // Add user_id to the parameters
+        params.push(user_id);
+
+        const updateQuery = `UPDATE user SET ${updates.join(', ')} WHERE user_id = ?`;
+        await db.promise().execute(updateQuery, params);
+
+        res.status(200).json({ message: 'Employee updated successfully' });
     } catch (error) {
         console.error('Error updating employee:', error);
         res.status(500).json({ error: 'Internal Server Error' });
     }
 });
 
-
-/*put: employee password*/
-router.put('/password-change/:id', async (req, res) => {
-    const user_id = req.params.id;
-    const { current_password, new_password } = req.body;
-
-    // Validate required fields
-    if (!user_id || !current_password || !new_password) {
-        return res.status(400).json({ error: 'Please provide all required details' });
-    }
-
+/*delete: employee*/
+router.delete('/employee/:id', async (req, res) => {
     try {
-        // Fetch the current hashed password from the database
-        db.query('SELECT password FROM user WHERE user_id = ?', [user_id], async (err, results) => {
-            if (err) {
-                console.error('Error fetching user:', err);
-                return res.status(500).json({ error: 'Internal Server Error' });
-            }
+        const user_id = req.params.id;
 
-            if (results.length === 0) {
-                return res.status(404).json({ error: 'User not found' });
-            }
+        // Check if employee exists
+        const checkEmployeeQuery = 'SELECT * FROM user WHERE user_id = ?';
+        const [rows] = await db.promise().execute(checkEmployeeQuery, [user_id]);
 
-            const hashedPassword = results[0].password;
+        if (rows.length === 0) {
+            return res.status(404).json({ message: 'Employee not found' });
+        }
 
-            // Verify the current password
-            const match = await bcrypt.compare(current_password, hashedPassword);
-            if (!match) {
-                return res.status(401).json({ error: 'Current password is incorrect' });
-            }
+        const deleteQuery = 'DELETE FROM user WHERE user_id = ?';
+        await db.promise().execute(deleteQuery, [user_id]);
 
-            // Hash the new password
-            const newHashedPassword = await bcrypt.hash(new_password, 10);
-
-            // Update the new password in the database
-            db.query('UPDATE user SET password = ? WHERE user_id = ?', [newHashedPassword, user_id], (err, result) => {
-                if (err) {
-                    console.error('Error updating password:', err);
-                    return res.status(500).json({ error: 'Internal Server Error' });
-                }
-                res.status(200).json({ message: 'Password updated successfully' });
-            });
-        });
+        res.status(200).json({ message: 'Employee deleted successfully' });
     } catch (error) {
-        console.error('Error updating password:', error);
+        console.error('Error deleting employee:', error);
         res.status(500).json({ error: 'Internal Server Error' });
     }
 });
-
-
-/*delete: employee*/
-router.delete('/employee/:id', (req, res) => {
-
-    let user_id = req.params.id;
-
-    if (!user_id) {
-        return res.status(400).send({ error: true, message: 'Please provide user_id' });
-    }
-
-    try {
-        db.query('DELETE FROM user WHERE user_id = ?', user_id, (err, result, fields) => {
-            if (err) {
-                console.error('Error deleting employee:', err);
-                res.status(500).json({ message: 'Internal Server Error'});
-            } else {
-                res.status(200).json(result);
-            }
-        });
-    } catch (error) {
-        console.error('Error loading employee:', error);
-        res.status(500).json({ error: 'Internal Server Error'});
-    }
-});
-
 
 module.exports = router;
