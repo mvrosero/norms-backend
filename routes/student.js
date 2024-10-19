@@ -1,10 +1,87 @@
 const express = require('express');
+const fs = require('fs');
 const db = require('../app/configuration/database');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcrypt');
 const config = require('../app/middleware/config');
+const csv = require('csv-parser');
 const secretKey = config.secretKey;
 const router = express.Router();
+const multer = require('multer');
+
+const upload = multer({ dest: 'uploads/' });
+
+/* POST: Import CSV */
+router.post('/register-student', upload.single('file'), async (req, res) => {
+    const results = [];
+
+    try {
+        // Read and parse the CSV file
+        fs.createReadStream(req.file.path)
+            .pipe(csv())
+            .on('data', async (data) => {
+                console.log('Parsed data:', data); // Log parsed data
+
+                const { student_idnumber, first_name, middle_name, last_name, suffix, birthdate, email, password, profile_photo_filename, year_level, batch, department_id, program_id, role_id } = data;
+
+                // Check if required fields are present
+                if (!student_idnumber || !first_name || !last_name || !email || !password) {
+                    console.warn(`Missing required fields for record: ${JSON.stringify(data)}`);
+                    return; // Skip this record if any required field is missing
+                }
+
+                // Hash the password
+                const hashedPassword = await bcrypt.hash(password, 10);
+
+                // Push the valid record to results
+                results.push([
+                    student_idnumber,
+                    first_name,
+                    middle_name,
+                    last_name,
+                    suffix,
+                    birthdate,
+                    email,
+                    hashedPassword,
+                    profile_photo_filename,
+                    year_level,
+                    batch,
+                    department_id,
+                    program_id,
+                    role_id
+                ]);
+            })
+            .on('end', async () => {
+                // Check if any valid records were found
+                if (results.length === 0) {
+                    return res.status(400).json({ error: 'No valid student records found in CSV' });
+                }
+
+                // Construct the SQL insert query
+                const insertStudentQuery = `
+                    INSERT INTO user 
+                    (student_idnumber, first_name, middle_name, last_name, suffix, birthdate, email, password, profile_photo_filename, year_level, batch, department_id, program_id, role_id) 
+                    VALUES ?
+                `;
+                
+                // Insert all student records at once
+                await db.promise().query(insertStudentQuery, [results]);
+
+                res.status(201).json({ message: 'Students registered successfully' });
+            })
+            .on('error', (error) => {
+                console.error('Error parsing CSV:', error);
+                res.status(500).json({ error: 'Failed to parse CSV file' });
+            });
+    } catch (error) {
+        console.error('Error registering students:', error);
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
+
+
+
+
 
 
 /*post: student login*/

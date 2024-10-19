@@ -59,6 +59,7 @@ router.post('/create-violationrecord', async (req, res) => {
     }
 });
 
+
 /* Post: Create violation record by student_idnumber */
 router.post('/create-violationrecord/:student_idnumber', async (req, res) => {
     try {
@@ -128,51 +129,42 @@ router.post('/create-violationrecord/:student_idnumber', async (req, res) => {
 });
 
 
-/* Get: Violation records by student_idnumber with users and sanctions */
-router.get('/violation_record/:student_idnumber', async (req, res) => {
-    const student_idnumber = req.params.student_idnumber;
+/* Get: Violation record by record_id with associated users, sanctions, and subcategory */
+router.get('/violation_record/:record_id', async (req, res) => {
+    const record_id = req.params.record_id;
 
-    if (!student_idnumber) {
-        return res.status(400).json({ error: 'Please provide a valid student_idnumber.' });
+    if (!record_id) {
+        return res.status(400).json({ error: 'Please provide record_id' });
     }
 
     try {
-        // Fetch the user_id based on the provided student_idnumber
-        const [userResult] = await db
-            .promise()
-            .query('SELECT user_id FROM user WHERE student_idnumber = ?', [student_idnumber]);
-
-        if (userResult.length === 0) {
-            return res.status(404).json({ error: 'User not found.' });
-        }
-
-        const user_id = userResult[0].user_id;
-
-        // Fetch all violation records linked to the user, along with sanctions
-        const [violations] = await db.promise().query(`
-            SELECT vr.record_id, vr.description, vr.category_id, vr.offense_id, 
-                   vr.acadyear_id, vr.semester_id,
+        // Fetch the violation record by record_id, including subcategory_id from the offense table
+        const [violationRecord] = await db.promise().query(`
+            SELECT vr.*, 
+                   o.subcategory_id,
+                   GROUP_CONCAT(DISTINCT vu.user_id) AS user_ids, 
                    GROUP_CONCAT(DISTINCT vs.sanction_id) AS sanction_ids
             FROM violation_record vr
             LEFT JOIN violation_user vu ON vr.record_id = vu.record_id
             LEFT JOIN violation_sanction vs ON vr.record_id = vs.record_id
-            WHERE vu.user_id = ?
+            LEFT JOIN offense o ON vr.offense_id = o.offense_id
+            WHERE vr.record_id = ?
             GROUP BY vr.record_id
-        `, [user_id]);
+        `, [record_id]);
 
-        if (violations.length === 0) {
-            return res.status(404).json({ message: 'No violation records found for this student.' });
+        if (violationRecord.length === 0) {
+            return res.status(404).json({ error: 'Violation record not found' });
         }
 
-        res.status(200).json(violations);
+        res.status(200).json(violationRecord[0]); // Return the first record since record_id is unique
     } catch (error) {
-        console.error('Error fetching violation records:', error);
-        res.status(500).json({ error: 'Internal Server Error.' });
+        console.error('Error fetching violation record:', error);
+        res.status(500).json({ error: 'Internal Server Error' });
     }
 });
 
 
-/* Get: Violation records by student_idnumber with users and sanctions */
+/* Get: Violation records by student_idnumber with users, sanctions, and subcategory */
 router.get('/violation_record/:student_idnumber', async (req, res) => {
     const student_idnumber = req.params.student_idnumber;
 
@@ -192,13 +184,16 @@ router.get('/violation_record/:student_idnumber', async (req, res) => {
 
         const user_id = userResult[0].user_id;
 
-        // Fetch all violation records linked to the user
+        // Fetch all violation records linked to the user, including the created_at field and subcategory_id
         const [violations] = await db.promise().query(`
-            SELECT vr.*, 
+            SELECT vr.record_id, vr.description, vr.category_id, vr.offense_id, 
+                   vr.acadyear_id, vr.semester_id, vr.created_at,
+                   o.subcategory_id,
                    GROUP_CONCAT(DISTINCT vs.sanction_id) AS sanction_ids
             FROM violation_record vr
             LEFT JOIN violation_user vu ON vr.record_id = vu.record_id
             LEFT JOIN violation_sanction vs ON vr.record_id = vs.record_id
+            LEFT JOIN offense o ON vr.offense_id = o.offense_id  -- Join with the offense table
             WHERE vu.user_id = ?
             GROUP BY vr.record_id
         `, [user_id]);
@@ -213,9 +208,6 @@ router.get('/violation_record/:student_idnumber', async (req, res) => {
         res.status(500).json({ error: 'Internal Server Error' });
     }
 });
-
-
-
 
 
 /* Get: All violation records by student_idnumber */
@@ -238,13 +230,16 @@ router.get('/myrecords/:student_idnumber', async (req, res) => {
 
         const user_id = userResult[0].user_id;
 
-        // Fetch all violation records linked to the user
+        // Fetch all violation records linked to the user, including the created_at field and subcategory_id
         const [violations] = await db.promise().query(`
-            SELECT vr.*, 
+            SELECT vr.record_id, vr.description, vr.category_id, vr.offense_id, 
+                   vr.acadyear_id, vr.semester_id, vr.created_at,
+                   o.subcategory_id,  -- Include subcategory_id from offense table
                    GROUP_CONCAT(DISTINCT vs.sanction_id) AS sanction_ids
             FROM violation_record vr
             LEFT JOIN violation_user vu ON vr.record_id = vu.record_id
             LEFT JOIN violation_sanction vs ON vr.record_id = vs.record_id
+            LEFT JOIN offense o ON vr.offense_id = o.offense_id  -- Join with the offense table
             WHERE vu.user_id = ?
             GROUP BY vr.record_id
         `, [user_id]);
