@@ -1,0 +1,3 @@
+student_idnumber,first_name,middle_name,last_name,suffix,birthdate,email,password,profile_photo_filename,year_level,batch,department_id,program_id,role_id
+13-00003,Lorenzo Jay,Reabad,Pantalla,Jr,2000-12-01,ljpantalla@gbox.ncf.edu.ph,ljpantalla,,2,2025,5,12,3
+13-00004,John,,Doe,Jr,2000-01-01,jdoe@gbox.ncf.edu.ph,jdoe,,2,2023,1,1,3

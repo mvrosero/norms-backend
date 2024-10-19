@@ -1,11 +1,8 @@
 const express = require('express');
 const fs = require('fs');
 const db = require('../app/configuration/database');
-const jwt = require('jsonwebtoken');
 const bcrypt = require('bcrypt');
-const config = require('../app/middleware/config');
 const csv = require('csv-parser');
-const secretKey = config.secretKey;
 const router = express.Router();
 const multer = require('multer');
 
@@ -19,10 +16,10 @@ router.post('/register-student', upload.single('file'), async (req, res) => {
         // Read and parse the CSV file
         fs.createReadStream(req.file.path)
             .pipe(csv())
-            .on('data', async (data) => {
+            .on('data', (data) => {
                 console.log('Parsed data:', data); // Log parsed data
 
-                const { student_idnumber, first_name, middle_name, last_name, suffix, birthdate, email, password, profile_photo_filename, year_level, batch, department_id, program_id, role_id } = data;
+                const { student_idnumber, first_name, last_name, email, password, profile_photo_filename, year_level, batch, department_id, program_id, role_id } = data;
 
                 // Check if required fields are present
                 if (!student_idnumber || !first_name || !last_name || !email || !password) {
@@ -30,30 +27,53 @@ router.post('/register-student', upload.single('file'), async (req, res) => {
                     return; // Skip this record if any required field is missing
                 }
 
-                // Hash the password
-                const hashedPassword = await bcrypt.hash(password, 10);
+                // Log valid records
+                console.log(`Valid record found: ${JSON.stringify(data)}`);
 
-                // Push the valid record to results
-                results.push([
+                // Push the record to results after hashing the password
+                results.push({
                     student_idnumber,
                     first_name,
-                    middle_name,
+                    middle_name: data.middle_name || '', // Optional
                     last_name,
-                    suffix,
-                    birthdate,
+                    suffix: data.suffix || '', // Optional
+                    birthdate: data.birthdate || '', // Optional
                     email,
-                    hashedPassword,
-                    profile_photo_filename,
+                    password: password, // Raw password for hashing later
+                    profile_photo_filename: profile_photo_filename || '', // Optional
                     year_level,
                     batch,
                     department_id,
                     program_id,
                     role_id
-                ]);
+                });
             })
             .on('end', async () => {
+                // Now we hash passwords and prepare for insertion
+                const insertResults = [];
+                for (const record of results) {
+                    const hashedPassword = await bcrypt.hash(record.password, 10);
+                    insertResults.push([
+                        record.student_idnumber,
+                        record.first_name,
+                        record.middle_name,
+                        record.last_name,
+                        record.suffix,
+                        record.birthdate,
+                        record.email,
+                        hashedPassword,
+                        record.profile_photo_filename,
+                        record.year_level,
+                        record.batch,
+                        record.department_id,
+                        record.program_id,
+                        record.role_id
+                    ]);
+                }
+
                 // Check if any valid records were found
-                if (results.length === 0) {
+                if (insertResults.length === 0) {
+                    console.warn('No valid records found in results:', results);
                     return res.status(400).json({ error: 'No valid student records found in CSV' });
                 }
 
@@ -65,7 +85,7 @@ router.post('/register-student', upload.single('file'), async (req, res) => {
                 `;
                 
                 // Insert all student records at once
-                await db.promise().query(insertStudentQuery, [results]);
+                await db.promise().query(insertStudentQuery, [insertResults]);
 
                 res.status(201).json({ message: 'Students registered successfully' });
             })
@@ -78,6 +98,8 @@ router.post('/register-student', upload.single('file'), async (req, res) => {
         res.status(500).json({ error: 'Internal Server Error' });
     }
 });
+
+
 
 
 
