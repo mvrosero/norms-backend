@@ -1,10 +1,95 @@
 const express = require('express');
+const fs = require('fs');
 const db = require('../app/configuration/database');
-const jwt = require('jsonwebtoken');
 const bcrypt = require('bcrypt');
-const config = require('../app/middleware/config');
-const secretKey = config.secretKey;
+const csv = require('csv-parser');
+const multer = require('multer');
+
 const router = express.Router();
+const upload = multer({ dest: 'uploads/' });
+
+/* POST: Import Employee CSV */
+router.post('/register-employee', upload.single('file'), async (req, res) => {
+    const results = [];
+
+    try {
+        // Read and parse the CSV file
+        fs.createReadStream(req.file.path)
+            .pipe(csv())
+            .on('data', (data) => {
+                console.log('Parsed data:', data); // Log parsed data
+
+                const { employee_idnumber, first_name, last_name, email, password, profile_photo_filename, role_id } = data;
+
+                // Check if required fields are present
+                if (!employee_idnumber || !first_name || !last_name || !email || !password) {
+                    console.warn(`Missing required fields for record: ${JSON.stringify(data)}`);
+                    return; // Skip this record if any required field is missing
+                }
+
+                // Log valid records
+                console.log(`Valid record found: ${JSON.stringify(data)}`);
+
+                // Push the record to results after hashing the password
+                results.push({
+                    employee_idnumber,
+                    first_name,
+                    middle_name: data.middle_name || '', // Optional
+                    last_name,
+                    suffix: data.suffix || '', // Optional
+                    birthdate: data.birthdate || '', // Optional
+                    email,
+                    password, // Raw password for hashing later
+                    profile_photo_filename: profile_photo_filename || '', // Optional
+                    role_id
+                });
+            })
+            .on('end', async () => {
+                // Now we hash passwords and prepare for insertion
+                const insertResults = [];
+                for (const record of results) {
+                    const hashedPassword = await bcrypt.hash(record.password, 10);
+                    insertResults.push([
+                        record.employee_idnumber,
+                        record.first_name,
+                        record.middle_name,
+                        record.last_name,
+                        record.suffix,
+                        record.birthdate,
+                        record.email,
+                        hashedPassword,
+                        record.profile_photo_filename,
+                        record.role_id
+                    ]);
+                }
+
+                // Check if any valid records were found
+                if (insertResults.length === 0) {
+                    console.warn('No valid records found in results:', results);
+                    return res.status(400).json({ error: 'No valid employee records found in CSV' });
+                }
+
+                // Construct the SQL insert query
+                const insertEmployeeQuery = `
+                    INSERT INTO user 
+                    (employee_idnumber, first_name, middle_name, last_name, suffix, birthdate, email, password, profile_photo_filename, role_id) 
+                    VALUES ?
+                `;
+
+                // Insert all employee records at once
+                await db.promise().query(insertEmployeeQuery, [insertResults]);
+
+                res.status(201).json({ message: 'Employees registered successfully' });
+            })
+            .on('error', (error) => {
+                console.error('Error parsing CSV:', error);
+                res.status(500).json({ error: 'Failed to parse CSV file' });
+            });
+    } catch (error) {
+        console.error('Error registering employees:', error);
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
 
 
 /*post: employee login*/
