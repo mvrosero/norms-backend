@@ -364,7 +364,7 @@ router.delete('/student/:id', (req, res) => {
 
 // DELETE: Batch delete students
 router.delete('/students', async (req, res) => {
-    const { student_ids } = req.body; // Receive an array of student IDs to delete
+    const { student_ids } = req.body;
 
     if (!Array.isArray(student_ids) || student_ids.length === 0) {
         return res.status(400).json({ error: 'Please provide valid student IDs' });
@@ -372,7 +372,8 @@ router.delete('/students', async (req, res) => {
 
     try {
         const deleteQuery = `DELETE FROM user WHERE student_idnumber IN (?)`;
-        await db.promise().execute(deleteQuery, [student_ids]);
+        await db.promise().query(deleteQuery, [student_ids]);
+
         res.status(200).json({ message: 'Students deleted successfully' });
     } catch (error) {
         console.error('Error deleting students:', error);
@@ -383,55 +384,38 @@ router.delete('/students', async (req, res) => {
 
 // PUT: Batch update students
 router.put('/students', async (req, res) => {
-    const { students } = req.body; // Receive an array of student objects to update
+    const { student_ids, updates } = req.body;
 
-    if (!Array.isArray(students) || students.length === 0) {
-        return res.status(400).json({ error: 'Please provide valid student records' });
+    if (!Array.isArray(student_ids) || student_ids.length === 0) {
+        return res.status(400).json({ error: 'Please provide valid student IDs' });
     }
 
-    const connection = await db.promise().getConnection(); // Use connection for transactions
+    const { year_level, department_id, program_id, status } = updates;
 
     try {
-        await connection.beginTransaction(); // Start transaction
+        const placeholders = student_ids.map(() => '?').join(', '); // Generate placeholders for IDs
 
-        const updatePromises = students.map((student) => {
-            const {
-                student_idnumber,
-                year_level,
-                department_id,
-                program_id,
-                status,
-            } = student;
+        const updateQuery = `
+            UPDATE user 
+            SET year_level = ?, department_id = ?, program_id = ?, status = ?
+            WHERE student_idnumber IN (${placeholders})
+        `;
 
-            const updateQuery = `
-                UPDATE user 
-                SET year_level = COALESCE(?, year_level),
-                    department_id = COALESCE(?, department_id),
-                    program_id = COALESCE(?, program_id),
-                    status = COALESCE(?, status)
-                WHERE student_idnumber = ?
-            `;
+        // Combine updates with student IDs for the query parameters
+        const queryParams = [
+            year_level,
+            department_id,
+            program_id,
+            status,
+            ...student_ids, // Spread IDs as individual values
+        ];
 
-            return connection.execute(updateQuery, [
-                year_level,
-                department_id,
-                program_id,
-                status,
-                student_idnumber,
-            ]);
-        });
-
-        await Promise.all(updatePromises); // Execute updates in parallel
-        await connection.commit(); // Commit transaction
+        await db.promise().query(updateQuery, queryParams);
 
         res.status(200).json({ message: 'Students updated successfully' });
-
     } catch (error) {
-        await connection.rollback(); // Roll back transaction on error
         console.error('Error updating students:', error);
         res.status(500).json({ error: 'Internal Server Error' });
-    } finally {
-        connection.release(); // Release connection
     }
 });
 
