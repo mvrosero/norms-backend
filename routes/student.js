@@ -383,30 +383,53 @@ router.delete('/students', async (req, res) => {
 router.put('/students', async (req, res) => {
     const { student_ids, updates } = req.body;
 
+    // Validate the student_ids input
     if (!Array.isArray(student_ids) || student_ids.length === 0) {
         return res.status(400).json({ error: 'Please provide valid student IDs' });
     }
 
-    const { year_level, department_id, program_id, status } = updates;
-
     try {
-        const placeholders = student_ids.map(() => '?').join(', '); // Generate placeholders for IDs
+        // Build the SET clause and parameters based on the updates provided
+        const setClauses = [];
+        const queryParams = [];
 
+        // Check which fields are provided and construct the SET clause
+        if (updates.year_level !== undefined) {
+            setClauses.push('year_level = ?');
+            queryParams.push(updates.year_level);
+        }
+        if (updates.department_id !== undefined) {
+            setClauses.push('department_id = ?');
+            queryParams.push(updates.department_id);
+        }
+        if (updates.program_id !== undefined) {
+            setClauses.push('program_id = ?');
+            queryParams.push(updates.program_id);
+        }
+        if (updates.status !== undefined) {
+            setClauses.push('status = ?');
+            queryParams.push(updates.status);
+        }
+
+        // Validate if there are any fields to update
+        if (setClauses.length === 0) {
+            return res.status(400).json({ error: 'No fields to update' });
+        }
+
+        // Generate placeholders for student IDs
+        const placeholders = student_ids.map(() => '?').join(', ');
+
+        // Build the update query
         const updateQuery = `
             UPDATE user 
-            SET year_level = ?, department_id = ?, program_id = ?, status = ?
+            SET ${setClauses.join(', ')}
             WHERE student_idnumber IN (${placeholders})
         `;
 
         // Combine updates with student IDs for the query parameters
-        const queryParams = [
-            year_level,
-            department_id,
-            program_id,
-            status,
-            ...student_ids, // Spread IDs as individual values
-        ];
+        queryParams.push(...student_ids); // Spread IDs as individual values
 
+        // Execute the update query
         await db.promise().query(updateQuery, queryParams);
 
         res.status(200).json({ message: 'Students updated successfully' });
@@ -415,6 +438,7 @@ router.put('/students', async (req, res) => {
         res.status(500).json({ error: 'Internal Server Error' });
     }
 });
+
 
 
 
