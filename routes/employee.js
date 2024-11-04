@@ -12,7 +12,7 @@ const upload = multer({ dest: 'uploads/' });
 const secretKey = 'your_secret_key'; // Change to your actual secret key
 
 /* POST: Import Employee CSV */
-router.post('/register-employee', upload.single('file'), async (req, res) => {
+router.post('/importcsv-employee', upload.single('file'), async (req, res) => {
     const results = [];
 
     try {

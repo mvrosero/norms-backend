@@ -11,7 +11,7 @@ const multer = require('multer');
 const upload = multer({ dest: 'uploads/' });
 
 /* POST: Import CSV */
-router.post('/register-student', upload.single('file'), async (req, res) => {
+router.post('/importcsv-student', upload.single('file'), async (req, res) => {
     const results = [];
 
     try {
@@ -102,12 +102,6 @@ router.post('/register-student', upload.single('file'), async (req, res) => {
 });
 
 
-
-
-
-
-
-
 /* post: student login */
 router.post('/student-login', async (req, res) => {
     try {
@@ -149,16 +143,16 @@ router.post('/student-login', async (req, res) => {
 /* post: register student */
 router.post('/register-student', async (req, res) => {
     try {
-        const { student_idnumber, first_name, middle_name, last_name, suffix, birthdate, email, password, profile_photo_filename, year_level, batch, department_id, program_id, role_id } = req.body;
+        const { student_idnumber, first_name, middle_name, last_name, suffix, birthdate, email, password, year_level, batch, department_id, program_id, role_id } = req.body;
         const hashedPassword = await bcrypt.hash(password, 10);
 
         const insertStudentQuery = `
             INSERT INTO user 
-            (student_idnumber, first_name, middle_name, last_name, suffix, birthdate, email, password, profile_photo_filename, year_level, batch, department_id, program_id, role_id) 
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            (student_idnumber, first_name, middle_name, last_name, suffix, birthdate, email, password, year_level, batch, department_id, program_id, role_id) 
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `;
 
-        await db.promise().execute(insertStudentQuery, [student_idnumber, first_name, middle_name, last_name, suffix, birthdate, email, hashedPassword, profile_photo_filename, year_level, batch, department_id, program_id, role_id]);
+        await db.promise().execute(insertStudentQuery, [student_idnumber, first_name, middle_name, last_name, suffix, birthdate, email, hashedPassword, year_level, batch, department_id, program_id, role_id]);
 
         res.status(201).json({ message: 'Student registered successfully' });
     } catch (error) {
@@ -379,6 +373,10 @@ router.delete('/students', async (req, res) => {
         res.status(500).json({ error: 'Internal Server Error' });
     }
 });
+
+
+
+
 
 
 // PUT: Batch update students
