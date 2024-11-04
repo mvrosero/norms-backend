@@ -259,16 +259,16 @@ router.put('/student/:id', async (req, res) => {
     console.log('User ID:', user_id); // Log user_id for debugging
     console.log('Request Body:', req.body); // Log the request body for debugging
 
-    const { student_idnumber, first_name, middle_name, last_name, suffix, birthdate, email, year_level, batch, department_id, program_id, status } = req.body;
+    const { student_idnumber, first_name, middle_name, last_name, suffix, email, year_level, batch, department_id, program_id, status } = req.body;
 
     // Check for required fields
-    if (!user_id || !student_idnumber || !first_name || !last_name || !birthdate || !email || !year_level || !batch || !department_id || !program_id || !status) {
+    if (!user_id || !student_idnumber || !first_name || !last_name || !email || !year_level || !batch || !department_id || !program_id || !status) {
         return res.status(400).send({ error: 'Please provide all required details' });
     }
 
     try {
-        db.query('UPDATE user SET student_idnumber = ?, first_name = ?, middle_name = ?, last_name = ?, suffix = ?, birthdate = ?, email = ?, year_level = ?, batch = ?, department_id = ?, program_id = ?, status = ? WHERE user_id = ?', 
-        [student_idnumber, first_name, middle_name, last_name, suffix, birthdate, email, year_level, batch, department_id, program_id, status, user_id], 
+        db.query('UPDATE user SET student_idnumber = ?, first_name = ?, middle_name = ?, last_name = ?, suffix = ?, email = ?, year_level = ?, batch = ?, department_id = ?, program_id = ?, status = ? WHERE user_id = ?', 
+        [student_idnumber, first_name, middle_name, last_name, suffix, email, year_level, batch, department_id, program_id, status, user_id], 
         (err, result, fields) => {
             if (err) {
                 console.error('Error updating student:', err);
@@ -281,8 +281,6 @@ router.put('/student/:id', async (req, res) => {
         res.status(500).json({ error: 'Internal Server Error' });
     }
 });
-
-
 
 
 /*put: student password*/
@@ -357,6 +355,7 @@ router.delete('/student/:id', (req, res) => {
         res.status(500).json({ error: 'Internal Server Error', details: error });
     }
 });
+
 
 
 
