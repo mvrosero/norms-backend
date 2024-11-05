@@ -383,53 +383,56 @@ router.delete('/students', async (req, res) => {
 router.put('/students', async (req, res) => {
     const { student_ids, updates } = req.body;
 
-    // Validate the student_ids input
+    // Log the received request body for debugging purposes
+    console.log('Received request body:', req.body);
+
+    // Validate student_ids
     if (!Array.isArray(student_ids) || student_ids.length === 0) {
         return res.status(400).json({ error: 'Please provide valid student IDs' });
     }
 
+    // Ensure at least one field is being updated
+    const { year_level, department_id, program_id, status } = updates;
+    if (!year_level && !department_id && !program_id && !status) {
+        return res.status(400).json({ error: 'No valid fields provided for update' });
+    }
+
+    // Additional validation for each field
+    if (year_level && isNaN(year_level)) {
+        return res.status(400).json({ error: 'Year level must be a valid number' });
+    }
+    if (department_id && isNaN(department_id)) {
+        return res.status(400).json({ error: 'Department ID must be a valid number' });
+    }
+    if (program_id && isNaN(program_id)) {
+        return res.status(400).json({ error: 'Program ID must be a valid number' });
+    }
+    if (status && typeof status !== 'string') {
+        return res.status(400).json({ error: 'Status must be a valid string' });
+    }
+
     try {
-        // Build the SET clause and parameters based on the updates provided
-        const setClauses = [];
-        const queryParams = [];
+        const placeholders = student_ids.map(() => '?').join(', '); // Generate placeholders for IDs
 
-        // Check which fields are provided and construct the SET clause
-        if (updates.year_level !== undefined) {
-            setClauses.push('year_level = ?');
-            queryParams.push(updates.year_level);
-        }
-        if (updates.department_id !== undefined) {
-            setClauses.push('department_id = ?');
-            queryParams.push(updates.department_id);
-        }
-        if (updates.program_id !== undefined) {
-            setClauses.push('program_id = ?');
-            queryParams.push(updates.program_id);
-        }
-        if (updates.status !== undefined) {
-            setClauses.push('status = ?');
-            queryParams.push(updates.status);
-        }
-
-        // Validate if there are any fields to update
-        if (setClauses.length === 0) {
-            return res.status(400).json({ error: 'No fields to update' });
-        }
-
-        // Generate placeholders for student IDs
-        const placeholders = student_ids.map(() => '?').join(', ');
-
-        // Build the update query
         const updateQuery = `
             UPDATE user 
-            SET ${setClauses.join(', ')}
+            SET 
+                year_level = IFNULL(?, year_level), 
+                department_id = IFNULL(?, department_id), 
+                program_id = IFNULL(?, program_id), 
+                status = IFNULL(?, status)
             WHERE student_idnumber IN (${placeholders})
         `;
 
         // Combine updates with student IDs for the query parameters
-        queryParams.push(...student_ids); // Spread IDs as individual values
+        const queryParams = [
+            year_level || null,
+            department_id || null,
+            program_id || null,
+            status || null,
+            ...student_ids // Spread IDs as individual values
+        ];
 
-        // Execute the update query
         await db.promise().query(updateQuery, queryParams);
 
         res.status(200).json({ message: 'Students updated successfully' });
