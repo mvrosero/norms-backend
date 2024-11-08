@@ -411,6 +411,12 @@ router.put('/students', async (req, res) => {
         return res.status(400).json({ error: 'Status must be a valid string' });
     }
 
+    // Optional: Add validation for status if you have specific valid values
+    const validStatuses = ['Active', 'Inactive', 'Graduated']; // Example
+    if (status && !validStatuses.includes(status)) {
+        return res.status(400).json({ error: 'Status must be one of: ' + validStatuses.join(', ') });
+    }
+
     try {
         const placeholders = student_ids.map(() => '?').join(', '); // Generate placeholders for IDs
 
