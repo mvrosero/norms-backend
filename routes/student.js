@@ -397,10 +397,6 @@ router.put('/students', async (req, res) => {
         return res.status(400).json({ error: 'No valid fields provided for update' });
     }
 
-    // Additional validation for each field
-    if (year_level && isNaN(year_level)) {
-        return res.status(400).json({ error: 'Year level must be a valid number' });
-    }
     if (department_id && isNaN(department_id)) {
         return res.status(400).json({ error: 'Department ID must be a valid number' });
     }
@@ -411,11 +407,6 @@ router.put('/students', async (req, res) => {
         return res.status(400).json({ error: 'Status must be a valid string' });
     }
 
-    // Optional: Add validation for status if you have specific valid values
-    const validStatuses = ['Active', 'Inactive', 'Graduated']; // Example
-    if (status && !validStatuses.includes(status)) {
-        return res.status(400).json({ error: 'Status must be one of: ' + validStatuses.join(', ') });
-    }
 
     try {
         const placeholders = student_ids.map(() => '?').join(', '); // Generate placeholders for IDs
