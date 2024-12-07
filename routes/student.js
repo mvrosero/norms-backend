@@ -247,6 +247,54 @@ router.get('/students', (req, res) => {
 });
 
 
+// Get all users except those with status 'archived' and with a non-null student_idnumber
+router.get('/students-not-archived', (req, res) => {
+    try {
+        const query = `SELECT * FROM user WHERE status != 'archived' AND student_idnumber IS NOT NULL`;
+        console.log('Executing query:', query);  // Log the query being executed
+        db.query(query, (err, result) => {
+            if (err) {
+                console.error('Error fetching non-archived students:', err);
+                res.status(500).json({ message: 'Internal Server Error' });
+            } else {
+                console.log('Query result:', result);  // Log the result returned by the database
+                if (result.length === 0) {
+                    console.log('No users found');  // Log if no users are found
+                }
+                res.status(200).json(result);  // Send the result to the client
+            }
+        });
+    } catch (error) {
+        console.error('Error loading non-archived students:', error);
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
+
+
+// Get users with status 'archived'
+router.get('/students-archived', (req, res) => {
+    try {
+        const query = `SELECT * FROM user WHERE status = 'archived'`;
+        console.log('Executing query:', query);  // Log the SQL query
+        db.query(query, (err, result) => {
+            if (err) {
+                console.error('Error fetching archived students:', err);
+                res.status(500).json({ message: 'Internal Server Error' });
+            } else {
+                console.log('Query result:', result);  // Log the raw result returned by the query
+                if (result.length === 0) {
+                    console.log('No archived users found');
+                }
+                res.status(200).json(result);
+            }
+        });
+    } catch (error) {
+        console.error('Error loading archived students:', error);
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
+
+
 /* put:  student */
 router.put('/student/:id', async (req, res) => {
     let user_id = req.params.id;
