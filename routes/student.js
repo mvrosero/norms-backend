@@ -434,8 +434,6 @@ router.delete('/students', async (req, res) => {
 router.put('/students', async (req, res) => {
     const { student_ids, updates } = req.body;
 
-   
-
     // Validate student_ids
     if (!Array.isArray(student_ids) || student_ids.length === 0) {
         return res.status(400).json({ error: 'Please provide valid student IDs' });
