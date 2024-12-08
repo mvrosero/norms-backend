@@ -271,6 +271,8 @@ router.get('/students-not-archived', (req, res) => {
 });
 
 
+
+
 // Get users with status 'archived'
 router.get('/students-archived', (req, res) => {
     try {
@@ -293,6 +295,7 @@ router.get('/students-archived', (req, res) => {
         res.status(500).json({ error: 'Internal Server Error' });
     }
 });
+
 
 
 /* put:  student */
@@ -431,8 +434,7 @@ router.delete('/students', async (req, res) => {
 router.put('/students', async (req, res) => {
     const { student_ids, updates } = req.body;
 
-    // Log the received request body for debugging purposes
-    console.log('Received request body:', req.body);
+   
 
     // Validate student_ids
     if (!Array.isArray(student_ids) || student_ids.length === 0) {
@@ -445,6 +447,7 @@ router.put('/students', async (req, res) => {
         return res.status(400).json({ error: 'No valid fields provided for update' });
     }
 
+    // Validate individual update fields
     if (department_id && isNaN(department_id)) {
         return res.status(400).json({ error: 'Department ID must be a valid number' });
     }
@@ -455,12 +458,12 @@ router.put('/students', async (req, res) => {
         return res.status(400).json({ error: 'Status must be a valid string' });
     }
 
-
     try {
         const placeholders = student_ids.map(() => '?').join(', '); // Generate placeholders for IDs
 
+        // Update query
         const updateQuery = `
-            UPDATE user 
+            UPDATE user
             SET 
                 year_level = IFNULL(?, year_level), 
                 department_id = IFNULL(?, department_id), 
@@ -478,15 +481,19 @@ router.put('/students', async (req, res) => {
             ...student_ids // Spread IDs as individual values
         ];
 
-        await db.promise().query(updateQuery, queryParams);
+        // Execute the update query
+        const [result] = await db.promise().query(updateQuery, queryParams);
+console.log('Update result:', result);  // Log the result of the query
+console.log('Student IDs:', student_ids);  // Log the student IDs
 
+
+        // Return success response
         res.status(200).json({ message: 'Students updated successfully' });
     } catch (error) {
         console.error('Error updating students:', error);
         res.status(500).json({ error: 'Internal Server Error' });
     }
 });
-
 
 
 
