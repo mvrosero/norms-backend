@@ -356,8 +356,8 @@ router.put('/employees', async (req, res) => {
     }
 
     // Ensure at least one field is being updated
-    const { role_id, status, email } = updates;
-    if (!role_id && !status && !email) {
+    const { role_id, status } = updates;
+    if (!role_id && !status) {
         return res.status(400).json({ error: 'No valid fields provided for update' });
     }
 
@@ -368,9 +368,7 @@ router.put('/employees', async (req, res) => {
     if (status && typeof status !== 'string') {
         return res.status(400).json({ error: 'Status must be a valid string' });
     }
-    if (email && typeof email !== 'string') {
-        return res.status(400).json({ error: 'Email must be a valid string' });
-    }
+
 
     try {
         const placeholders = employee_ids.map(() => '?').join(', '); // Generate placeholders for IDs
@@ -380,8 +378,7 @@ router.put('/employees', async (req, res) => {
             UPDATE user
             SET 
                 role_id = IFNULL(?, role_id), 
-                status = IFNULL(?, status), 
-                email = IFNULL(?, email)
+                status = IFNULL(?, status)
             WHERE employee_idnumber IN (${placeholders})
         `;
 
@@ -389,7 +386,6 @@ router.put('/employees', async (req, res) => {
         const queryParams = [
             role_id || null,
             status || null,
-            email || null,
             ...employee_ids // Spread IDs as individual values
         ];
 
