@@ -322,4 +322,96 @@ router.delete('/employee/:id', async (req, res) => {
 });
 
 
+
+
+
+// DELETE: Batch delete employees
+router.delete('/employees', async (req, res) => {
+    const { employee_ids } = req.body;
+
+    if (!Array.isArray(employee_ids) || employee_ids.length === 0) {
+        return res.status(400).json({ error: 'Please provide valid employee IDs' });
+    }
+
+    try {
+        const deleteQuery = `DELETE FROM user WHERE employee_idnumber IN (?)`;
+        await db.promise().query(deleteQuery, [employee_ids]);
+
+        res.status(200).json({ message: 'Employees deleted successfully' });
+    } catch (error) {
+        console.error('Error deleting employees:', error);
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
+
+
+
+// PUT: Batch update employees
+router.put('/employees', async (req, res) => {
+    const { employee_ids, updates } = req.body;
+
+    // Validate employee_ids
+    if (!Array.isArray(employee_ids) || employee_ids.length === 0) {
+        return res.status(400).json({ error: 'Please provide valid employee IDs' });
+    }
+
+    // Ensure at least one field is being updated
+    const { role_id, status, email } = updates;
+    if (!role_id && !status && !email) {
+        return res.status(400).json({ error: 'No valid fields provided for update' });
+    }
+
+    // Validate individual update fields
+    if (role_id && isNaN(role_id)) {
+        return res.status(400).json({ error: 'Role ID must be a valid number' });
+    }
+    if (status && typeof status !== 'string') {
+        return res.status(400).json({ error: 'Status must be a valid string' });
+    }
+    if (email && typeof email !== 'string') {
+        return res.status(400).json({ error: 'Email must be a valid string' });
+    }
+
+    try {
+        const placeholders = employee_ids.map(() => '?').join(', '); // Generate placeholders for IDs
+
+        // Update query
+        const updateQuery = `
+            UPDATE user
+            SET 
+                role_id = IFNULL(?, role_id), 
+                status = IFNULL(?, status), 
+                email = IFNULL(?, email)
+            WHERE employee_idnumber IN (${placeholders})
+        `;
+
+        // Combine updates with employee IDs for the query parameters
+        const queryParams = [
+            role_id || null,
+            status || null,
+            email || null,
+            ...employee_ids // Spread IDs as individual values
+        ];
+
+        // Execute the update query
+        const [result] = await db.promise().query(updateQuery, queryParams);
+        console.log('Update result:', result);  // Log the result of the query
+        console.log('Employee IDs:', employee_ids);  // Log the employee IDs
+
+        // Return success response
+        res.status(200).json({ message: 'Employees updated successfully' });
+    } catch (error) {
+        console.error('Error updating employees:', error);
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
+
+
+
+
+
+
+
+
+
 module.exports = router;
