@@ -1,0 +1,3 @@
+student_idnumber,first_name,middle_name,last_name,suffix,birthdate,email,password,profile_photo_filename,year_level,batch,department_id,program_id,role_id
+13-00010,Jordane,Rivero,Villanueva,,12/12/2004,jvillanueva@gbox.ncf.edu.ph,jvillanueva,,Second Year,2027,5,12,3
+13-00011,Michael,,Lopez,,12/12/2004,mlopez@gbox.ncf.edu.ph,mlopez,,Third Year,2026,5,12,3
