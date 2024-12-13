@@ -206,7 +206,7 @@ router.get('/coordinator-studentrecords/:department_code', (req, res) => {
         SELECT u.*, d.department_name
         FROM user u
         INNER JOIN department d ON u.department_id = d.department_id
-        WHERE d.department_code = ?
+        WHERE d.department_code = ? AND u.status != 'archived'
     `, [department_code], (err, result) => {
         if (err) {
             console.error('Error fetching users by department:', err);
@@ -214,12 +214,15 @@ router.get('/coordinator-studentrecords/:department_code', (req, res) => {
         }
 
         if (result.length === 0) {
-            return res.status(404).json({ message: 'No users found for the given department code' });
+            return res.status(404).json({ message: 'No archived users found for the given department code' });
         }
 
         res.status(200).json(result);
     });
 });
+
+
+
 
 /* Import users from CSV */
 router.post('/import-csv', upload.single('file'), (req, res) => {
