@@ -3,6 +3,7 @@ const db = require('../app/configuration/database'); // Ensure this uses mysql2/
 const router = express.Router();
 const multer = require('multer');
 const path = require('path');
+const moment = require('moment-timezone');
 
 // Multer setup - define storage and file filter
 const storage = multer.diskStorage({
@@ -30,16 +31,18 @@ router.post('/create-uniformdefiance', upload.array('photo_video_files'), async 
             return res.status(400).json({ error: 'Missing required fields' });
         }
 
-        const currentTimestamp = new Date().toISOString().slice(0, 19).replace('T', ' ');
+        // Get current time in Philippine time zone (Asia/Manila)
+        const currentTimestamp = moment.tz("Asia/Manila").format('YYYY-MM-DD HH:mm:ss'); // Adjust to your desired timezone
+
         const insertDefianceQuery = `
             INSERT INTO uniform_defiance 
             (student_idnumber, photo_video_filenames, created_at, submitted_by, nature_id) 
-            VALUES (?, ?, ?, ?, ?)`;
+            VALUES (?, ?, ?, ?, ?)`; 
 
         console.log('Inserting into database:', {
             student_idnumber,
             photo_video_filenames,
-            created_at: currentTimestamp,
+            currentTimestamp,
             submitted_by,
             nature_id
         });
@@ -53,6 +56,7 @@ router.post('/create-uniformdefiance', upload.array('photo_video_files'), async 
     }
 });
 
+
 /* GET: 1 uniform_defiance */
 router.get('/uniform_defiance/:id', async (req, res) => {
     const slip_id = req.params.id;
@@ -63,9 +67,13 @@ router.get('/uniform_defiance/:id', async (req, res) => {
 
     try {
         const query = `
-            SELECT ud.*, vn.nature_name
+            SELECT 
+                ud.*, 
+                vn.nature_name, 
+                CONCAT(u.first_name, ' ', IFNULL(u.middle_name, ''), ' ', u.last_name) AS full_name
             FROM uniform_defiance ud
             LEFT JOIN violation_nature vn ON ud.nature_id = vn.nature_id
+            LEFT JOIN user u ON ud.submitted_by = u.employee_idnumber
             WHERE ud.slip_id = ?`;
 
         const [result] = await db.promise().query(query, [slip_id]);
@@ -82,19 +90,29 @@ router.get('/uniform_defiance/:id', async (req, res) => {
     }
 });
 
-// Get: uniform_defiances
+
+
+// GET: uniform_defiances
 router.get('/uniform_defiances', async (req, res) => {
     try {
         const [rows] = await db.promise().query(`
             SELECT 
-                ud.slip_id, ud.student_idnumber, ud.photo_video_filenames, 
-                ud.status, ud.created_at, ud.updated_at, ud.submitted_by, 
+                ud.slip_id, 
+                ud.student_idnumber, 
+                ud.photo_video_filenames, 
+                ud.status, 
+                ud.created_at, 
+                ud.updated_at, 
+                CONCAT(u.first_name, ' ', IFNULL(u.middle_name, ''), ' ', u.last_name) AS full_name, 
                 vn.nature_name 
             FROM 
                 uniform_defiance ud 
             LEFT JOIN 
-                violation_nature vn ON ud.nature_id = vn.nature_id;
+                violation_nature vn ON ud.nature_id = vn.nature_id
+            LEFT JOIN 
+                user u ON ud.submitted_by = u.employee_idnumber;
         `);
+
         res.json(rows);
     } catch (error) {
         console.error('Error fetching uniform defiances:', error);
@@ -103,21 +121,29 @@ router.get('/uniform_defiances', async (req, res) => {
 });
 
 
-// Get: All uniform_defiances except status 'Pending'
+// GET: All uniform_defiances except status 'Pending'
 router.get('/uniform_defiances-not-pending', async (req, res) => {
     try {
         const [rows] = await db.promise().query(`
             SELECT 
-                ud.slip_id, ud.student_idnumber, ud.photo_video_filenames, 
-                ud.status, ud.created_at, ud.updated_at, ud.submitted_by, 
+                ud.slip_id, 
+                ud.student_idnumber, 
+                ud.photo_video_filenames, 
+                ud.status, 
+                ud.created_at, 
+                ud.updated_at, 
+                CONCAT(u.first_name, ' ', IFNULL(u.middle_name, ''), ' ', u.last_name) AS full_name, 
                 vn.nature_name 
             FROM 
                 uniform_defiance ud 
             LEFT JOIN 
                 violation_nature vn ON ud.nature_id = vn.nature_id
+            LEFT JOIN 
+                user u ON ud.submitted_by = u.employee_idnumber
             WHERE 
                 ud.status != 'pending';
         `);
+
         res.json(rows);
     } catch (error) {
         console.error('Error fetching uniform defiances (not pending):', error);
@@ -126,21 +152,30 @@ router.get('/uniform_defiances-not-pending', async (req, res) => {
 });
 
 
-// Get: All uniform_defiances with status 'Pending'
+
+// GET: All uniform_defiances with status 'Pending'
 router.get('/uniform_defiances-pending', async (req, res) => {
     try {
         const [rows] = await db.promise().query(`
             SELECT 
-                ud.slip_id, ud.student_idnumber, ud.photo_video_filenames, 
-                ud.status, ud.created_at, ud.updated_at, ud.submitted_by, 
+                ud.slip_id, 
+                ud.student_idnumber, 
+                ud.photo_video_filenames, 
+                ud.status, 
+                ud.created_at, 
+                ud.updated_at, 
+                CONCAT(u.first_name, ' ', IFNULL(u.middle_name, ''), ' ', u.last_name) AS full_name, 
                 vn.nature_name 
             FROM 
                 uniform_defiance ud 
             LEFT JOIN 
                 violation_nature vn ON ud.nature_id = vn.nature_id
+            LEFT JOIN 
+                user u ON ud.submitted_by = u.employee_idnumber
             WHERE 
                 ud.status = 'pending';
         `);
+
         res.json(rows);
     } catch (error) {
         console.error('Error fetching uniform defiances (pending):', error);
@@ -159,10 +194,18 @@ router.get('/uniform_defiances/:student_idnumber', async (req, res) => {
 
     try {
         const query = `
-            SELECT ud.*, vn.nature_name
-            FROM uniform_defiance ud
-            LEFT JOIN violation_nature vn ON ud.nature_id = vn.nature_id
-            WHERE ud.student_idnumber = ?`;
+            SELECT 
+                ud.*, 
+                vn.nature_name, 
+                CONCAT(u.first_name, ' ', IFNULL(u.middle_name, ''), ' ', u.last_name) AS full_name
+            FROM 
+                uniform_defiance ud
+            LEFT JOIN 
+                violation_nature vn ON ud.nature_id = vn.nature_id
+            LEFT JOIN 
+                user u ON ud.submitted_by = u.employee_idnumber
+            WHERE 
+                ud.student_idnumber = ?`;
 
         const [result] = await db.promise().query(query, [student_idnumber]);
 
@@ -176,6 +219,8 @@ router.get('/uniform_defiances/:student_idnumber', async (req, res) => {
         res.status(500).json({ error: 'Internal Server Error' });
     }
 });
+
+
 
 // Put: uniform_defiance
 router.put('/uniform_defiance/:id', async (req, res) => {
