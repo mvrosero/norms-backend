@@ -102,6 +102,53 @@ router.get('/uniform_defiances', async (req, res) => {
     }
 });
 
+
+// Get: All uniform_defiances except status 'Pending'
+router.get('/uniform_defiances-not-pending', async (req, res) => {
+    try {
+        const [rows] = await db.promise().query(`
+            SELECT 
+                ud.slip_id, ud.student_idnumber, ud.photo_video_filenames, 
+                ud.status, ud.created_at, ud.updated_at, ud.submitted_by, 
+                vn.nature_name 
+            FROM 
+                uniform_defiance ud 
+            LEFT JOIN 
+                violation_nature vn ON ud.nature_id = vn.nature_id
+            WHERE 
+                ud.status != 'pending';
+        `);
+        res.json(rows);
+    } catch (error) {
+        console.error('Error fetching uniform defiances (not pending):', error);
+        res.status(500).json({ message: 'Internal Server Error' });
+    }
+});
+
+
+// Get: All uniform_defiances with status 'Pending'
+router.get('/uniform_defiances-pending', async (req, res) => {
+    try {
+        const [rows] = await db.promise().query(`
+            SELECT 
+                ud.slip_id, ud.student_idnumber, ud.photo_video_filenames, 
+                ud.status, ud.created_at, ud.updated_at, ud.submitted_by, 
+                vn.nature_name 
+            FROM 
+                uniform_defiance ud 
+            LEFT JOIN 
+                violation_nature vn ON ud.nature_id = vn.nature_id
+            WHERE 
+                ud.status = 'pending';
+        `);
+        res.json(rows);
+    } catch (error) {
+        console.error('Error fetching uniform defiances (pending):', error);
+        res.status(500).json({ message: 'Internal Server Error' });
+    }
+});
+
+
 /* GET: uniform_defiances (by student_idnumber) */
 router.get('/uniform_defiances/:student_idnumber', async (req, res) => {
     const student_idnumber = req.params.student_idnumber;
