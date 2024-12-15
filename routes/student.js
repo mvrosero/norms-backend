@@ -336,34 +336,107 @@ router.get('/students-archived', (req, res) => {
 
 
 
+
+
+
+
+
+
 /* put:  student */
 router.put('/student/:id', async (req, res) => {
     let user_id = req.params.id;
-    console.log('User ID:', user_id); // Log user_id for debugging
-    console.log('Request Body:', req.body); // Log the request body for debugging
+    console.log('User ID:', user_id);
+    console.log('Request Body:', req.body);
 
-    const { student_idnumber, birthdate, first_name, middle_name, last_name, suffix, email, year_level, batch, department_id, program_id, status } = req.body;
+    const { student_idnumber, birthdate, first_name, middle_name, last_name, suffix, email, year_level, batch, department_id, program_id, status, password } = req.body;
 
-    // Check for required fields
     if (!user_id || !student_idnumber || !birthdate || !first_name || !last_name || !email || !year_level || !batch || !department_id || !program_id || !status) {
         return res.status(400).send({ error: 'Please provide all required details' });
     }
 
+    let hashedPassword = null;
+    if (password) {
+        try {
+            hashedPassword = await bcrypt.hash(password, 10); // 10 is the salt rounds for bcrypt
+        } catch (error) {
+            console.error('Error hashing password:', error);
+            return res.status(500).json({ message: 'Error hashing password. Please try again.' });
+        }
+    }
+
     try {
-        db.query('UPDATE user SET student_idnumber = ?, birthdate = ?, first_name = ?, middle_name = ?, last_name = ?, suffix = ?, email = ?, year_level = ?, batch = ?, department_id = ?, program_id = ?, status = ? WHERE user_id = ?', 
-        [student_idnumber, birthdate, first_name, middle_name, last_name, suffix, email, year_level, batch, department_id, program_id, status, user_id], 
-        (err, result, fields) => {
+        // Verify program and department relation
+        db.query('SELECT * FROM program WHERE program_id = ? AND department_id = ?', [program_id, department_id], (err, result) => {
             if (err) {
-                console.error('Error updating student:', err);
-                return res.status(500).json({ message: 'Internal Server Error' });
+                console.error('Error checking program and department:', err);
+                return res.status(500).json({ message: 'Internal Server Error while verifying program and department.' });
             }
-            res.status(200).json(result);
+    
+            if (result.length === 0) {
+                return res.status(400).json({ message: 'Program does not belong to the selected department' });
+            }
+
+            // Proceed with the update query
+            const updates = [
+                'student_idnumber = ?',
+                'birthdate = ?',
+                'first_name = ?',
+                'middle_name = ?',
+                'last_name = ?',
+                'suffix = ?',
+                'email = ?',
+                'year_level = ?',
+                'batch = ?',
+                'department_id = ?',
+                'program_id = ?',
+                'status = ?'
+            ];
+
+            const values = [
+                student_idnumber,
+                birthdate,
+                first_name,
+                middle_name,
+                last_name,
+                suffix,
+                email,
+                year_level,
+                batch,
+                department_id,
+                program_id,
+                status
+            ];
+
+            if (hashedPassword) {
+                updates.push('password = ?');
+                values.push(hashedPassword);
+            }
+
+            db.query(
+                `UPDATE user SET ${updates.join(', ')} WHERE user_id = ?`,
+                [...values, user_id],
+                (err, result) => {
+                    if (err) {
+                        console.error('Error updating student:', err);
+                        return res.status(500).json({ message: 'Error updating student information. Please try again later.' });
+                    }
+                    res.status(200).json(result);
+                }
+            );
         });
     } catch (error) {
         console.error('Error updating student:', error);
-        res.status(500).json({ error: 'Internal Server Error' });
+        res.status(500).json({ error: 'An unexpected error occurred while updating student information.' });
     }
 });
+
+
+
+
+
+
+
+
 
 
 /*put: student password*/
@@ -495,6 +568,21 @@ router.put('/students', async (req, res) => {
     }
 
     try {
+        // Fetch programs based on department_id if provided
+        let programs = [];
+        if (department_id) {
+            const [programResults] = await db.promise().query('SELECT * FROM program WHERE department_id = ?', [department_id]);
+            programs = programResults;
+        }
+
+        // If program_id is provided, check if it matches the department
+        if (program_id && department_id) {
+            const [programCheck] = await db.promise().query('SELECT * FROM program WHERE department_id = ? AND program_id = ?', [department_id, program_id]);
+            if (programCheck.length === 0) {
+                return res.status(400).json({ error: 'Program ID does not match the selected department' });
+            }
+        }
+
         const placeholders = student_ids.map(() => '?').join(', '); // Generate placeholders for IDs
 
         // Update query
@@ -519,17 +607,17 @@ router.put('/students', async (req, res) => {
 
         // Execute the update query
         const [result] = await db.promise().query(updateQuery, queryParams);
-console.log('Update result:', result);  // Log the result of the query
-console.log('Student IDs:', student_ids);  // Log the student IDs
-
+        console.log('Update result:', result);  // Log the result of the query
+        console.log('Student IDs:', student_ids);  // Log the student IDs
 
         // Return success response
-        res.status(200).json({ message: 'Students updated successfully' });
+        res.status(200).json({ message: 'Students updated successfully', programs });
     } catch (error) {
         console.error('Error updating students:', error);
         res.status(500).json({ error: 'Internal Server Error' });
     }
 });
+
 
 
 

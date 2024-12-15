@@ -57,6 +57,51 @@ router.get('/programs', (req, res) => {
     }
 });
 
+
+
+
+
+/* Get: programs by department_id  */
+router.get('/programs/:department_id', async (req, res) => {
+    const department_id = req.params.department_id;
+
+    if (!department_id) {
+        return res.status(400).json({ error: 'Please provide department_id' });
+    }
+
+    try {
+        // Fetch programs from the program table and include department_id and department_name from department table
+        const [programs] = await db.promise().query(`
+            SELECT p.program_id, p.program_name, d.department_id, d.department_name
+            FROM program p
+            JOIN department d ON p.department_id = d.department_id
+            WHERE p.department_id = ?
+        `, [department_id]);
+
+        if (programs.length === 0) {
+            return res.status(404).json({ error: 'No programs found for this department' });
+        }
+
+        res.status(200).json(programs); // Return the list of programs
+    } catch (error) {
+        console.error('Error fetching programs:', error);
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 /* put: program */
 router.put('/program/:id', async (req, res) => {
     let program_id = req.params.id;
