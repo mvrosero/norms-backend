@@ -4,6 +4,9 @@ const router = express.Router();
 const multer = require('multer');
 const path = require('path');
 const moment = require('moment-timezone');
+const fs = require('fs');
+const { parse } = require('json2csv');
+
 
 // Multer setup - define storage and file filter
 const storage = multer.diskStorage({
@@ -245,5 +248,84 @@ router.put('/uniform_defiance/:id', async (req, res) => {
         res.status(500).json({ error: 'Internal Server Error' });
     }
 });
+
+
+
+
+
+
+
+/* GET: Export uniform defiance records to CSV */
+router.get('/uniform_defiances/export/:student_idnumber', async (req, res) => {
+    const student_idnumber = req.params.student_idnumber;
+
+    if (!student_idnumber) {
+        return res.status(400).send({ error: true, message: 'Please provide student_idnumber' });
+    }
+
+    try {
+        const query = `
+            SELECT 
+                ud.*, 
+                vn.nature_name, 
+                CONCAT(u.first_name, ' ', IFNULL(u.middle_name, ''), ' ', u.last_name) AS full_name
+            FROM 
+                uniform_defiance ud
+            LEFT JOIN 
+                violation_nature vn ON ud.nature_id = vn.nature_id
+            LEFT JOIN 
+                user u ON ud.submitted_by = u.employee_idnumber
+            WHERE 
+                ud.student_idnumber = ?`;
+
+        const [result] = await db.promise().query(query, [student_idnumber]);
+
+        if (result.length === 0) {
+            return res.status(404).json({ message: 'No records found' });
+        }
+
+        // Convert JSON result to CSV
+        const fields = [
+            { label: 'Defiance ID', value: 'slip_id' },
+            { label: 'Student ID Number', value: 'student_idnumber' },
+            { label: 'Nature Name', value: 'nature_name' },
+            { label: 'Submitted By (Full Name)', value: 'full_name' },
+            { label: 'Created At', value: 'created_at' }
+        ];
+
+        const csv = parse(result, { fields });
+
+        // Generate a temporary file path
+        const filePath = path.join(__dirname, '..', 'exports', `uniform_defiances_${student_idnumber}.csv`);
+
+        // Write CSV to a file
+        fs.writeFileSync(filePath, csv);
+
+        // Send the file to the client
+        res.download(filePath, `uniform_defiances_${student_idnumber}.csv`, (err) => {
+            if (err) {
+                console.error('Error sending file:', err);
+                res.status(500).send({ error: 'Error exporting CSV file' });
+            }
+
+            // Delete the file after sending it
+            fs.unlink(filePath, (unlinkErr) => {
+                if (unlinkErr) {
+                    console.error('Error deleting temporary file:', unlinkErr);
+                }
+            });
+        });
+    } catch (error) {
+        console.error('Error exporting uniform defiance records:', error);
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
+
+
+
+
+
+
+
 
 module.exports = router;
