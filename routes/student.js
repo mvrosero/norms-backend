@@ -140,11 +140,6 @@ router.post('/student-login', async (req, res) => {
 });
 
 
-
-
-
-
-
 /* post: register student */
 router.post('/register-student', async (req, res) => {
     try {
@@ -154,6 +149,35 @@ router.post('/register-student', async (req, res) => {
         const idFormat = /^\d{2}-\d{5}$/; // Matches "00-00000" format
         if (!idFormat.test(student_idnumber)) {
             return res.status(400).json({ error: 'Invalid student ID number format. It should follow "00-00000".' });
+        }
+
+        // Validate names to start with a capital letter and allow letters, spaces, dashes, and dots
+        const nameFormat = /^[A-Z][a-zA-Z .-]*$/; // Capital letter followed by letters, spaces, dots, or dashes
+        if (!nameFormat.test(first_name)) {
+            return res.status(400).json({ 
+                error: 'First name must start with a capital letter and can contain only letters, spaces, dots, or dashes.' 
+            });
+        }
+        if (middle_name && !nameFormat.test(middle_name)) { // Middle name is optional
+            return res.status(400).json({ 
+                error: 'Middle name must start with a capital letter and can contain only letters, spaces, dots, or dashes.' 
+            });
+        }
+        if (!nameFormat.test(last_name)) {
+            return res.status(400).json({ 
+                error: 'Last name must start with a capital letter and can contain only letters, spaces, dots, or dashes.' 
+            });
+        }
+        if (suffix && !nameFormat.test(suffix)) { // Suffix is optional
+            return res.status(400).json({ 
+                error: 'Suffix must start with a capital letter and can contain only letters, spaces, dots, or dashes.' 
+            });
+        }
+
+        // Validate email to end with "@gbox.ncf.edu.ph"
+        const emailFormat = /^[a-zA-Z0-9._%+-]+@gbox\.ncf\.edu\.ph$/;
+        if (!emailFormat.test(email)) {
+            return res.status(400).json({ error: 'Email must end with "@gbox.ncf.edu.ph".' });
         }
 
         // Hash password
@@ -174,14 +198,6 @@ router.post('/register-student', async (req, res) => {
         res.status(500).json({ error: 'Internal Server Error' });
     }
 });
-
-
-
-
-
-
-
-
 
 
 /* get: 1 student using student_idnumber */
