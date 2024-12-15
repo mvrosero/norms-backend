@@ -248,7 +248,6 @@ router.put('/uniform_defiance/:id', async (req, res) => {
     }
 });
 
-
 /* GET: Export all uniform_defiances except status 'Pending' to CSV */
 router.get('/uniform_defiances-history/export', async (req, res) => {
     try {
