@@ -224,7 +224,6 @@ router.get('/uniform_defiances/:student_idnumber', async (req, res) => {
 });
 
 
-
 // Put: uniform_defiance
 router.put('/uniform_defiance/:id', async (req, res) => {
     try {
@@ -250,9 +249,75 @@ router.put('/uniform_defiance/:id', async (req, res) => {
 });
 
 
+/* GET: Export all uniform_defiances except status 'Pending' to CSV */
+router.get('/uniform_defiances-history/export', async (req, res) => {
+    try {
+        const [rows] = await db.promise().query(`
+            SELECT 
+                ud.slip_id, 
+                ud.student_idnumber, 
+                CONCAT(s.first_name, ' ', IFNULL(s.middle_name, ''), ' ', s.last_name) AS student_full_name, -- Student's full name
+                ud.status, 
+                DATE_FORMAT(ud.created_at, '%m/%d/%Y, %r') AS created_at, -- Formatted date
+                DATE_FORMAT(ud.updated_at, '%m/%d/%Y, %r') AS updated_at, -- Formatted date
+                CONCAT(u.first_name, ' ', IFNULL(u.middle_name, ''), ' ', u.last_name) AS submitted_by_full_name, -- Submitted by full name
+                vn.nature_name 
+            FROM 
+                uniform_defiance ud 
+            LEFT JOIN 
+                violation_nature vn ON ud.nature_id = vn.nature_id
+            LEFT JOIN 
+                user u ON ud.submitted_by = u.employee_idnumber -- Submitted by employee details
+            LEFT JOIN 
+                user s ON ud.student_idnumber = s.student_idnumber -- Student details
+            WHERE 
+                ud.status != 'Pending';
+        `);
 
+        if (rows.length === 0) {
+            return res.status(404).json({ message: 'No records found' });
+        }
 
+        // Define CSV fields
+        const fields = [
+            { label: 'Slip ID', value: 'slip_id' },
+            { label: 'Student ID Number', value: 'student_idnumber' },
+            { label: 'Full Name', value: 'student_full_name' }, // Added Student's Full Name
+            { label: 'Created At', value: 'created_at' },
+            { label: 'Updated At', value: 'updated_at' },
+            { label: 'Nature of Violation', value: 'nature_name' },
+            { label: 'Status', value: 'status' },
+            { label: 'Submitted By', value: 'submitted_by_full_name' }, // Renamed to reflect the field
+        ];
 
+        // Convert rows to CSV
+        const csv = parse(rows, { fields });
+
+        // Generate a temporary file path
+        const filePath = path.join(__dirname, '..', 'exports', `uniform_defiances_history.csv`);
+
+        // Write CSV to a file
+        fs.writeFileSync(filePath, csv);
+
+        // Send the file to the client
+        res.download(filePath, `uniform_defiances_history.csv`, (err) => {
+            if (err) {
+                console.error('Error sending file:', err);
+                res.status(500).send({ error: 'Error exporting CSV file' });
+            }
+
+            // Delete the file after sending it
+            fs.unlink(filePath, (unlinkErr) => {
+                if (unlinkErr) {
+                    console.error('Error deleting temporary file:', unlinkErr);
+                }
+            });
+        });
+    } catch (error) {
+        console.error('Error exporting uniform defiance records (not pending):', error);
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
 
 
 /* GET: Export uniform defiance records to CSV */
@@ -266,8 +331,11 @@ router.get('/uniform_defiances/export/:student_idnumber', async (req, res) => {
     try {
         const query = `
             SELECT 
-                ud.*, 
+                ud.slip_id, 
+                DATE_FORMAT(ud.created_at, '%m/%d/%Y, %r') AS created_at, -- Format as MM/DD/YYYY, hh:mm:ss AM/PM
+                DATE_FORMAT(ud.updated_at, '%m/%d/%Y, %r') AS updated_at, -- Format as MM/DD/YYYY, hh:mm:ss AM/PM
                 vn.nature_name, 
+                ud.status, 
                 CONCAT(u.first_name, ' ', IFNULL(u.middle_name, ''), ' ', u.last_name) AS full_name
             FROM 
                 uniform_defiance ud
@@ -276,7 +344,8 @@ router.get('/uniform_defiances/export/:student_idnumber', async (req, res) => {
             LEFT JOIN 
                 user u ON ud.submitted_by = u.employee_idnumber
             WHERE 
-                ud.student_idnumber = ?`;
+                ud.student_idnumber = ? AND
+                ud.status = 'approved'`;
 
         const [result] = await db.promise().query(query, [student_idnumber]);
 
@@ -286,23 +355,24 @@ router.get('/uniform_defiances/export/:student_idnumber', async (req, res) => {
 
         // Convert JSON result to CSV
         const fields = [
-            { label: 'Defiance ID', value: 'slip_id' },
-            { label: 'Student ID Number', value: 'student_idnumber' },
-            { label: 'Nature Name', value: 'nature_name' },
-            { label: 'Submitted By (Full Name)', value: 'full_name' },
-            { label: 'Created At', value: 'created_at' }
+            { label: 'Slip ID', value: 'slip_id' },
+            { label: 'Created At', value: 'created_at' }, 
+            { label: 'Updated At', value: 'updated_at' }, 
+            { label: 'Nature of Violation', value: 'nature_name' },
+            { label: 'Status', value: 'status' },
+            { label: 'Submitted By', value: 'full_name' },
         ];
 
         const csv = parse(result, { fields });
 
         // Generate a temporary file path
-        const filePath = path.join(__dirname, '..', 'exports', `uniform_defiances_${student_idnumber}.csv`);
+        const filePath = path.join(__dirname, '..', 'exports', `individual_uniform_defiances_${student_idnumber}.csv`);
 
         // Write CSV to a file
         fs.writeFileSync(filePath, csv);
 
         // Send the file to the client
-        res.download(filePath, `uniform_defiances_${student_idnumber}.csv`, (err) => {
+        res.download(filePath, `individual_uniform_defiances_${student_idnumber}.csv`, (err) => {
             if (err) {
                 console.error('Error sending file:', err);
                 res.status(500).send({ error: 'Error exporting CSV file' });
@@ -320,12 +390,6 @@ router.get('/uniform_defiances/export/:student_idnumber', async (req, res) => {
         res.status(500).json({ error: 'Internal Server Error' });
     }
 });
-
-
-
-
-
-
 
 
 module.exports = router;
