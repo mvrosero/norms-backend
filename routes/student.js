@@ -140,12 +140,26 @@ router.post('/student-login', async (req, res) => {
 });
 
 
+
+
+
+
+
 /* post: register student */
 router.post('/register-student', async (req, res) => {
     try {
         const { student_idnumber, first_name, middle_name, last_name, suffix, birthdate, email, password, year_level, batch, department_id, program_id, role_id } = req.body;
+
+        // Validate student_idnumber format (should follow "00-00000")
+        const idFormat = /^\d{2}-\d{5}$/; // Matches "00-00000" format
+        if (!idFormat.test(student_idnumber)) {
+            return res.status(400).json({ error: 'Invalid student ID number format. It should follow "00-00000".' });
+        }
+
+        // Hash password
         const hashedPassword = await bcrypt.hash(password, 10);
 
+        // Insert student into database
         const insertStudentQuery = `
             INSERT INTO user 
             (student_idnumber, first_name, middle_name, last_name, suffix, birthdate, email, password, year_level, batch, department_id, program_id, role_id) 
@@ -160,6 +174,14 @@ router.post('/register-student', async (req, res) => {
         res.status(500).json({ error: 'Internal Server Error' });
     }
 });
+
+
+
+
+
+
+
+
 
 
 /* get: 1 student using student_idnumber */
@@ -304,16 +326,16 @@ router.put('/student/:id', async (req, res) => {
     console.log('User ID:', user_id); // Log user_id for debugging
     console.log('Request Body:', req.body); // Log the request body for debugging
 
-    const { student_idnumber, first_name, middle_name, last_name, suffix, email, year_level, batch, department_id, program_id, status } = req.body;
+    const { student_idnumber, birthdate, first_name, middle_name, last_name, suffix, email, year_level, batch, department_id, program_id, status } = req.body;
 
     // Check for required fields
-    if (!user_id || !student_idnumber || !first_name || !last_name || !email || !year_level || !batch || !department_id || !program_id || !status) {
+    if (!user_id || !student_idnumber || !birthdate || !first_name || !last_name || !email || !year_level || !batch || !department_id || !program_id || !status) {
         return res.status(400).send({ error: 'Please provide all required details' });
     }
 
     try {
-        db.query('UPDATE user SET student_idnumber = ?, first_name = ?, middle_name = ?, last_name = ?, suffix = ?, email = ?, year_level = ?, batch = ?, department_id = ?, program_id = ?, status = ? WHERE user_id = ?', 
-        [student_idnumber, first_name, middle_name, last_name, suffix, email, year_level, batch, department_id, program_id, status, user_id], 
+        db.query('UPDATE user SET student_idnumber = ?, birthdate = ?, first_name = ?, middle_name = ?, last_name = ?, suffix = ?, email = ?, year_level = ?, batch = ?, department_id = ?, program_id = ?, status = ? WHERE user_id = ?', 
+        [student_idnumber, birthdate, first_name, middle_name, last_name, suffix, email, year_level, batch, department_id, program_id, status, user_id], 
         (err, result, fields) => {
             if (err) {
                 console.error('Error updating student:', err);

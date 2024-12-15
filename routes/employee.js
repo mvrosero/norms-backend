@@ -94,6 +94,7 @@ router.post('/importcsv-employee', upload.single('file'), async (req, res) => {
     }
 });
 
+
 /* post: employee login */
 router.post('/employee-login', async (req, res) => {
     try {
@@ -130,13 +131,89 @@ router.post('/employee-login', async (req, res) => {
     }
 });
 
+
 /* post: register employee */
 router.post('/register-employee', async (req, res) => {
     try {
-        const { employee_idnumber, first_name, middle_name, last_name, suffix, birthdate, email, password, profile_photo_filename, role_id } = req.body;
+        const {
+            employee_idnumber,
+            first_name,
+            middle_name,
+            last_name,
+            suffix, 
+            birthdate,
+            email,
+            password,
+            role_id
+        } = req.body;
+
+        // Validate required fields
+        if (!employee_idnumber || !first_name || !last_name || !birthdate || !email || !password || !role_id) {
+            return res.status(400).json({ error: 'Missing required fields' });
+        }
+
+        // Validate employee_idnumber format
+        const idFormat = /^\d{2}-\d{5}$/; // Matches "00-00000" format
+        if (!idFormat.test(employee_idnumber)) {
+            return res.status(400).json({ error: 'Invalid employee ID number format. It should follow "00-00000".' });
+        }
+
+        // Validate names to start with a capital letter and allow letters, spaces, dashes, and dots
+        const nameFormat = /^[A-Z][a-zA-Z .-]*$/; // Capital letter followed by letters, spaces, dots, or dashes
+        if (!nameFormat.test(first_name)) {
+            return res.status(400).json({ 
+                error: 'First name must start with a capital letter and can contain only letters, spaces, dots, or dashes.' 
+            });
+        }
+        if (middle_name && !nameFormat.test(middle_name)) { // Middle name is optional
+            return res.status(400).json({ 
+                error: 'Middle name must start with a capital letter and can contain only letters, spaces, dots, or dashes.' 
+            });
+        }
+        if (!nameFormat.test(last_name)) {
+            return res.status(400).json({ 
+                error: 'Last name must start with a capital letter and can contain only letters, spaces, dots, or dashes.' 
+            });
+        }
+        if (suffix && !nameFormat.test(suffix)) { // Suffix is optional
+            return res.status(400).json({ 
+                error: 'Suffix must start with a capital letter and can contain only letters, spaces, dots, or dashes.' 
+            });
+        }
+
+        // Validate email format
+        const emailFormat = /^[a-zA-Z0-9._%+-]+@ncf\.edu\.ph$/;
+        if (!emailFormat.test(email)) {
+            return res.status(400).json({ error: 'Invalid email format. Email must end with "@ncf.edu.ph".' });
+        }
+
+        // Validate password length (between 3 and 20 characters)
+        if (password.length < 3 || password.length > 20) {
+            return res.status(400).json({ error: 'Password must be between 3 and 20 characters long.' });
+        }
+
+        // Hash password
         const hashedPassword = await bcrypt.hash(password, 10);
-        const insertEmployeeQuery = 'INSERT INTO user (employee_idnumber, first_name, middle_name, last_name, suffix, birthdate, email, password, profile_photo_filename, role_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)';
-        await db.promise().execute(insertEmployeeQuery, [employee_idnumber, first_name, middle_name, last_name, suffix, birthdate, email, hashedPassword, profile_photo_filename, role_id]);
+
+        // Insert employee into database
+        const insertEmployeeQuery = `
+            INSERT INTO user (
+                employee_idnumber, first_name, middle_name, last_name, suffix, 
+                birthdate, email, password, role_id
+            ) 
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `;
+        await db.promise().execute(insertEmployeeQuery, [
+            employee_idnumber,
+            first_name,
+            middle_name,
+            last_name,
+            suffix,
+            birthdate,
+            email,
+            hashedPassword,
+            role_id
+        ]);
 
         res.status(201).json({ message: 'Employee registered successfully' });
     } catch (error) {
@@ -144,6 +221,7 @@ router.post('/register-employee', async (req, res) => {
         res.status(500).json({ error: 'Internal Server Error' });
     }
 });
+
 
 /*get: 1 employee*/
 router.get('/employee/:id', (req, res) => {
