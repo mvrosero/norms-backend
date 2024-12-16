@@ -360,6 +360,7 @@ router.put('/student/:id', async (req, res) => {
         return res.status(400).json({ error: 'Invalid student ID number format. It should follow "00-00000".' });
     }
 
+    
     // Validate names to start with a capital letter and allow letters, spaces, dashes, and dots
     const nameFormat = /^[A-Z][a-zA-Z .-]*$/; // Capital letter followed by letters, spaces, dots, or dashes
     if (!nameFormat.test(first_name)) {
