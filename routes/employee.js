@@ -297,34 +297,134 @@ router.get('/employees', (req, res) => {
     }
 });
 
+
 /*put: employee*/
 router.put('/employee/:id', async (req, res) => {
+    let user_id = req.params.id;
+    console.log('User ID:', user_id);
+    console.log('Request Body:', req.body);
+
     try {
-        const user_id = req.params.id;
-        const { employee_idnumber, first_name, middle_name, last_name, suffix, birthdate, email, password, role_id, status } = req.body;
+        const {
+            employee_idnumber,
+            first_name,
+            middle_name,
+            last_name,
+            suffix,
+            birthdate,
+            email,
+            password,
+            role_id,
+            status
+        } = req.body;
 
         // Validate required fields
-        if (!user_id || !employee_idnumber || !first_name || !last_name || !birthdate || !email || !role_id || !status) {
-            return res.status(400).json({ error: 'Please provide all required details' });
+        if (!user_id || !employee_idnumber || !first_name || !last_name || !email || !role_id || !status) {
+            return res.status(400).json({ error: 'Please provide all required details.' });
         }
 
-        // Perform database update
+        // Validate employee_idnumber format
+        const idFormat = /^\d{2}-\d{5}$/; // Matches "00-00000" format
+        if (!idFormat.test(employee_idnumber)) {
+            return res.status(400).json({ error: 'Invalid employee ID number format. It should follow "00-00000".' });
+        }
+
+        // Validate names to start with a capital letter
+        const nameFormat = /^[A-Z][a-zA-Z .-]*$/;
+        if (!nameFormat.test(first_name)) {
+            return res.status(400).json({
+                error: 'First name must start with a capital letter and can contain only letters, spaces, dots, or dashes.'
+            });
+        }
+        if (middle_name && !nameFormat.test(middle_name)) {
+            return res.status(400).json({
+                error: 'Middle name must start with a capital letter and can contain only letters, spaces, dots, or dashes.'
+            });
+        }
+        if (!nameFormat.test(last_name)) {
+            return res.status(400).json({
+                error: 'Last name must start with a capital letter and can contain only letters, spaces, dots, or dashes.'
+            });
+        }
+        if (suffix && !nameFormat.test(suffix)) {
+            return res.status(400).json({
+                error: 'Suffix must start with a capital letter and can contain only letters, spaces, dots, or dashes.'
+            });
+        }
+
+        // Validate email format
+        const emailFormat = /^[a-zA-Z0-9._%+-]+@ncf\.edu\.ph$/;
+        if (!emailFormat.test(email)) {
+            return res.status(400).json({ error: 'Invalid email format. Email must end with "@ncf.edu.ph".' });
+        }
+
+        // Validate password length
+        if (password && password.length < 3) {
+            return res.status(400).json({ error: 'Password must be at least 3 characters.' });
+        }
+
+        let hashedPassword = null;
+        if (password) {
+            try {
+                hashedPassword = await bcrypt.hash(password, 10);
+            } catch (error) {
+                console.error('Error hashing password:', error);
+                return res.status(500).json({ message: 'Error hashing password. Please try again.' });
+            }
+        }
+
+        // Update query
+        const updates = [
+            'employee_idnumber = ?',
+            'first_name = ?',
+            'middle_name = ?',
+            'last_name = ?',
+            'suffix = ?',
+            'birthdate = ?',
+            'email = ?',
+            'role_id = ?',
+            'status = ?'
+        ];
+
+        const values = [
+            employee_idnumber,
+            first_name,
+            middle_name,
+            last_name,
+            suffix,
+            birthdate,
+            email,
+            role_id,
+            status
+        ];
+
+        if (hashedPassword) {
+            updates.push('password = ?');
+            values.push(hashedPassword);
+        }
+
         db.query(
-            'UPDATE user SET employee_idnumber = ?, first_name = ?, middle_name = ?, last_name = ?, suffix = ?, birthdate = ?, email = ?, password = ?, role_id = ?, status = ? WHERE user_id = ?', 
-            [employee_idnumber, first_name, middle_name, last_name, suffix, birthdate, email, password, role_id, status, user_id], 
+            `UPDATE user SET ${updates.join(', ')} WHERE user_id = ?`,
+            [...values, user_id],
             (err, result) => {
                 if (err) {
                     console.error('Error updating employee:', err);
-                    return res.status(500).json({ error: 'Internal Server Error' });
+                    return res.status(500).json({ message: 'Error updating employee information. Please try again later.' });
                 }
-                res.status(200).json({ message: 'Employee updated successfully', result });
+                res.status(200).json(result);
             }
         );
     } catch (error) {
         console.error('Error updating employee:', error);
-        res.status(500).json({ error: 'Internal Server Error' });
+        res.status(500).json({ error: 'An unexpected error occurred while updating employee information.' });
     }
 });
+
+
+
+
+
+
 
 
 /*put: employee password*/
@@ -374,6 +474,8 @@ router.put('/password-change/:id', async (req, res) => {
         res.status(500).json({ error: 'Internal Server Error' });
     }
 });
+
+
 
 
 /*delete: employee*/
