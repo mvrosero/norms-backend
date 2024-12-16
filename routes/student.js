@@ -180,6 +180,11 @@ router.post('/register-student', async (req, res) => {
             return res.status(400).json({ error: 'Email must end with "@gbox.ncf.edu.ph".' });
         }
 
+        // Validate password length (3-20 characters)
+        if (password && (password.length < 3 || password.length > 20)) {
+            return res.status(400).json({ error: 'Password must be between 3 and 20 characters.' });
+        }
+        
         // Hash password
         const hashedPassword = await bcrypt.hash(password, 10);
 
@@ -309,8 +314,6 @@ router.get('/students-not-archived', (req, res) => {
 });
 
 
-
-
 // Get users with status 'archived'
 router.get('/students-archived', (req, res) => {
     try {
@@ -338,10 +341,6 @@ router.get('/students-archived', (req, res) => {
 
 
 
-
-
-
-
 /* put:  student */
 router.put('/student/:id', async (req, res) => {
     let user_id = req.params.id;
@@ -350,9 +349,52 @@ router.put('/student/:id', async (req, res) => {
 
     const { student_idnumber, birthdate, first_name, middle_name, last_name, suffix, email, year_level, batch, department_id, program_id, status, password } = req.body;
 
-    if (!user_id || !student_idnumber || !birthdate || !first_name || !last_name || !email || !year_level || !batch || !department_id || !program_id || !status) {
+    // Validate required fields
+    if (!user_id || !student_idnumber || !first_name || !last_name || !email || !year_level || !batch || !department_id || !program_id || !status) {
         return res.status(400).send({ error: 'Please provide all required details' });
     }
+
+    // Validate student_idnumber format (should follow "00-00000")
+    const idFormat = /^\d{2}-\d{5}$/; // Matches "00-00000" format
+    if (!idFormat.test(student_idnumber)) {
+        return res.status(400).json({ error: 'Invalid student ID number format. It should follow "00-00000".' });
+    }
+
+    // Validate names to start with a capital letter and allow letters, spaces, dashes, and dots
+    const nameFormat = /^[A-Z][a-zA-Z .-]*$/; // Capital letter followed by letters, spaces, dots, or dashes
+    if (!nameFormat.test(first_name)) {
+        return res.status(400).json({ 
+            error: 'First name must start with a capital letter and can contain only letters, spaces, dots, or dashes.' 
+        });
+    }
+    if (middle_name && !nameFormat.test(middle_name)) { // Middle name is optional
+        return res.status(400).json({ 
+            error: 'Middle name must start with a capital letter and can contain only letters, spaces, dots, or dashes.' 
+        });
+    }
+    if (!nameFormat.test(last_name)) {
+        return res.status(400).json({ 
+            error: 'Last name must start with a capital letter and can contain only letters, spaces, dots, or dashes.' 
+        });
+    }
+    if (suffix && !nameFormat.test(suffix)) { // Suffix is optional
+        return res.status(400).json({ 
+            error: 'Suffix must start with a capital letter and can contain only letters, spaces, dots, or dashes.' 
+        });
+    }
+
+    // Validate email to end with "@gbox.ncf.edu.ph"
+    const emailFormat = /^[a-zA-Z0-9._%+-]+@gbox\.ncf\.edu\.ph$/;
+    if (!emailFormat.test(email)) {
+        return res.status(400).json({ error: 'Email must end with "@gbox.ncf.edu.ph".' });
+    }
+
+
+        // Validate password length (3)
+        if (password && (password.length < 3 )) {
+            return res.status(400).json({ error: 'Password must be be atleast 3 characters' });
+        }
+
 
     let hashedPassword = null;
     if (password) {
@@ -371,7 +413,7 @@ router.put('/student/:id', async (req, res) => {
                 console.error('Error checking program and department:', err);
                 return res.status(500).json({ message: 'Internal Server Error while verifying program and department.' });
             }
-    
+
             if (result.length === 0) {
                 return res.status(400).json({ message: 'Program does not belong to the selected department' });
             }
@@ -429,6 +471,7 @@ router.put('/student/:id', async (req, res) => {
         res.status(500).json({ error: 'An unexpected error occurred while updating student information.' });
     }
 });
+
 
 
 
@@ -513,10 +556,6 @@ router.delete('/student/:id', (req, res) => {
 });
 
 
-
-
-
-
 // DELETE: Batch delete students
 router.delete('/students', async (req, res) => {
     const { student_ids } = req.body;
@@ -535,10 +574,6 @@ router.delete('/students', async (req, res) => {
         res.status(500).json({ error: 'Internal Server Error' });
     }
 });
-
-
-
-
 
 
 // PUT: Batch update students

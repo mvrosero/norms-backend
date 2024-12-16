@@ -58,9 +58,6 @@ router.get('/programs', (req, res) => {
 });
 
 
-
-
-
 /* Get: programs by department_id  */
 router.get('/programs/:department_id', async (req, res) => {
     const department_id = req.params.department_id;
@@ -88,18 +85,6 @@ router.get('/programs/:department_id', async (req, res) => {
         res.status(500).json({ error: 'Internal Server Error' });
     }
 });
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 /* put: program */
