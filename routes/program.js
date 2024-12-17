@@ -17,6 +17,7 @@ router.post('/register-program', async (req, res) => {
     }
 });
 
+
 /* get: 1 program */
 router.get('/program/:id', (req, res) => {
     let program_id = req.params.id;
@@ -26,12 +27,30 @@ router.get('/program/:id', (req, res) => {
     }
 
     try {
-        db.query('SELECT program_id, program_code, program_name, department_id, status FROM program WHERE program_id = ?', program_id, (err, result) => {
+        const query = `
+            SELECT 
+                p.program_id, 
+                p.program_code, 
+                p.program_name, 
+                d.department_name, 
+                p.status 
+            FROM 
+                program p
+            JOIN 
+                department d 
+            ON 
+                p.department_id = d.department_id
+            WHERE 
+                p.program_id = ?`;
+
+        db.query(query, [program_id], (err, result) => {
             if (err) {
                 console.error('Error fetching program:', err);
                 res.status(500).json({ message: 'Internal Server Error' });
+            } else if (result.length === 0) {
+                res.status(404).json({ error: true, message: 'Program not found' });
             } else {
-                res.status(200).json(result);
+                res.status(200).json(result[0]);
             }
         });
     } catch (error) {
@@ -40,10 +59,23 @@ router.get('/program/:id', (req, res) => {
     }
 });
 
+
 /* get: programs */
 router.get('/programs', (req, res) => {
     try {
-        db.query('SELECT * FROM program', (err, result) => {
+        // Modify the SQL query to join the program table with the department table
+        const query = `
+            SELECT 
+                program.program_id,
+                program.program_name,
+                program.program_code,
+                department.department_name,
+                program.status
+            FROM program
+            JOIN department ON program.department_id = department.department_id;
+        `;
+
+        db.query(query, (err, result) => {
             if (err) {
                 console.error('Error fetching programs:', err);
                 res.status(500).json({ message: 'Internal Server Error' });
@@ -56,6 +88,7 @@ router.get('/programs', (req, res) => {
         res.status(500).json({ error: 'Internal Server Error' });
     }
 });
+
 
 
 /* Get: programs by department_id  */
@@ -90,26 +123,42 @@ router.get('/programs/:department_id', async (req, res) => {
 /* put: program */
 router.put('/program/:id', async (req, res) => {
     let program_id = req.params.id;
-    const { program_code, program_name, status, department_id } = req.body;
+    const { program_code, program_name, status, department_name } = req.body;
 
-    if (!program_id || !program_code || !program_name || !status || !department_id) {
+    if (!program_id || !program_code || !program_name || !status || !department_name) {
         return res.status(400).send({ error: true, message: 'Please provide all required information' });
     }
 
     try {
-        db.query('UPDATE program SET program_code = ?, program_name = ?, status = ?, department_id = ? WHERE program_id = ?', [program_code, program_name, status, department_id, program_id], (err, result, fields) => {
+        // First, fetch the department_id based on department_name
+        db.query('SELECT department_id FROM department WHERE department_name = ?', [department_name], (err, result) => {
             if (err) {
-                console.error('Error updating program:', err);
-                res.status(500).json({ message: 'Internal Server Error' });
-            } else {
-                res.status(200).json({ message: 'Program updated successfully', result });
+                console.error('Error fetching department_id:', err);
+                return res.status(500).json({ message: 'Internal Server Error' });
             }
+
+            if (result.length === 0) {
+                return res.status(400).send({ error: true, message: 'Department not found' });
+            }
+
+            // Now, update the program with the department_id
+            const department_id = result[0].department_id;
+
+            db.query('UPDATE program SET program_code = ?, program_name = ?, status = ?, department_id = ? WHERE program_id = ?', [program_code, program_name, status, department_id, program_id], (err, result) => {
+                if (err) {
+                    console.error('Error updating program:', err);
+                    return res.status(500).json({ message: 'Internal Server Error' });
+                } else {
+                    res.status(200).json({ message: 'Program updated successfully', result });
+                }
+            });
         });
     } catch (error) {
         console.error('Error updating program:', error);
         res.status(500).json({ error: 'Internal Server Error' });
     }
 });
+
 
 /* delete: program */
 router.delete('/program/:id', async (req, res) => {
