@@ -71,14 +71,14 @@ router.put('/department/:id', async (req, res) => {
 
     let department_id = req.params.id;
 
-    const {department_code, department_name} = req.body;
+    const {department_code, department_name, status} = req.body;
 
-    if (!department_id || !department_code || !department_name) {
-        return res.status(400).send({ error: user, message: 'Please provide department code and department name' });
+    if (!department_id || !department_code || !department_name || !status) {
+        return res.status(400).send({ error: user, message: 'Please provide department code, department name, and status' });
     }
 
     try {
-        db.query('UPDATE department SET department_code = ?, department_name = ? WHERE department_id = ?', [department_code, department_name, department_id], (err, result, fields) => {
+        db.query('UPDATE department SET department_code = ?, department_name = ?, status = ? WHERE department_id = ?', [department_code, department_name, status, department_id], (err, result, fields) => {
             if (err) {
                 console.error('Error updating department:', err);
                 res.status(500).json({ message: 'Internal Server Error' });
