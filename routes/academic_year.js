@@ -2,14 +2,31 @@ const express = require('express');
 const db = require('../app/configuration/database');
 const router = express.Router();
 
+
 /* POST: Register an academic year */
 router.post('/register-academicyear', async (req, res) => {
     try {
         const { acadyear_code, start_year, end_year, status } = req.body;
         
+        // Validate acadyear_code format: "A/Y 00-00"
+        const acadyearCodePattern = /^A\/Y \d{2}-\d{2}$/; 
+        if (!acadyear_code || !acadyearCodePattern.test(acadyear_code)) {
+            return res.status(400).json({ error: 'acadyear_code must follow the format "A/Y 0000-0000"' });
+        }
+
         // Validate start_year and end_year
-        if (!start_year || !end_year || start_year > end_year) {
-            return res.status(400).json({ error: 'Invalid start_year or end_year' });
+        if (!start_year || !end_year) {
+            return res.status(400).json({ error: 'Both start_year and end_year are required' });
+        }
+
+        // Check if start_year is earlier than end_year
+        if (start_year >= end_year) {
+            return res.status(400).json({ error: 'start_year must be earlier than end_year' });
+        }
+
+        // Check if the duration is exactly 1 year
+        if (end_year - start_year !== 1) {
+            return res.status(400).json({ error: 'The duration between start_year and end_year must be exactly 1 year' });
         }
 
         const insertAcademicYearQuery = `
@@ -24,6 +41,7 @@ router.post('/register-academicyear', async (req, res) => {
         res.status(500).json({ error: 'Internal Server Error' });
     }
 });
+
 
 /* GET: Single academic year */
 router.get('/academic_year/:id', (req, res) => {
@@ -48,6 +66,7 @@ router.get('/academic_year/:id', (req, res) => {
     }
 });
 
+
 /* GET: All academic years */
 router.get('/academic_years', (req, res) => {
     try {
@@ -65,6 +84,7 @@ router.get('/academic_years', (req, res) => {
     }
 });
 
+
 /* PUT: Update an academic year */
 router.put('/academic_year/:id', async (req, res) => {
     const acadyear_id = req.params.id;
@@ -74,9 +94,25 @@ router.put('/academic_year/:id', async (req, res) => {
         return res.status(400).send({ error: true, message: 'Please provide acadyear_id' });
     }
 
+    // Validate acadyear_code format: "A/Y 00-00"
+    const acadyearCodePattern = /^A\/Y \d{2}-\d{2}$/;
+    if (!acadyear_code || !acadyearCodePattern.test(acadyear_code)) {
+        return res.status(400).json({ error: 'acadyear_code must follow the format "A/Y 00-00"' });
+    }
+
     // Validate start_year and end_year
-    if (!start_year || !end_year || start_year > end_year) {
-        return res.status(400).json({ error: 'Invalid start_year or end_year' });
+    if (!start_year || !end_year) {
+        return res.status(400).json({ error: 'Both start_year and end_year are required' });
+    }
+
+    // Check if start_year is earlier than end_year
+    if (start_year >= end_year) {
+        return res.status(400).json({ error: 'start_year must be earlier than end_year' });
+    }
+
+    // Check if the duration is exactly 1 year
+    if (end_year - start_year !== 1) {
+        return res.status(400).json({ error: 'The duration between start_year and end_year must be exactly 1 year' });
     }
 
     try {
@@ -93,6 +129,7 @@ router.put('/academic_year/:id', async (req, res) => {
         res.status(500).json({ error: 'Internal Server Error' });
     }
 });
+
 
 /* DELETE: Academic year */
 router.delete('/academic_year/:id', (req, res) => {
