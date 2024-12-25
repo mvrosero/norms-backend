@@ -154,4 +154,5 @@ router.delete('/academic_year/:id', (req, res) => {
     }
 });
 
+
 module.exports = router;
