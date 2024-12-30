@@ -477,7 +477,6 @@ router.put('/password-change/:id', async (req, res) => {
 
 
 
-
 /*delete: employee*/
 router.delete('/employee/:id', async (req, res) => {
     try {
@@ -581,10 +580,6 @@ router.put('/employees', async (req, res) => {
         res.status(500).json({ error: 'Internal Server Error' });
     }
 });
-
-
-
-
 
 
 

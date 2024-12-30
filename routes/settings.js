@@ -94,4 +94,51 @@ router.get('/view-profile-photo/:user_id', async (req, res) => {
 });
 
 
+// Endpoint to delete the profile photo
+router.delete('/delete-profile-photo/:user_id', async (req, res) => {
+    try {
+        const { user_id } = req.params;
+
+        if (!user_id) {
+            return res.status(400).json({ error: 'Missing user_id' });
+        }
+
+        // Retrieve the filename of the profile photo from the database
+        const getProfilePhotoQuery = 'SELECT profile_photo_filename FROM user WHERE user_id = ?';
+        const [rows] = await db.promise().execute(getProfilePhotoQuery, [user_id]);
+
+        if (rows.length === 0) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+
+        const filename = rows[0].profile_photo_filename;
+        if (!filename) {
+            return res.status(404).json({ error: 'Profile photo not found for this user' });
+        }
+
+        // Delete the file from the server
+        const filePath = path.join(__dirname, '..', 'uploads', 'profile_photo', filename);
+        
+        // Use fs.unlink to delete the file
+        const fs = require('fs');
+        fs.unlink(filePath, async (err) => {
+            if (err) {
+                console.error('Error deleting file:', err);
+                return res.status(500).json({ error: 'Error deleting profile photo file' });
+            }
+
+            // Update the database to remove the filename (set to NULL or empty)
+            const updateProfilePhotoQuery = 'UPDATE user SET profile_photo_filename = NULL WHERE user_id = ?';
+            await db.promise().execute(updateProfilePhotoQuery, [user_id]);
+
+            res.status(200).json({ message: 'Profile photo deleted successfully' });
+        });
+    } catch (error) {
+        console.error('Error deleting profile photo:', error);
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
+
+
+
 module.exports = router;
