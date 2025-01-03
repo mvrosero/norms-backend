@@ -153,7 +153,7 @@ router.post('/register-student', async (req, res) => {
         }
 
         // Validate names to start with a capital letter and allow letters, spaces, dashes, and dots
-        const nameFormat = /^[A-Z][a-zA-Z .-]*$/; // Capital letter followed by letters, spaces, dots, or dashes
+        const nameFormat = /^[A-Z][a-zA-Z .'-]*$/;
         if (!nameFormat.test(first_name)) {
             return res.status(400).json({ 
                 error: 'First name must start with a capital letter and can contain only letters, spaces, dots, or dashes.' 
@@ -413,7 +413,7 @@ router.put('/student/:id', async (req, res) => {
     }
 
     // Validate names to start with a capital letter and allow letters, spaces, dashes, and dots
-    const nameFormat = /^[A-Z][a-zA-Z .-]*$/; // Capital letter followed by letters, spaces, dots, or dashes
+    const nameFormat = /^[A-Z][a-zA-Z .'-]*$/;
     if (!nameFormat.test(first_name)) {
         return res.status(400).json({ 
             error: 'First name must start with a capital letter and can contain only letters, spaces, dots, or dashes.' 
