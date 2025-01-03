@@ -181,6 +181,20 @@ router.post('/register-student', async (req, res) => {
             return res.status(400).json({ error: 'Email must end with "@gbox.ncf.edu.ph".' });
         }
 
+                // Check if program belongs to the department
+                const programCheckQuery = `
+                SELECT COUNT(*) AS count 
+                FROM program 
+                WHERE program_id = ? AND department_id = ?
+            `;
+            const [programCheckResult] = await db.promise().execute(programCheckQuery, [program_id, department_id]);
+    
+            if (programCheckResult[0].count === 0) {
+                return res.status(400).json({
+                    error: 'The selected program does not belong to the specified department.'
+                });
+            }
+
         // Validate password length (3-20 characters)
         if (password && (password.length < 3 || password.length > 20)) {
             return res.status(400).json({ error: 'Password must be between 3 and 20 characters.' });
@@ -201,8 +215,45 @@ router.post('/register-student', async (req, res) => {
         res.status(201).json({ message: 'Student registered successfully' });
     } catch (error) {
         console.error('Error registering student:', error);
-        res.status(500).json({ error: 'Internal Server Error' });
-    }
+    
+        // Handle duplicate email error
+        if (error.code === 'ER_DUP_ENTRY' && error.sqlMessage.includes('email')) {
+            return res.status(400).json({
+                error: 'DUPLICATE_EMAIL',
+                message: 'A student with this email already exists.',
+            });
+        }
+    
+        // Handle duplicate student ID error
+        if (error.code === 'ER_DUP_ENTRY' && error.sqlMessage.includes('student_idnumber')) {
+            return res.status(400).json({
+                error: 'DUPLICATE_STUDENT_ID',
+                message: 'A student with this student ID number already exists.',
+            });
+        }
+    
+        // Handle missing birthdate error
+        if (error.message.includes('birthdate')) {
+            return res.status(400).json({
+                error: 'MISSING_BIRTHDATE',
+                message: 'Please provide a valid birthdate.',
+            });
+        }
+    
+        // Handle missing required fields error
+        if (error.message.includes('required fields')) {
+            return res.status(400).json({
+                error: 'MISSING_REQUIRED_FIELDS',
+                message: 'Please fill in all required fields.',
+            });
+        }
+    
+        // General error handling
+        res.status(500).json({
+            error: 'INTERNAL_SERVER_ERROR',
+            message: 'An unexpected error occurred. Please try again later.',
+        });
+    }    
 });
 
 
