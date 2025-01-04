@@ -146,6 +146,7 @@ router.get('/users', (req, res) => {
     }
 });
 
+
 /* Get user counts for each department */
 router.get('/user-counts', (req, res) => {
     try {
@@ -172,6 +173,35 @@ router.get('/user-counts', (req, res) => {
     }
 });
 
+
+/* Get user counts for each department, excluding archived users */
+router.get('/user-counts-notarchived', (req, res) => {
+    try {
+        db.query(`
+            SELECT d.department_name, COUNT(u.user_id) AS user_count 
+            FROM department d 
+            LEFT JOIN user u ON d.department_id = u.department_id 
+            WHERE u.status != 'archived' OR u.status IS NULL
+            GROUP BY d.department_id
+        `, (err, result) => {
+            if (err) {
+                console.error('Error fetching user counts excluding archived users:', err);
+                res.status(500).json({ message: 'Internal Server Error' });
+            } else {
+                const userCounts = {};
+                result.forEach(row => {
+                    userCounts[row.department_name] = row.user_count;
+                });
+                res.status(200).json(userCounts);
+            }
+        });
+    } catch (error) {
+        console.error('Error loading user counts excluding archived users:', error);
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
+
+
 /* Get users by department */
 router.get('/admin-usermanagement/:department_code', (req, res) => {
     try {
@@ -195,6 +225,7 @@ router.get('/admin-usermanagement/:department_code', (req, res) => {
         res.status(500).json({ error: 'Internal Server Error' });
     }
 });
+
 
 /* Get users by department code */
 router.get('/coordinator-studentrecords/:department_code', (req, res) => {
