@@ -170,8 +170,9 @@ router.get('/violation_record/:record_id', async (req, res) => {
 });
 
 
+
 /* Get: Violation records by student_idnumber with users, sanctions, and subcategory */
-router.get('/violation_record/:student_idnumber', async (req, res) => {
+router.get('/individual_violationrecords/:student_idnumber', async (req, res) => {
     const student_idnumber = req.params.student_idnumber;
 
     if (!student_idnumber) {
@@ -194,7 +195,7 @@ router.get('/violation_record/:student_idnumber', async (req, res) => {
         const [violations] = await db.promise().query(`
             SELECT vr.record_id, vr.description, vr.category_id, vr.offense_id, 
                    vr.acadyear_id, vr.semester_id, vr.created_at,
-                   o.subcategory_id,
+                   o.subcategory_id,  -- Include subcategory_id from offense table
                    GROUP_CONCAT(DISTINCT vs.sanction_id) AS sanction_ids
             FROM violation_record vr
             LEFT JOIN violation_user vu ON vr.record_id = vu.record_id
@@ -214,6 +215,7 @@ router.get('/violation_record/:student_idnumber', async (req, res) => {
         res.status(500).json({ error: 'Internal Server Error' });
     }
 });
+
 
 
 /* Get: All violation records by student_idnumber */
