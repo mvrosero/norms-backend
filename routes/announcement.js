@@ -103,6 +103,10 @@ router.get('/announcements', (req, res) => {
     }
 });
 
+
+
+
+
 // PUT: Update announcement fields individually
 router.put('/announcement/:id', upload.array('files'), async (req, res) => {
     const announcement_id = req.params.id;
@@ -157,6 +161,60 @@ router.put('/announcement/:id', upload.array('files'), async (req, res) => {
         res.status(500).json({ error: 'Internal Server Error' });
     }
 });
+
+
+
+
+
+
+// PUT: Pin an announcement
+router.put('/announcement/:id/pin', async (req, res) => {
+    const announcement_id = req.params.id;
+
+    if (!announcement_id) {
+        return res.status(400).json({ error: 'Announcement ID is required' });
+    }
+
+    try {
+        // Update the specific announcement to be pinned
+        const [result] = await db.promise().execute('UPDATE announcement SET status = "Pinned" WHERE announcement_id = ?', [announcement_id]);
+
+        if (result.affectedRows === 0) {
+            return res.status(404).json({ error: 'Announcement not found or already pinned' });
+        }
+
+        res.status(200).json({ message: 'Announcement pinned successfully' });
+    } catch (error) {
+        console.error('Error pinning announcement:', error);
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
+
+
+
+
+// PUT: Unpin an announcement
+router.put('/announcement/:id/unpin', async (req, res) => {
+    const announcement_id = req.params.id;
+
+    if (!announcement_id) {
+        return res.status(400).json({ error: 'Announcement ID is required' });
+    }
+
+    try {
+        // Unpin the announcement
+        await db.promise().execute('UPDATE announcement SET status = "Published" WHERE announcement_id = ?', [announcement_id]);
+
+        res.status(200).json({ message: 'Announcement unpinned successfully' });
+    } catch (error) {
+        console.error('Error unpinning announcement:', error);
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
+
+
+
+
 
 
 // DELETE: Remove a file attached to an announcement
