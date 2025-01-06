@@ -23,6 +23,7 @@ const updateFilenames = (existingFilenames, newFilenames) => {
     return [...existingFiles, ...newFilenames].join(','); // Ensure no commas in the filenames
 };
 
+
 // POST: Create an announcement with file uploads
 router.post('/create-announcement', upload.array('files'), async (req, res) => {
     try {
@@ -31,6 +32,10 @@ router.post('/create-announcement', upload.array('files'), async (req, res) => {
 
         if (!title || !content || !status) {
             return res.status(400).json({ error: 'Title, content, and status are required' });
+        }
+
+        if (content.length > 1000) {
+            return res.status(400).json({ error: 'Content length cannot exceed 1000 characters' });
         }
 
         // Handle filenames
@@ -56,6 +61,7 @@ router.post('/create-announcement', upload.array('files'), async (req, res) => {
         res.status(500).json({ error: 'Internal Server Error' });
     }
 });
+
 
 /* GET: Retrieve a specific announcement by ID */
 router.get('/announcement/:id', (req, res) => {
@@ -124,6 +130,10 @@ router.put('/announcement/:id', upload.array('files'), async (req, res) => {
         // Ensure the announcement exists
         if (existingAnnouncement.length === 0) {
             return res.status(404).json({ error: 'Announcement not found' });
+        }
+
+        if (content && content.length > 1000) {
+            return res.status(400).json({ error: 'Content length cannot exceed 1000 characters' });
         }
 
         const existingData = existingAnnouncement[0];
