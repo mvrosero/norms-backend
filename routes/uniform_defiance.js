@@ -18,7 +18,22 @@ const storage = multer.diskStorage({
     }
 });
 
-const upload = multer({ storage: storage });
+const upload = multer({
+    storage: storage,
+    limits: { fileSize: 10 * 1024 * 1024 }, 
+    fileFilter: function (req, file, cb) {
+        const allowedTypes = /jpg|jpeg|png|gif|mp4|mov|avi/;
+        const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
+        const mimetype = allowedTypes.test(file.mimetype);
+        
+        if (extname && mimetype) {
+            return cb(null, true);
+        } else {
+            return cb(new Error('Only photo and video files are allowed!'), false);
+        }
+    }
+});
+
 
 // Post: uniform defiance
 router.post('/create-uniformdefiance', upload.array('photo_video_files'), async (req, res) => {
