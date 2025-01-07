@@ -239,6 +239,43 @@ router.get('/uniform_defiances/:student_idnumber', async (req, res) => {
 });
 
 
+/* GET: uniform_defiances (by employee_idnumber for submitted_by) */
+router.get('/uniform_defiances/submitted_by/:employee_idnumber', async (req, res) => {
+    const employee_idnumber = req.params.employee_idnumber;
+
+    if (!employee_idnumber) {
+        return res.status(400).send({ error: true, message: 'Please provide employee_idnumber' });
+    }
+
+    try {
+        const query = `
+            SELECT 
+                ud.*, 
+                vn.nature_name, 
+                CONCAT(u.first_name, ' ', IFNULL(u.middle_name, ''), ' ', u.last_name) AS full_name
+            FROM 
+                uniform_defiance ud
+            LEFT JOIN 
+                violation_nature vn ON ud.nature_id = vn.nature_id
+            LEFT JOIN 
+                user u ON ud.submitted_by = u.employee_idnumber
+            WHERE 
+                ud.submitted_by = ?`;
+
+        const [result] = await db.promise().query(query, [employee_idnumber]);
+
+        if (result.length === 0) {
+            res.status(404).json({ message: 'No records found for this employee' });
+        } else {
+            res.status(200).json(result);
+        }
+    } catch (error) {
+        console.error('Error fetching uniform defiance records by submitted_by:', error);
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
+
+
 // Put: uniform_defiance
 router.put('/uniform_defiance/:id', async (req, res) => {
     try {
