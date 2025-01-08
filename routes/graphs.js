@@ -10,7 +10,11 @@ const multer = require('multer');
 
 // top offenses by department
 router.get('/api/top-offenses', (req, res) => {
-    const query = `
+    // Extract query parameters for filtering
+    const { start_date, end_date } = req.query;
+  
+    // Base query
+    let query = `
       SELECT 
         d.department_name, 
         o.offense_name, 
@@ -19,12 +23,37 @@ router.get('/api/top-offenses', (req, res) => {
       JOIN user u ON u.student_idnumber = u.student_idnumber
       JOIN offense o ON v.offense_id = o.offense_id
       JOIN department d ON u.department_id = d.department_id
+    `;
+  
+    // Initialize query conditions array
+    const conditions = [];
+  
+    // Add date filter conditions if provided
+    if (start_date) {
+      conditions.push(`v.created_at >= ?`);
+    }
+    if (end_date) {
+      conditions.push(`v.created_at <= ?`);
+    }
+  
+    // Append conditions to the query if any exist
+    if (conditions.length > 0) {
+      query += ` WHERE ${conditions.join(' AND ')}`;
+    }
+  
+    // Grouping and ordering
+    query += `
       GROUP BY d.department_name, o.offense_name
       ORDER BY offense_count DESC
     `;
-    
-    // Use db.query instead of connection.query
-    db.query(query, (err, results) => {
+  
+    // Array to store query parameter values
+    const queryParams = [];
+    if (start_date) queryParams.push(start_date);
+    if (end_date) queryParams.push(end_date);
+  
+    // Execute the query
+    db.query(query, queryParams, (err, results) => {
       if (err) {
         console.error('Error fetching data from database:', err);
         return res.status(500).json({ message: 'Database error' });
@@ -32,7 +61,8 @@ router.get('/api/top-offenses', (req, res) => {
   
       res.json(results);
     });
-});
+  });
+  
 
 
 
