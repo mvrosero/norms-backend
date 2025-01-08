@@ -146,7 +146,212 @@ router.get('/api/top-violationnatures', async (req, res) => {
   
 
 
+
+// Get top categories based on total violation records
+router.get('/api/top-categories', async (req, res) => {
+    try {
+        // Query to get the top categories by total violation records
+        const query = `
+            SELECT c.category_name, COUNT(vr.record_id) AS violation_count
+            FROM violation_record vr
+            JOIN category c ON vr.category_id = c.category_id
+            GROUP BY c.category_name
+            ORDER BY violation_count DESC;
+        `;
+
+        // Execute the query
+        db.query(query, (err, results) => {
+            if (err) {
+                console.error('Error fetching violation records count:', err);
+                return res.status(500).send('Server error');
+            }
+
+            // Check if there are any results
+            if (results.length > 0) {
+                // Send the results as a JSON response
+                res.json(results);
+            } else {
+                res.status(404).json({ message: 'No data found' });
+            }
+        });
+    } catch (err) {
+        console.error('Error in route handler:', err);
+        res.status(500).send('Server error');
+    }
+});
   
+
+
+
+// Get top subcategories of violation records
+router.get('/api/top-subcategories', async (req, res) => {
+    try {
+        const query = `
+            SELECT 
+                sc.subcategory_name, 
+                COUNT(vr.record_id) AS violation_count
+            FROM 
+                violation_record vr
+            JOIN 
+                subcategory sc ON sc.subcategory_id = sc.subcategory_id
+            GROUP BY 
+                sc.subcategory_name
+            ORDER BY 
+                violation_count DESC;
+        `;
+
+        // Execute the query
+        db.query(query, (err, results) => {
+            if (err) {
+                console.error('Error fetching top subcategories:', err);
+                return res.status(500).send('Server error');
+            }
+
+            if (results.length > 0) {
+                res.json(results);
+            } else {
+                res.status(404).json({ message: 'No data found' });
+            }
+        });
+    } catch (err) {
+        console.error('Error in route handler:', err);
+        res.status(500).send('Server error');
+    }
+});
+
+
+
+
+
+// Route for getting violation record totals by week (days of the week), month, and year
+router.get('/violation-records/totals', (req, res) => {
+    // Query to get weekly totals (grouped by day of the week)
+    const weeklyQuery = `
+      SELECT 
+        DAYNAME(created_at) AS day_of_week, 
+        COUNT(*) AS total
+      FROM violation_record
+      WHERE YEAR(created_at) = YEAR(CURRENT_DATE)
+      GROUP BY DAYOFWEEK(created_at)
+      ORDER BY FIELD(DAYOFWEEK(created_at), 1, 2, 3, 4, 5, 6, 7); -- This ensures the days are in correct order (Mon, Tue, etc.)
+    `;
+  
+    // Query to get monthly totals (grouped by month)
+    const monthlyQuery = `
+      SELECT 
+        MONTHNAME(created_at) AS month, 
+        COUNT(*) AS total
+      FROM violation_record
+      WHERE YEAR(created_at) = YEAR(CURRENT_DATE)
+      GROUP BY MONTH(created_at)
+      ORDER BY MONTH(created_at);
+    `;
+  
+    // Query to get yearly totals (grouped by year)
+    const yearlyQuery = `
+      SELECT 
+        YEAR(created_at) AS year, 
+        COUNT(*) AS total
+      FROM violation_record
+      GROUP BY YEAR(created_at)
+      ORDER BY YEAR(created_at);
+    `;
+  
+    // Run all queries in parallel
+    Promise.all([
+      new Promise((resolve, reject) => {
+        db.query(weeklyQuery, (err, weeklyResults) => {
+          if (err) reject(err);
+          else resolve(weeklyResults);
+        });
+      }),
+      new Promise((resolve, reject) => {
+        db.query(monthlyQuery, (err, monthlyResults) => {
+          if (err) reject(err);
+          else resolve(monthlyResults);
+        });
+      }),
+      new Promise((resolve, reject) => {
+        db.query(yearlyQuery, (err, yearlyResults) => {
+          if (err) reject(err);
+          else resolve(yearlyResults);
+        });
+      })
+    ])
+      .then(([weeklyData, monthlyData, yearlyData]) => {
+        // Format the results into a structured response
+        res.json({
+          weekly: weeklyData,
+          monthly: monthlyData,
+          yearly: yearlyData,
+        });
+      })
+      .catch((error) => {
+        console.error('Error fetching data:', error);
+        res.status(500).json({ message: 'Error fetching data' });
+      });
+  });
+
+
+
+
+// Create the route to fetch violation record counts by year level
+router.get('/violation-records/year-level', (req, res) => {
+    const query = `
+      SELECT 
+        u.year_level, 
+        COUNT(vu.user_id) AS user_count
+      FROM 
+        violation_record vr
+      JOIN 
+        violation_user vu ON vr.record_id = vu.record_id
+      JOIN 
+        user u ON vu.user_id = u.user_id
+      GROUP BY 
+        u.year_level
+      ORDER BY 
+        user_count DESC;
+    `;
+    
+    // Execute the query
+    db.query(query, (err, results) => {
+      if (err) {
+        console.error('Error fetching data:', err);
+        res.status(500).json({ error: 'Database query error' });
+      } else {
+        res.json(results);
+      }
+    });
+  });
+
+
+// Endpoint to get uniform defiance totals by status
+router.get('/uniform-defiances/status', (req, res) => {
+    const query = `
+      SELECT 
+        status, 
+        COUNT(slip_id) AS total
+      FROM 
+        uniform_defiance
+      GROUP BY 
+        status
+      ORDER BY 
+        total DESC;
+    `;
+    
+    // Execute the query
+    db.query(query, (err, results) => {
+      if (err) {
+        console.error('Error fetching uniform defiance data:', err);
+        res.status(500).json({ error: 'Database query error' });
+      } else {
+        res.json(results);
+      }
+    });
+  });
+  
+
+
 
 
 module.exports = router;
