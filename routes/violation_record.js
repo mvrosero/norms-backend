@@ -286,4 +286,193 @@ router.get('/violation_records', async (req, res) => {
 });
 
 
+
+
+
+
+
+/* Get: All violation records of a student grouped by subcategory, with offense counts */
+router.get('/violation_records-offensescount/:student_idnumber', async (req, res) => {
+    const student_idnumber = req.params.student_idnumber;
+
+    if (!student_idnumber) {
+        return res.status(400).json({ error: 'Please provide student_idnumber' });
+    }
+
+    try {
+        // Fetch the user_id associated with the student_idnumber
+        const [userResult] = await db.promise().query('SELECT user_id FROM user WHERE student_idnumber = ?', [student_idnumber]);
+
+        if (userResult.length === 0) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+
+        const user_id = userResult[0].user_id;
+
+        const [violations] = await db.promise().query(`
+        SELECT 
+            o.subcategory_id, 
+            sc.subcategory_name,  /* Join with subcategory table for the name */
+            vr.offense_id,
+            vr.description, 
+            COUNT(vr.offense_id) AS offense_count,
+            GROUP_CONCAT(vr.record_id) AS violation_record_ids
+        FROM violation_record vr
+        LEFT JOIN violation_user vu ON vr.record_id = vu.record_id
+        LEFT JOIN offense o ON vr.offense_id = o.offense_id
+        LEFT JOIN subcategory sc ON o.subcategory_id = sc.subcategory_id  /* Join with subcategory table */
+        WHERE vu.user_id = ?
+        GROUP BY o.subcategory_id, vr.offense_id
+        ORDER BY o.subcategory_id, offense_count DESC
+    `, [user_id]);
+
+        if (violations.length === 0) {
+            return res.status(404).json({ message: 'No violation records found for this student' });
+        }
+
+        res.status(200).json(violations);
+    } catch (error) {
+        console.error('Error fetching violation records:', error);
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
+
+
+
+
+/* Get: Number of violation records for each offense, grouped by subcategory */
+router.get('/student-myrecords-visual/:student_idnumber', async (req, res) => {
+    const student_idnumber = req.params.student_idnumber;
+
+    if (!student_idnumber) {
+        return res.status(400).json({ error: 'Please provide student_idnumber' });
+    }
+
+    try {
+        // Fetch the user_id associated with the student_idnumber
+        const [userResult] = await db.promise().query('SELECT user_id FROM user WHERE student_idnumber = ?', [student_idnumber]);
+
+        if (userResult.length === 0) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+
+        const user_id = userResult[0].user_id;
+
+        // Query to count violation records for each offense, grouped by subcategory
+        const [violationsCount] = await db.promise().query(`
+        SELECT 
+            o.subcategory_id, 
+            sc.subcategory_name,  /* Join with subcategory table for the name */
+            vr.offense_id,
+            vr.description, 
+            COUNT(vr.record_id) AS violation_count
+        FROM violation_record vr
+        LEFT JOIN violation_user vu ON vr.record_id = vu.record_id
+        LEFT JOIN offense o ON vr.offense_id = o.offense_id
+        LEFT JOIN subcategory sc ON o.subcategory_id = sc.subcategory_id  /* Join with subcategory table */
+        WHERE vu.user_id = ?
+        GROUP BY o.subcategory_id, vr.offense_id
+        ORDER BY o.subcategory_id, violation_count DESC
+    `, [user_id]);
+
+        if (violationsCount.length === 0) {
+            return res.status(404).json({ message: 'No violation records found for this student' });
+        }
+
+        res.status(200).json(violationsCount);
+    } catch (error) {
+        console.error('Error fetching violation records count:', error);
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
+
+
+
+
+
+
+/* Get: View subcategory details, offenses, and violation records grouped by subcategory */
+router.get('/student-myrecords-subcategory/:student_idnumber', async (req, res) => {
+    const student_idnumber = req.params.student_idnumber;
+
+    if (!student_idnumber) {
+        return res.status(400).json({ error: 'Please provide student_idnumber' });
+    }
+
+    try {
+        // Fetch the user_id associated with the student_idnumber
+        const [userResult] = await db.promise().query('SELECT user_id FROM user WHERE student_idnumber = ?', [student_idnumber]);
+
+        if (userResult.length === 0) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+
+        const user_id = userResult[0].user_id;
+
+        // Fetch subcategories, offenses, and violation records
+        const [subcategoryDetails] = await db.promise().query(`
+        SELECT 
+            sc.subcategory_id,
+            sc.subcategory_name
+        FROM subcategory sc
+        LEFT JOIN offense o ON sc.subcategory_id = o.subcategory_id
+        LEFT JOIN violation_record vr ON o.offense_id = vr.offense_id
+        LEFT JOIN violation_user vu ON vr.record_id = vu.record_id
+        WHERE vu.user_id = ?
+        GROUP BY sc.subcategory_id
+        ORDER BY sc.subcategory_name
+    `, [user_id]);
+
+        if (subcategoryDetails.length === 0) {
+            return res.status(404).json({ message: 'No subcategories found for this student' });
+        }
+
+        // Fetch offenses and violation records grouped by subcategory
+        const [offensesAndRecords] = await db.promise().query(`
+        SELECT 
+            o.subcategory_id,
+            sc.subcategory_name, 
+            o.offense_id, 
+            o.offense_name,
+            COUNT(vr.record_id) AS violation_count,
+            GROUP_CONCAT(vr.record_id) AS violation_record_ids
+        FROM offense o
+        LEFT JOIN violation_record vr ON o.offense_id = vr.offense_id
+        LEFT JOIN violation_user vu ON vr.record_id = vu.record_id
+        LEFT JOIN subcategory sc ON o.subcategory_id = sc.subcategory_id
+        WHERE vu.user_id = ?
+        GROUP BY o.subcategory_id, o.offense_id
+        ORDER BY o.subcategory_id, violation_count DESC
+    `, [user_id]);
+
+        if (offensesAndRecords.length === 0) {
+            return res.status(404).json({ message: 'No offenses or violation records found for this student' });
+        }
+
+        // Structure the response
+        const response = subcategoryDetails.map(subcategory => {
+            const offenses = offensesAndRecords.filter(offense => offense.subcategory_id === subcategory.subcategory_id);
+            return {
+                subcategory_name: subcategory.subcategory_name,
+                offenses: offenses.map(offense => ({
+                    offense_name: offense.offense_name,
+                    violation_count: offense.violation_count,
+                    violation_record_ids: offense.violation_record_ids
+                }))
+            };
+        });
+
+        res.status(200).json(response);
+    } catch (error) {
+        console.error('Error fetching subcategory details, offenses, and violation records:', error);
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
+
+
+
+
+
+
+
 module.exports = router;
