@@ -282,12 +282,10 @@ router.put('/uniform_defiance/:id', async (req, res) => {
         const slip_id = req.params.id;
         const { status } = req.body;
 
-        // Validate required fields
         if (!slip_id || !status) {
             return res.status(400).json({ error: 'Please provide all required details' });
         }
 
-        // Perform database update
         const [result] = await db.promise().query(
             'UPDATE uniform_defiance SET status = ? WHERE slip_id = ?', 
             [status, slip_id]
