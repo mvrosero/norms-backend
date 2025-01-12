@@ -80,6 +80,21 @@ router.post('/importcsv-student', upload.single('file'), async (req, res) => {
                     return res.status(400).json({ error: 'No valid student records found in CSV' });
                 }
 
+                // Check for duplicates (student_idnumber or email)
+                for (const record of insertResults) {
+                    const [existingStudent] = await db.promise().query(
+                        'SELECT * FROM user WHERE student_idnumber = ? OR email = ?',
+                        [record[0], record[6]]
+                    );
+                    if (existingStudent.length > 0) {
+                        return res.status(400).json({
+                            error: `Duplicate entry found: ${
+                                existingStudent[0].student_idnumber === record[0] ? 'student ID number' : 'email'
+                            } already exists.`
+                        });
+                    }
+                }
+
                 // Construct the SQL insert query
                 const insertStudentQuery = `
                     INSERT INTO user 
@@ -101,6 +116,8 @@ router.post('/importcsv-student', upload.single('file'), async (req, res) => {
         res.status(500).json({ error: 'Internal Server Error' });
     }
 });
+
+
 
 
 /* post: student login */
@@ -345,8 +362,16 @@ router.get('/students', (req, res) => {
 // Get all users except those with status 'archived' and with a non-null student_idnumber
 router.get('/students-not-archived', (req, res) => {
     try {
-        const query = `SELECT * FROM user WHERE status != 'archived' AND student_idnumber IS NOT NULL`;
+        // Modify query to join with both the departments and programs tables
+        const query = `
+            SELECT user.*, department.department_name, program.program_name
+            FROM user
+            LEFT JOIN department ON user.department_id = department.department_id
+            LEFT JOIN program ON user.program_id = program.program_id
+            WHERE user.status != 'archived' AND user.student_idnumber IS NOT NULL
+        `;
         console.log('Executing query:', query);  // Log the query being executed
+        
         db.query(query, (err, result) => {
             if (err) {
                 console.error('Error fetching non-archived students:', err);
@@ -366,25 +391,34 @@ router.get('/students-not-archived', (req, res) => {
 });
 
 
-// Get users with status 'archived'
+
+// Get all users except those with status 'archived' and with a non-null student_idnumber
 router.get('/students-archived', (req, res) => {
     try {
-        const query = `SELECT * FROM user WHERE status = 'archived'`;
-        console.log('Executing query:', query);  // Log the SQL query
+        // Modify query to join with both the departments and programs tables
+        const query = `
+            SELECT user.*, department.department_name, program.program_name
+            FROM user
+            LEFT JOIN department ON user.department_id = department.department_id
+            LEFT JOIN program ON user.program_id = program.program_id
+            WHERE user.status = 'archived' AND user.student_idnumber IS NOT NULL
+        `;
+        console.log('Executing query:', query);  // Log the query being executed
+        
         db.query(query, (err, result) => {
             if (err) {
-                console.error('Error fetching archived students:', err);
+                console.error('Error fetching non-archived students:', err);
                 res.status(500).json({ message: 'Internal Server Error' });
             } else {
-                console.log('Query result:', result);  // Log the raw result returned by the query
+                console.log('Query result:', result);  // Log the result returned by the database
                 if (result.length === 0) {
-                    console.log('No archived users found');
+                    console.log('No users found');  // Log if no users are found
                 }
-                res.status(200).json(result);
+                res.status(200).json(result);  // Send the result to the client
             }
         });
     } catch (error) {
-        console.error('Error loading archived students:', error);
+        console.error('Error loading non-archived students:', error);
         res.status(500).json({ error: 'Internal Server Error' });
     }
 });

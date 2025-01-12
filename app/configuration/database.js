@@ -1,4 +1,4 @@
-const mysql = require('mysql2'); /*use mysql2 package*/
+const mysql = require('mysql2'); 
 const jwt = require('jsonwebtoken'); /*authentication, login is required to view*/
 
 const db = mysql.createPool({

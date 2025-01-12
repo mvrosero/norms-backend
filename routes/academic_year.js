@@ -11,7 +11,7 @@ router.post('/register-academicyear', async (req, res) => {
         // Validate acadyear_code format: "A/Y 00-00"
         const acadyearCodePattern = /^A\/Y \d{2}-\d{2}$/; 
         if (!acadyear_code || !acadyearCodePattern.test(acadyear_code)) {
-            return res.status(400).json({ error: 'acadyear_code must follow the format "A/Y 0000-0000"' });
+            return res.status(400).json({ error: 'acadyear_code must follow the format "A/Y 00-00"' });
         }
 
         // Validate start_year and end_year
@@ -27,6 +27,18 @@ router.post('/register-academicyear', async (req, res) => {
         // Check if the duration is exactly 1 year
         if (end_year - start_year !== 1) {
             return res.status(400).json({ error: 'The duration between start_year and end_year must be exactly 1 year' });
+        }
+
+        // Check for duplicates: ensure no existing record has the same start_year and end_year
+        const checkDuplicateQuery = `
+            SELECT COUNT(*) AS count 
+            FROM academic_year 
+            WHERE start_year = ? AND end_year = ?
+        `;
+        const [duplicateCheck] = await db.promise().execute(checkDuplicateQuery, [start_year, end_year]);
+        
+        if (duplicateCheck[0].count > 0) {
+            return res.status(400).json({ error: 'An academic year with the same start and end year already exists' });
         }
 
         const insertAcademicYearQuery = `
@@ -116,6 +128,19 @@ router.put('/academic_year/:id', async (req, res) => {
     }
 
     try {
+        // Check for duplicates: ensure no other record has the same start_year and end_year
+        const checkDuplicateQuery = `
+            SELECT COUNT(*) AS count 
+            FROM academic_year 
+            WHERE start_year = ? AND end_year = ? AND acadyear_id != ?
+        `;
+        const [duplicateCheck] = await db.promise().execute(checkDuplicateQuery, [start_year, end_year, acadyear_id]);
+
+        if (duplicateCheck[0].count > 0) {
+            return res.status(400).json({ error: 'An academic year with the same start and end year already exists' });
+        }
+
+        // Proceed with updating the academic year
         const updateAcademicYearQuery = `
             UPDATE academic_year 
             SET acadyear_code = ?, start_year = ?, end_year = ?, status = ? 

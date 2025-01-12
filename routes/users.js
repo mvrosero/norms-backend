@@ -206,10 +206,12 @@ router.get('/user-counts-notarchived', (req, res) => {
 router.get('/admin-usermanagement/:department_code', (req, res) => {
     try {
         const department_code = req.params.department_code;
-
+      //joined the program table to get the program_name
         db.query(`
-            SELECT u.*, d.department_name FROM user u
+            SELECT u.*, d.department_name, p.program_name  
+            FROM user u
             INNER JOIN department d ON u.department_id = d.department_id
+            INNER JOIN program p ON u.program_id = p.program_id
             WHERE d.department_code = ?
         `, [department_code], (err, result) => {
             if (err) {

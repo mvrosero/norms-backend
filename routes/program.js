@@ -120,6 +120,84 @@ router.get('/programs/:department_id', async (req, res) => {
 });
 
 
+
+/* Get: programs by department_id with active status */
+router.get('/active-programs/:department_id', async (req, res) => {
+    const department_id = req.params.department_id;
+
+    if (!department_id) {
+        return res.status(400).json({ error: 'Please provide department_id' });
+    }
+
+    try {
+        // Fetch programs from the program table and include department_id, department_name, and status being 'Active'
+        const [programs] = await db.promise().query(`
+            SELECT p.program_id, p.program_name, d.department_id, d.department_name, p.status
+            FROM program p
+            JOIN department d ON p.department_id = d.department_id
+            WHERE p.department_id = ? AND p.status = 'Active'
+        `, [department_id]);
+
+        if (programs.length === 0) {
+            return res.status(404).json({ error: 'No active programs found for this department' });
+        }
+
+        res.status(200).json(programs); // Return the list of active programs
+    } catch (error) {
+        console.error('Error fetching programs:', error);
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
+
+
+
+
+/* Get: programs by department_code */
+router.get('/programs-by-department/:department_code', async (req, res) => {
+    const department_code = req.params.department_code;
+
+    if (!department_code) {
+        return res.status(400).json({ error: 'Please provide department_code' });
+    }
+
+    try {
+        // Fetch department_id using department_code
+        const [department] = await db.promise().query(`
+            SELECT department_id FROM department WHERE department_code = ?
+        `, [department_code]);
+
+        if (department.length === 0) {
+            return res.status(404).json({ error: 'Department not found' });
+        }
+
+        const department_id = department[0].department_id;
+
+        // Fetch programs from the program table and include department_id and department_name from the department table
+        const [programs] = await db.promise().query(`
+            SELECT p.program_id, p.program_name, d.department_id, d.department_name
+            FROM program p
+            JOIN department d ON p.department_id = d.department_id
+            WHERE p.department_id = ?
+        `, [department_id]);
+
+        if (programs.length === 0) {
+            return res.status(404).json({ error: 'No programs found for this department' });
+        }
+
+        res.status(200).json(programs); // Return the list of programs
+    } catch (error) {
+        console.error('Error fetching programs:', error);
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
+
+
+
+
+
+
+
+
 /* put: program */
 router.put('/program/:id', async (req, res) => {
     let program_id = req.params.id;

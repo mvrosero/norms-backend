@@ -11,88 +11,88 @@ const upload = multer({ dest: 'uploads/' });
 // Secret key for JWT signing (ensure this is secure and not hard-coded in production)
 const secretKey = 'your_secret_key'; // Change to your actual secret key
 
+
 /* POST: Import Employee CSV */
 router.post('/importcsv-employee', upload.single('file'), async (req, res) => {
-    const results = [];
-
-    try {
-        // Read and parse the CSV file
-        fs.createReadStream(req.file.path)
-            .pipe(csv())
-            .on('data', (data) => {
-                console.log('Parsed data:', data); // Log parsed data
-
-                const { employee_idnumber, first_name, last_name, email, password, profile_photo_filename, role_id } = data;
-
-                // Check if required fields are present
-                if (!employee_idnumber || !first_name || !last_name || !email || !password) {
-                    console.warn(`Missing required fields for record: ${JSON.stringify(data)}`);
-                    return; // Skip this record if any required field is missing
-                }
-
-                // Log valid records
-                console.log(`Valid record found: ${JSON.stringify(data)}`);
-
-                // Push the record to results after hashing the password
-                results.push({
-                    employee_idnumber,
-                    first_name,
-                    middle_name: data.middle_name || '', // Optional
-                    last_name,
-                    suffix: data.suffix || '', // Optional
-                    birthdate: data.birthdate || '', // Optional
-                    email,
-                    password, // Raw password for hashing later
-                    profile_photo_filename: profile_photo_filename || '', // Optional
-                    role_id
+        const results = [];
+    
+        try {
+            fs.createReadStream(req.file.path)
+                .pipe(csv())
+                .on('data', (data) => {
+                    const { employee_idnumber, first_name, last_name, email, password, profile_photo_filename, role_id } = data;
+    
+                    // Check for missing fields
+                    if (!employee_idnumber || !first_name || !last_name || !email || !password) {
+                        console.warn(`Missing required fields for record: ${JSON.stringify(data)}`);
+                        return; // Skip this record if any required field is missing
+                    }
+    
+                    results.push({
+                        employee_idnumber,
+                        first_name,
+                        middle_name: data.middle_name || '',
+                        last_name,
+                        suffix: data.suffix || '',
+                        birthdate: data.birthdate || '',
+                        email,
+                        password,
+                        profile_photo_filename: profile_photo_filename || '',
+                        role_id
+                    });
+                })
+                .on('end', async () => {
+                    const insertResults = [];
+                    for (const record of results) {
+                        const hashedPassword = await bcrypt.hash(record.password, 10);
+                        insertResults.push([ // Push data for SQL insertion
+                            record.employee_idnumber,
+                            record.first_name,
+                            record.middle_name,
+                            record.last_name,
+                            record.suffix,
+                            record.birthdate,
+                            record.email,
+                            hashedPassword,
+                            record.profile_photo_filename,
+                            record.role_id
+                        ]);
+                    }
+    
+                    // Check for duplicate email or employee_idnumber before inserting
+                    for (const record of insertResults) {
+                        const [existingEmployee] = await db.promise().query('SELECT * FROM user WHERE employee_idnumber = ? OR email = ?', [record[0], record[6]]);
+                        if (existingEmployee.length > 0) {
+                            return res.status(400).json({
+                                error: `Duplicate entry found: ${existingEmployee[0].employee_idnumber === record[0] ? 'employee ID number' : 'email'} already exists.`
+                            });
+                        }
+                    }
+    
+                    // Construct the SQL insert query
+                    const insertEmployeeQuery = `
+                        INSERT INTO user 
+                        (employee_idnumber, first_name, middle_name, last_name, suffix, birthdate, email, password, profile_photo_filename, role_id) 
+                        VALUES ?
+                    `;
+                    
+                    await db.promise().query(insertEmployeeQuery, [insertResults]);
+                    res.status(201).json({ message: 'Employees registered successfully' });
+                })
+                .on('error', (error) => {
+                    console.error('Error parsing CSV:', error);
+                    res.status(500).json({ error: 'Failed to parse CSV file' });
                 });
-            })
-            .on('end', async () => {
-                // Now we hash passwords and prepare for insertion
-                const insertResults = [];
-                for (const record of results) {
-                    const hashedPassword = await bcrypt.hash(record.password, 10);
-                    insertResults.push([
-                        record.employee_idnumber,
-                        record.first_name,
-                        record.middle_name,
-                        record.last_name,
-                        record.suffix,
-                        record.birthdate,
-                        record.email,
-                        hashedPassword,
-                        record.profile_photo_filename,
-                        record.role_id
-                    ]);
-                }
+        } catch (error) {
+            console.error('Error registering employees:', error);
+            res.status(500).json({ error: 'Internal Server Error' });
+        }
+    });
+    
 
-                // Check if any valid records were found
-                if (insertResults.length === 0) {
-                    console.warn('No valid records found in results:', results);
-                    return res.status(400).json({ error: 'No valid employee records found in CSV' });
-                }
 
-                // Construct the SQL insert query
-                const insertEmployeeQuery = `
-                    INSERT INTO user 
-                    (employee_idnumber, first_name, middle_name, last_name, suffix, birthdate, email, password, profile_photo_filename, role_id) 
-                    VALUES ?
-                `;
 
-                // Insert all employee records at once
-                await db.promise().query(insertEmployeeQuery, [insertResults]);
 
-                res.status(201).json({ message: 'Employees registered successfully' });
-            })
-            .on('error', (error) => {
-                console.error('Error parsing CSV:', error);
-                res.status(500).json({ error: 'Failed to parse CSV file' });
-            });
-    } catch (error) {
-        console.error('Error registering employees:', error);
-        res.status(500).json({ error: 'Internal Server Error' });
-    }
-});
 
 
 /* post: employee login */
@@ -130,6 +130,10 @@ router.post('/employee-login', async (req, res) => {
         res.status(500).json({ error: 'Internal Server Error' });
     }
 });
+
+
+
+
 
 
 /* post: register employee */
@@ -283,6 +287,8 @@ router.get('/employee/:id', (req, res) => {
     }
 });
 
+
+
 // Get employee by employee_idnumber
 router.get('/employees/:employee_idnumber', async (req, res) => {
     const employee_idnumber = req.params.employee_idnumber.trim(); // Trim spaces
@@ -317,10 +323,25 @@ router.get('/employees/:employee_idnumber', async (req, res) => {
     }
 });
 
+
 /*get: employees*/
 router.get('/employees', (req, res) => {
     try {
-        db.query(`SELECT * FROM user WHERE employee_idnumber IS NOT NULL`, (err, result) => {
+        const query = `
+            SELECT 
+                user.*, 
+                role.role_name 
+            FROM 
+                user
+            JOIN 
+                role 
+            ON 
+                user.role_id = role.role_id
+            WHERE 
+                user.employee_idnumber IS NOT NULL
+        `;
+
+        db.query(query, (err, result) => {
             if (err) {
                 console.error('Error fetching employees:', err);
                 res.status(500).json({ message: 'Internal Server Error' });
@@ -333,6 +354,7 @@ router.get('/employees', (req, res) => {
         res.status(500).json({ error: 'Internal Server Error' });
     }
 });
+
 
 
 /*put: employee*/
