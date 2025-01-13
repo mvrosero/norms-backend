@@ -337,6 +337,7 @@ router.get('/violation_records-offensescount/:student_idnumber', async (req, res
     }
 });
 
+
 /* Get: View subcategory details, offenses, and violation records grouped by subcategory */
 router.get('/violation_records-subcategory/:student_idnumber', async (req, res) => {
     const student_idnumber = req.params.student_idnumber;
