@@ -238,9 +238,10 @@ router.get('/coordinator-studentrecords/:department_code', (req, res) => {
     }
 
     db.query(`
-        SELECT u.*, d.department_name
+        SELECT u.*, d.department_name, p.program_name
         FROM user u
         INNER JOIN department d ON u.department_id = d.department_id
+        LEFT JOIN program p ON u.program_id = p.program_id
         WHERE d.department_code = ? AND u.status != 'archived'
     `, [department_code], (err, result) => {
         if (err) {
@@ -249,12 +250,13 @@ router.get('/coordinator-studentrecords/:department_code', (req, res) => {
         }
 
         if (result.length === 0) {
-            return res.status(404).json({ message: 'No archived users found for the given department code' });
+            return res.status(404).json({ message: 'No users found for the given department code' });
         }
 
         res.status(200).json(result);
     });
 });
+
 
 
 

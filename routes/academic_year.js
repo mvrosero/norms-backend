@@ -97,6 +97,31 @@ router.get('/academic_years', (req, res) => {
 });
 
 
+
+/* GET: All academic years formatted */
+router.get('/academicyears', (req, res) => {
+    try {
+        db.query('SELECT start_year, end_year FROM academic_year', (err, result) => {
+            if (err) {
+                console.error('Error fetching academic years:', err);
+                res.status(500).json({ message: 'Internal Server Error' });
+            } else {
+                // Format the start_year and end_year as "A/Y YYYY-YYYY"
+                const formattedYears = result.map(item => {
+                    const formattedYear = `A/Y ${item.start_year}-${item.end_year}`;
+                    return { formatted_year: formattedYear };
+                });
+                res.status(200).json(formattedYears);
+            }
+        });
+    } catch (error) {
+        console.error('Error loading academic years:', error);
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
+
+
+
 /* PUT: Update an academic year */
 router.put('/academic_year/:id', async (req, res) => {
     const acadyear_id = req.params.id;

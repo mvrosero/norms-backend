@@ -51,6 +51,7 @@ router.get('/offense/:id', (req, res) => {
 });
 
 
+
 /* get: offenses */
 router.get('/offenses', (req, res) => {
     try {
@@ -74,6 +75,36 @@ router.get('/offenses', (req, res) => {
         res.status(500).json({ error: 'Internal Server Error' });
     }
 });
+
+
+
+/* get: offenses grouped by category */
+router.get('/offenses-by-category', (req, res) => {
+    try {
+        db.query(
+            `SELECT category.category_name, 
+                    GROUP_CONCAT(offense.offense_name ORDER BY offense.offense_name ASC) AS offenses,
+                    GROUP_CONCAT(offense.offense_code ORDER BY offense.offense_code ASC) AS offense_codes,
+                    GROUP_CONCAT(offense.status ORDER BY offense.offense_code ASC) AS statuses
+             FROM offense
+             LEFT JOIN category ON offense.category_id = category.category_id
+             GROUP BY category.category_name`,
+            (err, result) => {
+                if (err) {
+                    console.error('Error fetching offenses by category:', err);
+                    res.status(500).json({ message: 'Internal Server Error' });
+                } else {
+                    res.status(200).json(result);
+                }
+            }
+        );
+    } catch (error) {
+        console.error('Error loading offenses by category:', error);
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
+
+
 
 
 /* put: offense */
