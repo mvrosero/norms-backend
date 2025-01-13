@@ -1,6 +1,6 @@
-const mysql = require('mysql2/promise');
+const mysql = require('mysql2'); 
+const jwt = require('jsonwebtoken'); /*authentication, login is required to view*/
 
-// Create a connection pool
 const db = mysql.createPool({
     host: 'mysql-186603-0.cloudclusters.net',
     port: 10121, 
@@ -12,19 +12,14 @@ const db = mysql.createPool({
     queueLimit: 0 
 });
 
+db.getConnection((err) => {
 
-async function testConnection() {
-    try {
-        
-        const connection = await db.getConnection();
-        console.log('Connected to MySQL!');
-        connection.release(); 
-    } catch (err) {
+    if (err) {
         console.error('Error connecting to MySQL:', err);
+    } else {
+        console.log('Connected to MySQL');
     }
-}
+});
 
-// Call the test connection function
-testConnection();
-
+/*export*/
 module.exports = db;
