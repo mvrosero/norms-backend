@@ -13,9 +13,16 @@ const upload = multer({ dest: 'uploads/' });
 
 /* POST: Import CSV */
 router.post('/importcsv-student', upload.single('file'), async (req, res) => {
+    if (!req.file) {
+        return res.status(400).json({ error: 'No file uploaded' });
+    }
+
     const results = [];
 
     try {
+        // Log the uploaded file to confirm it's being received correctly
+        console.log('Uploaded file:', req.file);
+
         // Read and parse the CSV file
         fs.createReadStream(req.file.path)
             .pipe(csv())
@@ -56,7 +63,7 @@ router.post('/importcsv-student', upload.single('file'), async (req, res) => {
                 const insertResults = [];
                 for (const record of results) {
                     const hashedPassword = await bcrypt.hash(record.password, 10);
-                    insertResults.push([
+                    insertResults.push([ 
                         record.student_idnumber,
                         record.first_name,
                         record.middle_name,
@@ -116,6 +123,7 @@ router.post('/importcsv-student', upload.single('file'), async (req, res) => {
         res.status(500).json({ error: 'Internal Server Error' });
     }
 });
+
 
 
 

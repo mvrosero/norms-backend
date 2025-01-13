@@ -5,6 +5,7 @@ const multer = require('multer');
 const path = require('path');
 const moment = require('moment-timezone');
 const { google } = require('googleapis');
+const { Readable } = require('stream');
 
 // Google Drive Service Account Config
 const googleServiceAccount = {
@@ -56,8 +57,16 @@ const drive = google.drive({
     auth,
 });
 
-// Multer configuration
-const upload = multer();
+
+
+
+const bufferToStream = (buffer) => {
+    const readable = new Readable();
+    readable._read = () => {}; // No-op _read implementation
+    readable.push(buffer);
+    readable.push(null); // End the stream
+    return readable;
+};
 
 // Function to upload a file to Google Drive
 const uploadFileToDrive = async (fileBuffer, fileName, mimeType) => {
@@ -67,17 +76,26 @@ const uploadFileToDrive = async (fileBuffer, fileName, mimeType) => {
     };
     const media = {
         mimeType,
-        body: fileBuffer,
+        body: bufferToStream(fileBuffer), // Convert Buffer to Readable stream
     };
-    const response = await drive.files.create({
-        resource: fileMetadata,
-        media: media,
-        fields: 'id, name',
-    });
-    return response.data;
+
+    try {
+        const response = await drive.files.create({
+            resource: fileMetadata,
+            media: media,
+            fields: 'id',
+        });
+        return response.data;
+    } catch (error) {
+        console.error(`Error uploading file to Google Drive: ${fileName}`, error);
+        throw error;
+    }
 };
 
-// Post: Uniform Defiance
+// Multer configuration
+const upload = multer({ storage: multer.memoryStorage() });
+
+// Post route to handle uniform defiance creation
 router.post('/create-uniformdefiance', upload.array('photo_video_files'), async (req, res) => {
     try {
         const { student_idnumber, nature_id, submitted_by } = req.body;
@@ -92,7 +110,7 @@ router.post('/create-uniformdefiance', upload.array('photo_video_files'), async 
             uploadedFiles.push(driveFile.id);
         }
 
-        const photo_video_filenames = uploadedFiles.join(',');
+        const fileId = uploadedFiles.join(',');
 
         // Get current time in Philippine timezone
         const currentTimestamp = moment.tz("Asia/Manila").format('YYYY-MM-DD HH:mm:ss');
@@ -104,7 +122,7 @@ router.post('/create-uniformdefiance', upload.array('photo_video_files'), async 
 
         await db.promise().execute(insertDefianceQuery, [
             student_idnumber,
-            photo_video_filenames,
+            fileId,
             currentTimestamp,
             submitted_by,
             nature_id,
@@ -116,40 +134,6 @@ router.post('/create-uniformdefiance', upload.array('photo_video_files'), async 
         res.status(500).json({ error: 'Internal Server Error' });
     }
 });
-
-/* GET: 1 uniform_defiance */
-router.get('/uniform_defiance/:id', async (req, res) => {
-    const slip_id = req.params.id;
-
-    if (!slip_id) {
-        return res.status(400).send({ error: true, message: 'Please provide slip_id' });
-    }
-
-    try {
-        const query = `
-            SELECT 
-                ud.*, 
-                vn.nature_name, 
-                CONCAT(u.first_name, ' ', IFNULL(u.middle_name, ''), ' ', u.last_name) AS full_name
-            FROM uniform_defiance ud
-            LEFT JOIN violation_nature vn ON ud.nature_id = vn.nature_id
-            LEFT JOIN user u ON ud.submitted_by = u.employee_idnumber
-            WHERE ud.slip_id = ?`;
-
-        const [result] = await db.promise().query(query, [slip_id]);
-
-        if (result.length > 0) {
-            const record = result[0];
-            res.status(200).json(record);
-        } else {
-            res.status(404).json({ message: 'Record not found' });
-        }
-    } catch (error) {
-        console.error('Error loading uniform defiance:', error);
-        res.status(500).json({ error: 'Internal Server Error' });
-    }
-});
-
 
 
 // GET: uniform_defiances
