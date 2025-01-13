@@ -233,14 +233,8 @@ router.put('/announcement/:id', upload.array('files'), async (req, res) => {
             filenames = updateFilenames(filenames, newFilenames);
         }
 
-        // Handle removing old files if needed (e.g., you might delete old files or just replace the list)
+        // Handle removing old files if needed 
         if (newFiles.length > 0) {
-            // If you want to delete the old files from your server (not recommended unless necessary)
-            // const oldFilenames = existingData.filenames.split(',');
-            // for (const oldFile of oldFilenames) {
-            //     // Delete old file from your server or cloud storage
-            //     deleteFileFromStorage(oldFile);
-            // }
         }
 
         const updateAnnouncementQuery = `
