@@ -266,14 +266,15 @@ router.get('/uniform_defiances/:student_idnumber', async (req, res) => {
 
 
 /* GET: uniform_defiances (by employee_idnumber for submitted_by) */
-router.get('/uniform_defiances/submitted_by/:employee_idnumber', async (req, res) => {
-    const employee_idnumber = req.params.employee_idnumber;
+router.get('/uniform_defiance/:file_id', async (req, res) => {
+    const { file_id } = req.params;
 
-    if (!employee_idnumber) {
-        return res.status(400).send({ error: true, message: 'Please provide employee_idnumber' });
+    if (!file_id) {
+        return res.status(400).json({ error: true, message: 'File ID is required' });
     }
 
     try {
+        // Query the database to fetch the relevant uniform defiance record and associated details
         const query = `
             SELECT 
                 ud.*, 
@@ -286,20 +287,64 @@ router.get('/uniform_defiances/submitted_by/:employee_idnumber', async (req, res
             LEFT JOIN 
                 user u ON ud.submitted_by = u.employee_idnumber
             WHERE 
-                ud.submitted_by = ?`;
-
-        const [result] = await db.promise().query(query, [employee_idnumber]);
+                FIND_IN_SET(?, ud.photo_video_filenames) > 0
+        `;
+        const [result] = await db.promise().query(query, [file_id]);
 
         if (result.length === 0) {
-            res.status(404).json({ message: 'No records found for this employee' });
-        } else {
-            res.status(200).json(result);
+            return res.status(404).json({ error: true, message: 'File not found in the database' });
         }
+
+        // Extract the first record (assuming `file_id` uniquely identifies a file in `photo_video_filenames`)
+        const record = result[0];
+
+        // Construct the Google Drive file URL using the file ID
+        const fileUrl = `https://drive.google.com/uc?id=${file_id}`;
+
+        // Include the fetched record details in the response
+        res.status(200).json({
+            fileUrl,
+            details: {
+                uniform_defiance: record,
+                nature_name: record.nature_name,
+                full_name: record.full_name,
+            },
+        });
     } catch (error) {
-        console.error('Error fetching uniform defiance records by submitted_by:', error);
+        console.error('Error fetching uniform defiance record:', error);
         res.status(500).json({ error: 'Internal Server Error' });
     }
 });
+
+router.get('/uniform_defiance/:file_id', async (req, res) => {
+    const { file_id } = req.params;
+
+    if (!file_id) {
+        return res.status(400).json({ error: true, message: 'File ID is required' });
+    }
+
+    try {
+        // Query the database to fetch the record with the provided file_id
+        const query = `
+            SELECT photo_video_filenames 
+            FROM uniform_defiance 
+            WHERE FIND_IN_SET(?, photo_video_filenames) > 0
+        `;
+        const [result] = await db.promise().query(query, [file_id]);
+
+        if (result.length === 0) {
+            return res.status(404).json({ error: true, message: 'File not found in the database' });
+        }
+
+        // If found, construct the Google Drive URL
+        const fileUrl = `https://drive.google.com/uc?id=${file_id}`;
+        res.status(200).json({ fileUrl });
+    } catch (error) {
+        console.error('Error fetching file from Google Drive:', error);
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
+
 
 
 // Put: uniform_defiance

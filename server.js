@@ -8,7 +8,7 @@ const cors = require('cors');
 app.use(cors());
 
 /*port number*/
-const PORT = process.env.PORT || 10121; 
+const PORT = 10121 || 9000; 
 
 /*import modules*/
 const role = require('./routes/role');
