@@ -1,6 +1,6 @@
 const express = require('express');
-const multer = require('multer');
 const fs = require('fs');
+const multer = require('multer');
 const csv = require('csv-parser');
 const db = require('../app/configuration/database');
 const bcrypt = require('bcrypt'); // Make sure to import bcrypt
@@ -11,8 +11,9 @@ const upload = multer({ dest: 'uploads/' });
 
 
 
+
 /* POST: Import Students by Department CSV */
-router.post('/admin-usermanagement/:department_code', upload.single('file'), async (req, res) => {
+router.post('/importcsv-departmental/:department_code', upload.single('file'), async (req, res) => {
     const results = [];
     const department_code = req.params.department_code;
 
@@ -35,12 +36,12 @@ router.post('/admin-usermanagement/:department_code', upload.single('file'), asy
                     profile_photo_filename,
                     year_level,
                     batch,
-                    program_id,
-                    role_id
+                    created_by,
+                    program_code // Changed from program_id to program_name
                 } = data;
 
                 // Check if required fields are present
-                if (!student_idnumber || !first_name || !last_name || !email || !password) {
+                if (!student_idnumber || !first_name || !last_name || !email || !password || !created_by) {
                     console.warn(`Missing required fields for record: ${JSON.stringify(data)}`);
                     return; // Skip this record if any required field is missing
                 }
@@ -61,8 +62,9 @@ router.post('/admin-usermanagement/:department_code', upload.single('file'), asy
                     profile_photo_filename: profile_photo_filename || '', // Optional
                     year_level,
                     batch,
-                    program_id,
-                    role_id
+                    created_by,
+                    program_code, // Changed from program_id to program_name
+                    role_id: 3 // Default role_id set to 3
                 });
             })
             .on('end', async () => {
@@ -83,9 +85,24 @@ router.post('/admin-usermanagement/:department_code', upload.single('file'), asy
 
                 const department_id = departmentRows[0].department_id;
 
-                // Now we hash passwords and prepare for insertion
+                // Map program_name to program_id
+                const [programRows] = await db.promise().query(`
+                    SELECT program_id, program_code FROM program
+                `);
+
+                const programMap = {};
+                programRows.forEach(row => {
+                    programMap[row.program_code] = row.program_id;
+                });
+
                 const insertResults = [];
                 for (const record of results) {
+                    const program_id = programMap[record.program_code];
+                    if (!program_id) {
+                        console.warn(`Invalid program_code: ${record.program_code}`);
+                        continue; // Skip records with invalid program_name
+                    }
+
                     const hashedPassword = await bcrypt.hash(record.password, 10);
                     insertResults.push([
                         record.student_idnumber,
@@ -95,20 +112,25 @@ router.post('/admin-usermanagement/:department_code', upload.single('file'), asy
                         record.suffix,
                         record.birthdate,
                         record.email,
-                        hashedPassword, // Hashed password
+                        hashedPassword, 
                         record.profile_photo_filename,
                         record.year_level,
                         record.batch,
-                        department_id, // Use the fetched department_id
-                        record.program_id,
+                        record.created_by,
+                        department_id, 
+                        program_id, 
                         record.role_id
                     ]);
+                }
+
+                if (insertResults.length === 0) {
+                    return res.status(400).json({ error: 'No valid records to insert' });
                 }
 
                 // Construct the SQL insert query
                 const insertStudentQuery = `
                     INSERT INTO user 
-                    (student_idnumber, first_name, middle_name, last_name, suffix, birthdate, email, password, profile_photo_filename, year_level, batch, department_id, program_id, role_id) 
+                    (student_idnumber, first_name, middle_name, last_name, suffix, birthdate, email, password, profile_photo_filename, year_level, batch, created_by, department_id, program_id, role_id) 
                     VALUES ?
                 `;
 
@@ -129,6 +151,7 @@ router.post('/admin-usermanagement/:department_code', upload.single('file'), asy
 
 
 
+
 /* Get all - users */
 router.get('/users', (req, res) => {
     try {
@@ -145,6 +168,7 @@ router.get('/users', (req, res) => {
         res.status(500).json({ error: 'Internal Server Error' });
     }
 });
+
 
 
 /* Get user counts for each department */
@@ -172,6 +196,7 @@ router.get('/user-counts', (req, res) => {
         res.status(500).json({ error: 'Internal Server Error' });
     }
 });
+
 
 
 /* Get user counts for each department, excluding archived users */
@@ -202,31 +227,43 @@ router.get('/user-counts-notarchived', (req, res) => {
 });
 
 
+
 /* Get users by department */
 router.get('/admin-usermanagement/:department_code', (req, res) => {
     try {
         const department_code = req.params.department_code;
-      //joined the program table to get the program_name
-        db.query(`
-            SELECT u.*, d.department_name, p.program_name  
+
+        db.query(
+            `
+            SELECT 
+                u.*, 
+                d.department_name, 
+                p.program_name, 
+                CONCAT(c.first_name, ' ', c.middle_name, ' ', c.last_name, ' ', c.suffix) AS created_by
             FROM user u
             INNER JOIN department d ON u.department_id = d.department_id
             INNER JOIN program p ON u.program_id = p.program_id
+            LEFT JOIN user c ON u.created_by = c.user_id
             WHERE d.department_code = ?
-        `, [department_code], (err, result) => {
-            if (err) {
-                console.error('Error fetching users by department:', err);
-                res.status(500).json({ message: 'Internal Server Error' });
-            } else {
-                console.log('Fetched users by department:', result); // Log the fetched users
-                res.status(200).json(result);
+            `,
+            [department_code],
+            (err, result) => {
+                if (err) {
+                    console.error('Error fetching users by department:', err);
+                    res.status(500).json({ message: 'Internal Server Error' });
+                } else {
+                    console.log('Fetched users by department:', result); // Log the fetched users
+                    res.status(200).json(result);
+                }
             }
-        });
+        );
     } catch (error) {
         console.error('Error loading users by department:', error);
         res.status(500).json({ error: 'Internal Server Error' });
     }
 });
+
+
 
 
 /* Get users by department code */
@@ -238,10 +275,15 @@ router.get('/coordinator-studentrecords/:department_code', (req, res) => {
     }
 
     db.query(`
-        SELECT u.*, d.department_name, p.program_name
+        SELECT 
+            u.*, 
+            d.department_name, 
+            p.program_name, 
+            CONCAT(c.first_name, ' ', c.middle_name, ' ', c.last_name, ' ', c.suffix) AS created_by
         FROM user u
         INNER JOIN department d ON u.department_id = d.department_id
         LEFT JOIN program p ON u.program_id = p.program_id
+        LEFT JOIN user c ON u.created_by = c.user_id
         WHERE d.department_code = ? AND u.status != 'archived'
     `, [department_code], (err, result) => {
         if (err) {
@@ -262,67 +304,133 @@ router.get('/coordinator-studentrecords/:department_code', (req, res) => {
 
 
 
+/* Get user counts by status (active, inactive, archived) */
+router.get('/user-status-counts', (req, res) => {
+    try {
+        db.query(`
+            SELECT u.status, COUNT(u.user_id) AS user_count 
+            FROM user u
+            GROUP BY u.status
+        `, (err, result) => {
+            if (err) {
+                console.error('Error fetching user status counts:', err);
+                res.status(500).json({ message: 'Internal Server Error' });
+            } else {
+                const userStatusCounts = {
+                    active: 0,
+                    inactive: 0,
+                    archived: 0
+                };
 
+                // Process the results and map the counts to their respective status
+                result.forEach(row => {
+                    if (row.status === 'active') {
+                        userStatusCounts.active = row.user_count;
+                    } else if (row.status === 'inactive') {
+                        userStatusCounts.inactive = row.user_count;
+                    } else if (row.status === 'archived') {
+                        userStatusCounts.archived = row.user_count;
+                    }
+                });
 
-/* Import users from CSV */
-router.post('/import-csv', upload.single('file'), (req, res) => {
-    const filePath = req.file.path;
-    
-    const users = [];
-
-    fs.createReadStream(filePath)
-        .pipe(csv())
-        .on('data', (row) => {
-            // Create a user object based on CSV columns
-            const user = {
-                student_idnumber: row.student_idnumber,
-                first_name: row.first_name,
-                middle_name: row.middle_name,
-                last_name: row.last_name,
-                suffix: row.suffix,
-                email: row.email,
-                year_level: row.year_level,
-                program_id: row.program_id,
-                status: row.status // Must be 'active' or 'inactive'
-            };
-            users.push(user);
-        })
-        .on('end', () => {
-            // Insert users into the database
-            const values = users.map(user => [
-                user.student_idnumber,
-                user.first_name,
-                user.middle_name,
-                user.last_name,
-                user.suffix,
-                user.email,
-                user.year_level,
-                user.program_id,
-                user.status
-            ]);
-
-            db.query(`
-                INSERT INTO user (
-                    student_idnumber,
-                    first_name,
-                    middle_name,
-                    last_name,
-                    suffix,
-                    email,
-                    year_level,
-                    program_id,
-                    status
-                ) VALUES ?
-            `, [values], (err, result) => {
-                if (err) {
-                    console.error('Error importing CSV data:', err);
-                    res.status(500).json({ message: 'Internal Server Error' });
-                } else {
-                    res.status(200).json({ message: 'CSV data imported successfully' });
-                }
-            });
+                res.status(200).json(userStatusCounts);
+            }
         });
+    } catch (error) {
+        console.error('Error loading user status counts:', error);
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
 });
+
+
+
+
+
+
+// PUT: password reset
+// PUT: password reset with confirm password
+router.put('/password-reset/:id', async (req, res) => {
+    const user_id = req.params.id;
+    const { new_password, confirm_password } = req.body;
+
+    // Validate required fields
+    if (!new_password || !confirm_password) {
+        return res.status(400).json({ error: 'Please provide both new password and confirm password' });
+    }
+
+    // Check if passwords match
+    if (new_password !== confirm_password) {
+        return res.status(400).json({ error: 'New password and confirm password do not match' });
+    }
+
+    // Check if the new password is at least 3 characters long
+    if (new_password.length < 3) {
+        return res.status(400).json({ error: 'New password must be at least 3 characters long' });
+    }
+
+    try {
+        // Hash the new password
+        const newHashedPassword = await bcrypt.hash(new_password, 10);
+
+        // Update the new password in the database
+        db.query('UPDATE user SET password = ? WHERE user_id = ?', [newHashedPassword, user_id], (err, result) => {
+            if (err) {
+                console.error('Error updating password:', err);
+                return res.status(500).json({ error: 'Internal Server Error' });
+            }
+
+            // Check if user exists and was updated
+            if (result.affectedRows === 0) {
+                return res.status(404).json({ error: 'User not found' });
+            }
+
+            res.status(200).json({ message: 'Password reset successfully' });
+        });
+    } catch (error) {
+        console.error('Error resetting password:', error);
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
+
+
+
+
+
+
+/*put: user password*/
+router.put('/password-change/:user_id', async (req, res) => {
+    const user_id = req.params.user_id;  // Corrected to use `user_id`
+    const { new_password, confirm_password } = req.body;
+
+    // Validate required fields
+    if (!user_id || !new_password || !confirm_password) {
+        return res.status(400).json({ error: 'Please provide all required details' });
+    }
+
+    // Check if new password and confirm password match
+    if (new_password !== confirm_password) {
+        return res.status(400).json({ error: 'New password and confirm password do not match' });
+    }
+
+    try {
+        // Hash the new password
+        const newHashedPassword = await bcrypt.hash(new_password, 10);
+
+        // Update the new password in the database
+        db.query('UPDATE user SET password = ? WHERE user_id = ?', [newHashedPassword, user_id], (err, result) => {
+            if (err) {
+                console.error('Error updating password:', err);
+                return res.status(500).json({ error: 'Internal Server Error' });
+            }
+            res.status(200).json({ message: 'Password updated successfully' });
+        });
+    } catch (error) {
+        console.error('Error updating password:', error);
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
+
+
 
 
 

@@ -13,57 +13,80 @@ const upload = multer({ dest: 'uploads/' });
 
 /* POST: Import CSV */
 router.post('/importcsv-student', upload.single('file'), async (req, res) => {
-    if (!req.file) {
-        return res.status(400).json({ error: 'No file uploaded' });
-    }
-
     const results = [];
 
     try {
-        // Log the uploaded file to confirm it's being received correctly
-        console.log('Uploaded file:', req.file);
-
         // Read and parse the CSV file
         fs.createReadStream(req.file.path)
             .pipe(csv())
             .on('data', (data) => {
-                console.log('Parsed data:', data); // Log parsed data
+                console.log('Parsed data:', data);
 
-                const { student_idnumber, first_name, last_name, email, password, profile_photo_filename, year_level, batch, department_id, program_id, role_id } = data;
+                // Ensure the required fields are present
+                const { student_idnumber, first_name, last_name, email, password, year_level, batch, program_code, department_code, created_by } = data;
 
-                // Check if required fields are present
-                if (!student_idnumber || !first_name || !last_name || !email || !password) {
+                if (!student_idnumber || !first_name || !last_name || !email || !password || !program_code || !department_code || !created_by) {
                     console.warn(`Missing required fields for record: ${JSON.stringify(data)}`);
                     return; // Skip this record if any required field is missing
                 }
 
-                // Log valid records
                 console.log(`Valid record found: ${JSON.stringify(data)}`);
 
-                // Push the record to results after hashing the password
                 results.push({
                     student_idnumber,
                     first_name,
-                    middle_name: data.middle_name || '', // Optional
+                    middle_name: data.middle_name || '',
                     last_name,
-                    suffix: data.suffix || '', // Optional
-                    birthdate: data.birthdate || '', // Optional
+                    suffix: data.suffix || '',
+                    birthdate: data.birthdate || '',
                     email,
-                    password: password, // Raw password for hashing later
-                    profile_photo_filename: profile_photo_filename || '', // Optional
+                    password,
                     year_level,
                     batch,
-                    department_id,
-                    program_id,
-                    role_id
+                    program_code,
+                    department_code,
+                    role_id: data.role_id || '3',
+                    created_by // Add user_id from the CSV
                 });
             })
             .on('end', async () => {
-                // Now we hash passwords and prepare for insertion
+                console.log(`Total parsed records: ${results.length}`);
+                if (results.length === 0) {
+                    console.warn('No valid records found in results:', results);
+                    return res.status(400).json({ error: 'No valid student records found in CSV' });
+                }
+
+                const departmentMap = {};
+                const programMap = {};
+
+                for (const record of results) {
+                    if (!departmentMap[record.department_code]) {
+                        const [departmentRows] = await db.promise().query(
+                            `SELECT department_id FROM department WHERE department_code = ?`,
+                            [record.department_code]
+                        );
+                        if (departmentRows.length === 0) {
+                            return res.status(400).json({ error: `Invalid department code: ${record.department_code}` });
+                        }
+                        departmentMap[record.department_code] = departmentRows[0].department_id;
+                    }
+
+                    if (!programMap[record.program_code]) {
+                        const [programRows] = await db.promise().query(
+                            `SELECT program_id FROM program WHERE program_code = ?`,
+                            [record.program_code]
+                        );
+                        if (programRows.length === 0) {
+                            return res.status(400).json({ error: `Invalid program code: ${record.program_code}` });
+                        }
+                        programMap[record.program_code] = programRows[0].program_id;
+                    }
+                }
+
                 const insertResults = [];
                 for (const record of results) {
                     const hashedPassword = await bcrypt.hash(record.password, 10);
-                    insertResults.push([ 
+                    insertResults.push([ // Prepare for insertion into the database
                         record.student_idnumber,
                         record.first_name,
                         record.middle_name,
@@ -72,22 +95,21 @@ router.post('/importcsv-student', upload.single('file'), async (req, res) => {
                         record.birthdate,
                         record.email,
                         hashedPassword,
-                        record.profile_photo_filename,
                         record.year_level,
                         record.batch,
-                        record.department_id,
-                        record.program_id,
-                        record.role_id
+                        departmentMap[record.department_code],
+                        programMap[record.program_code],
+                        record.role_id,
+                        record.created_by // Insert user_id for record creation
                     ]);
                 }
 
-                // Check if any valid records were found
                 if (insertResults.length === 0) {
-                    console.warn('No valid records found in results:', results);
+                    console.warn('No valid records prepared for insertion:', insertResults);
                     return res.status(400).json({ error: 'No valid student records found in CSV' });
                 }
 
-                // Check for duplicates (student_idnumber or email)
+                // Check for duplicate student records (by student_idnumber or email)
                 for (const record of insertResults) {
                     const [existingStudent] = await db.promise().query(
                         'SELECT * FROM user WHERE student_idnumber = ? OR email = ?',
@@ -102,27 +124,27 @@ router.post('/importcsv-student', upload.single('file'), async (req, res) => {
                     }
                 }
 
-                // Construct the SQL insert query
                 const insertStudentQuery = `
                     INSERT INTO user 
-                    (student_idnumber, first_name, middle_name, last_name, suffix, birthdate, email, password, profile_photo_filename, year_level, batch, department_id, program_id, role_id) 
+                    (student_idnumber, first_name, middle_name, last_name, suffix, birthdate, email, password, year_level, batch, department_id, program_id, role_id, created_by) 
                     VALUES ?
                 `;
-                
-                // Insert all student records at once
                 await db.promise().query(insertStudentQuery, [insertResults]);
 
                 res.status(201).json({ message: 'Students registered successfully' });
             })
             .on('error', (error) => {
                 console.error('Error parsing CSV:', error);
-                res.status(500).json({ error: 'Failed to parse CSV file' });
+                res.status(500).json({ error: error.message || 'Failed to parse CSV file' });
             });
     } catch (error) {
         console.error('Error registering students:', error);
-        res.status(500).json({ error: 'Internal Server Error' });
+        res.status(500).json({ error: error.message || 'Internal Server Error' });
     }
 });
+
+
+
 
 
 
@@ -166,13 +188,41 @@ router.post('/student-login', async (req, res) => {
 });
 
 
+
 /* post: register student */
 router.post('/register-student', async (req, res) => {
     try {
-        const { student_idnumber, first_name, middle_name, last_name, suffix, birthdate, email, password, year_level, batch, department_id, program_id, role_id } = req.body;
+        const {
+            student_idnumber,
+            first_name,
+            middle_name,
+            last_name,
+            suffix,
+            birthdate,
+            email,
+            password,
+            year_level,
+            batch,
+            department_id,
+            program_id,
+            created_by // Added `created_by` in the request body
+        } = req.body;
+
+        // Log the input data for debugging purposes
+        console.log("Request Body:", req.body);
+
+        // Replace undefined fields with null
+        const validatedMiddleName = middle_name ?? null;
+        const validatedSuffix = suffix ?? null;
+        const validatedBirthdate = birthdate ?? null;
+        const validatedYearLevel = year_level ?? null;
+        const validatedBatch = batch ?? null;
+        const validatedDepartmentId = department_id ?? null;
+        const validatedProgramId = program_id ?? null;
+        const validatedCreatedBy = created_by ?? null;
 
         // Validate student_idnumber format (should follow "00-00000")
-        const idFormat = /^\d{2}-\d{5}$/; // Matches "00-00000" format
+        const idFormat = /^\d{2}-\d{5}$/;
         if (!idFormat.test(student_idnumber)) {
             return res.status(400).json({ error: 'Invalid student ID number format. It should follow "00-00000".' });
         }
@@ -180,23 +230,23 @@ router.post('/register-student', async (req, res) => {
         // Validate names to start with a capital letter and allow letters, spaces, dashes, and dots
         const nameFormat = /^[A-Z][a-zA-Z .'-]*$/;
         if (!nameFormat.test(first_name)) {
-            return res.status(400).json({ 
-                error: 'First name must start with a capital letter and can contain only letters, spaces, dots, or dashes.' 
+            return res.status(400).json({
+                error: 'First name must start with a capital letter and can contain only letters, spaces, dots, or dashes.'
             });
         }
-        if (middle_name && !nameFormat.test(middle_name)) { // Middle name is optional
-            return res.status(400).json({ 
-                error: 'Middle name must start with a capital letter and can contain only letters, spaces, dots, or dashes.' 
+        if (validatedMiddleName && !nameFormat.test(validatedMiddleName)) {
+            return res.status(400).json({
+                error: 'Middle name must start with a capital letter and can contain only letters, spaces, dots, or dashes.'
             });
         }
         if (!nameFormat.test(last_name)) {
-            return res.status(400).json({ 
-                error: 'Last name must start with a capital letter and can contain only letters, spaces, dots, or dashes.' 
+            return res.status(400).json({
+                error: 'Last name must start with a capital letter and can contain only letters, spaces, dots, or dashes.'
             });
         }
-        if (suffix && !nameFormat.test(suffix)) { // Suffix is optional
-            return res.status(400).json({ 
-                error: 'Suffix must start with a capital letter and can contain only letters, spaces, dots, or dashes.' 
+        if (validatedSuffix && !nameFormat.test(validatedSuffix)) {
+            return res.status(400).json({
+                error: 'Suffix must start with a capital letter and can contain only letters, spaces, dots, or dashes.'
             });
         }
 
@@ -206,41 +256,71 @@ router.post('/register-student', async (req, res) => {
             return res.status(400).json({ error: 'Email must end with "@gbox.ncf.edu.ph".' });
         }
 
-                // Check if program belongs to the department
-                const programCheckQuery = `
-                SELECT COUNT(*) AS count 
-                FROM program 
-                WHERE program_id = ? AND department_id = ?
-            `;
-            const [programCheckResult] = await db.promise().execute(programCheckQuery, [program_id, department_id]);
-    
-            if (programCheckResult[0].count === 0) {
-                return res.status(400).json({
-                    error: 'The selected program does not belong to the specified department.'
-                });
-            }
+        // Check if program belongs to the department
+        const programCheckQuery = `
+            SELECT COUNT(*) AS count 
+            FROM program 
+            WHERE program_id = ? AND department_id = ?;
+        `;
+        const [programCheckResult] = await db.promise().execute(programCheckQuery, [program_id, department_id]);
+
+        if (programCheckResult[0].count === 0) {
+            return res.status(400).json({
+                error: 'The selected program does not belong to the specified department.'
+            });
+        }
 
         // Validate password length (3-20 characters)
         if (password && (password.length < 3 || password.length > 20)) {
             return res.status(400).json({ error: 'Password must be between 3 and 20 characters.' });
         }
-        
+
         // Hash password
         const hashedPassword = await bcrypt.hash(password, 10);
 
-        // Insert student into database
+        // Log the values being passed to the SQL query for debugging
+        console.log("Values being passed to the query:", [
+            student_idnumber,
+            first_name,
+            validatedMiddleName,
+            last_name,
+            validatedSuffix,
+            validatedBirthdate,
+            email,
+            hashedPassword,
+            validatedYearLevel,
+            validatedBatch,
+            validatedDepartmentId,
+            validatedProgramId,
+            created_by
+        ]);
+
+        // Insert student into database with `created_by`
         const insertStudentQuery = `
             INSERT INTO user 
-            (student_idnumber, first_name, middle_name, last_name, suffix, birthdate, email, password, year_level, batch, department_id, program_id, role_id) 
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            (student_idnumber, first_name, middle_name, last_name, suffix, birthdate, email, password, year_level, batch, department_id, program_id, created_by) 
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
         `;
-
-        await db.promise().execute(insertStudentQuery, [student_idnumber, first_name, middle_name, last_name, suffix, birthdate, email, hashedPassword, year_level, batch, department_id, program_id, role_id]);
+        await db.promise().execute(insertStudentQuery, [
+            student_idnumber,
+            first_name,
+            validatedMiddleName,
+            last_name,
+            validatedSuffix,
+            validatedBirthdate,
+            email,
+            hashedPassword,
+            validatedYearLevel,
+            validatedBatch,
+            validatedDepartmentId,
+            validatedProgramId,
+            validatedCreatedBy
+        ]);
 
         res.status(201).json({ message: 'Student registered successfully' });
     } catch (error) {
         console.error('Error registering student:', error);
-    
+
         // Handle duplicate email error
         if (error.code === 'ER_DUP_ENTRY' && error.sqlMessage.includes('email')) {
             return res.status(400).json({
@@ -248,7 +328,7 @@ router.post('/register-student', async (req, res) => {
                 message: 'A student with this email already exists.',
             });
         }
-    
+
         // Handle duplicate student ID error
         if (error.code === 'ER_DUP_ENTRY' && error.sqlMessage.includes('student_idnumber')) {
             return res.status(400).json({
@@ -256,7 +336,7 @@ router.post('/register-student', async (req, res) => {
                 message: 'A student with this student ID number already exists.',
             });
         }
-    
+
         // Handle missing birthdate error
         if (error.message.includes('birthdate')) {
             return res.status(400).json({
@@ -264,22 +344,17 @@ router.post('/register-student', async (req, res) => {
                 message: 'Please provide a valid birthdate.',
             });
         }
-    
-        // Handle missing required fields error
-        if (error.message.includes('required fields')) {
-            return res.status(400).json({
-                error: 'MISSING_REQUIRED_FIELDS',
-                message: 'Please fill in all required fields.',
-            });
-        }
-    
+
         // General error handling
         res.status(500).json({
             error: 'INTERNAL_SERVER_ERROR',
             message: 'An unexpected error occurred. Please try again later.',
         });
-    }    
+    }
 });
+
+
+
 
 
 /* get: 1 student using student_idnumber */
@@ -292,10 +367,26 @@ router.get('/student/:student_idnumber', (req, res) => {
 
     try {
         db.query(
-            `SELECT u.student_idnumber, u.first_name, u.middle_name, u.last_name, u.suffix, u.birthdate, u.email, u.profile_photo_filename, u.year_level, u.batch, d.department_name, p.program_name, u.role_id, u.status 
-             FROM user u 
-             JOIN department d ON u.department_id = d.department_id 
-             JOIN program p ON u.program_id = p.program_id 
+            `SELECT 
+                u.student_idnumber, 
+                u.first_name, 
+                u.middle_name, 
+                u.last_name, 
+                u.suffix, 
+                u.birthdate, 
+                u.email, 
+                u.profile_photo_filename, 
+                u.year_level, 
+                u.batch, 
+                d.department_name, 
+                p.program_name, 
+                u.role_id, 
+                u.status, 
+                CONCAT(c.first_name, ' ', c.middle_name, ' ', c.last_name, ' ', c.suffix) AS created_by
+             FROM user u
+             JOIN department d ON u.department_id = d.department_id
+             JOIN program p ON u.program_id = p.program_id
+             LEFT JOIN user c ON u.created_by = c.user_id
              WHERE u.student_idnumber = ?`,
             student_idnumber,
             (err, result) => {
@@ -312,6 +403,7 @@ router.get('/student/:student_idnumber', (req, res) => {
         res.status(500).json({ error: 'Internal Server Error' });
     }
 });
+
 
 
 /* get: students by department_code */
@@ -347,6 +439,9 @@ router.get('/students/:department_code', (req, res) => {
         res.status(500).json({ error: 'Internal Server Error' });
     }
 });
+
+
+
 
 
 /*get: students*/
@@ -435,16 +530,19 @@ router.get('/students-archived', (req, res) => {
 
 
 
-/* put:  student */
+
+
+
+/* PUT: Update student information */
 router.put('/student/:id', async (req, res) => {
     let user_id = req.params.id;
+    const { student_idnumber, birthdate, first_name, middle_name, last_name, suffix, email, year_level, batch, department_id, program_id, status, password, updatedBy } = req.body;
+
     console.log('User ID:', user_id);
     console.log('Request Body:', req.body);
 
-    const { student_idnumber, birthdate, first_name, middle_name, last_name, suffix, email, year_level, batch, department_id, program_id, status, password } = req.body;
-
     // Validate required fields
-    if (!user_id || !student_idnumber || !first_name || !last_name || !email || !year_level || !batch || !department_id || !program_id || !status) {
+    if (!user_id || !student_idnumber || !first_name || !last_name || !email || !year_level || !batch || !status) {
         return res.status(400).send({ error: 'Please provide all required details' });
     }
 
@@ -483,12 +581,10 @@ router.put('/student/:id', async (req, res) => {
         return res.status(400).json({ error: 'Email must end with "@gbox.ncf.edu.ph".' });
     }
 
-
-        // Validate password length (3)
-        if (password && (password.length < 3 )) {
-            return res.status(400).json({ error: 'Password must be be atleast 3 characters' });
-        }
-
+    // Validate password length (3)
+    if (password && (password.length < 3 )) {
+        return res.status(400).json({ error: 'Password must be at least 3 characters' });
+    }
 
     let hashedPassword = null;
     if (password) {
@@ -501,18 +597,71 @@ router.put('/student/:id', async (req, res) => {
     }
 
     try {
-        // Verify program and department relation
-        db.query('SELECT * FROM program WHERE program_id = ? AND department_id = ?', [program_id, department_id], (err, result) => {
+        // Get current department, program, year_level, status, and batch of the student
+        db.query('SELECT department_id, program_id, year_level, status, batch FROM user WHERE user_id = ?', [user_id], (err, result) => {
             if (err) {
-                console.error('Error checking program and department:', err);
-                return res.status(500).json({ message: 'Internal Server Error while verifying program and department.' });
+                console.error('Error fetching current department, program, year_level, status, and batch:', err);
+                return res.status(500).json({ message: 'Error fetching current department, program, year_level, status, and batch.' });
             }
 
-            if (result.length === 0) {
-                return res.status(400).json({ message: 'Program does not belong to the selected department' });
+            const currentDepartmentId = result[0]?.department_id;
+            const currentProgramId = result[0]?.program_id;
+            const currentYearLevel = result[0]?.year_level;
+            const currentStatus = result[0]?.status;
+            const currentBatch = result[0]?.batch;
+
+            // Check if any changes occurred
+            const changes = {
+                department: currentDepartmentId !== department_id,
+                program: currentProgramId !== program_id,
+                year_level: currentYearLevel !== year_level,
+                status: currentStatus !== status,
+                batch: currentBatch !== batch
+            };
+
+            const historyValues = [
+                user_id,
+                currentDepartmentId, department_id,
+                currentProgramId, program_id,
+                currentYearLevel, year_level,
+                currentStatus, status,
+                currentBatch, batch,
+                updatedBy // Use the updatedBy value passed from frontend
+            ];
+
+            // Update the history values based on changes
+            Object.keys(changes).forEach((field, index) => {
+                if (!changes[field]) {
+                    historyValues[index * 2 + 1] = null; // Set old value to null if no change
+                    historyValues[index * 2 + 2] = null; // Set new value to null if no change
+                }
+            });
+
+            const historyColumns = [
+                'user_id', 
+                'old_department_id', 'new_department_id', 
+                'old_program_id', 'new_program_id',
+                'old_year_level', 'new_year_level',
+                'old_status', 'new_status',
+                'old_batch', 'new_batch',
+                'updated_by'
+            ];
+
+            if (historyValues.some(val => val !== null)) {
+                // Insert into user_history only if there's a change
+                db.query(
+                    `INSERT INTO user_history (${historyColumns.join(', ')}) VALUES (${historyValues.map(() => '?').join(', ')})`,
+                    historyValues,
+                    (err, result) => {
+                        if (err) {
+                            console.error('Error inserting into user_history:', err);
+                            return res.status(500).json({ message: 'Error logging changes.' });
+                        }
+                    }
+                );
             }
 
-            // Proceed with the update query
+            // Proceed with the student update query
             const updates = [
                 'student_idnumber = ?',
                 'birthdate = ?',
@@ -523,9 +672,9 @@ router.put('/student/:id', async (req, res) => {
                 'email = ?',
                 'year_level = ?',
                 'batch = ?',
+                'status = ?',
                 'department_id = ?',
-                'program_id = ?',
-                'status = ?'
+                'program_id = ?'
             ];
 
             const values = [
@@ -538,9 +687,9 @@ router.put('/student/:id', async (req, res) => {
                 email,
                 year_level,
                 batch,
+                status,
                 department_id,
-                program_id,
-                status
+                program_id
             ];
 
             if (hashedPassword) {
@@ -556,7 +705,7 @@ router.put('/student/:id', async (req, res) => {
                         console.error('Error updating student:', err);
                         return res.status(500).json({ message: 'Error updating student information. Please try again later.' });
                     }
-                    res.status(200).json(result);
+                    res.status(200).json({ message: 'Student updated successfully', result });
                 }
             );
         });
@@ -576,53 +725,11 @@ router.put('/student/:id', async (req, res) => {
 
 
 
-/*put: student password*/
-router.put('/password-change/:id', async (req, res) => {
-    const user_id = req.params.id;
-    const { current_password, new_password } = req.body;
 
-    // Validate required fields
-    if (!user_id || !current_password || !new_password) {
-        return res.status(400).json({ error: 'Please provide all required details' });
-    }
 
-    try {
-        // Fetch the current hashed password from the database
-        db.query('SELECT password FROM user WHERE user_id = ?', [user_id], async (err, results) => {
-            if (err) {
-                console.error('Error fetching user:', err);
-                return res.status(500).json({ error: 'Internal Server Error' });
-            }
 
-            if (results.length === 0) {
-                return res.status(404).json({ error: 'User not found' });
-            }
 
-            const hashedPassword = results[0].password;
 
-            // Verify the current password
-            const match = await bcrypt.compare(current_password, hashedPassword);
-            if (!match) {
-                return res.status(401).json({ error: 'Current password is incorrect' });
-            }
-
-            // Hash the new password
-            const newHashedPassword = await bcrypt.hash(new_password, 10);
-
-            // Update the new password in the database
-            db.query('UPDATE user SET password = ? WHERE user_id = ?', [newHashedPassword, user_id], (err, result) => {
-                if (err) {
-                    console.error('Error updating password:', err);
-                    return res.status(500).json({ error: 'Internal Server Error' });
-                }
-                res.status(200).json({ message: 'Password updated successfully' });
-            });
-        });
-    } catch (error) {
-        console.error('Error updating password:', error);
-        res.status(500).json({ error: 'Internal Server Error' });
-    }
-});
 
 
 /*delete: student*/
@@ -669,9 +776,14 @@ router.delete('/students', async (req, res) => {
 });
 
 
+
+
+
 // PUT: Batch update students
 router.put('/students', async (req, res) => {
-    const { student_ids, updates } = req.body;
+    const { student_ids, updates, updatedBy } = req.body;
+
+    console.log('Request Body:', req.body);  // Log the whole request body for debugging
 
     // Validate student_ids
     if (!Array.isArray(student_ids) || student_ids.length === 0) {
@@ -696,30 +808,61 @@ router.put('/students', async (req, res) => {
     }
 
     try {
-        // Fetch programs based on department_id if provided
-        let programs = [];
-        if (department_id) {
-            const [programResults] = await db.promise().query('SELECT * FROM program WHERE department_id = ?', [department_id]);
-            programs = programResults;
+        // Fetch current data of the students to compare
+        const studentsQuery = `SELECT user_id, department_id, program_id, year_level, status FROM user WHERE student_idnumber IN (?)`;
+        const [students] = await db.promise().query(studentsQuery, [student_ids]);
+
+        if (students.length === 0) {
+            return res.status(404).json({ error: 'Some students not found' });
         }
 
-        // If program_id is provided, check if it matches the department
-        if (program_id && department_id) {
-            const [programCheck] = await db.promise().query('SELECT * FROM program WHERE department_id = ? AND program_id = ?', [department_id, program_id]);
-            if (programCheck.length === 0) {
-                return res.status(400).json({ error: 'Program ID does not match the selected department' });
-            }
-        }
+        // Prepare the history records to be inserted, including the updatedBy field
+        const historyRecords = students.map(student => {
+            return {
+                user_id: student.user_id,
+                old_department_id: student.department_id,
+                new_department_id: department_id || student.department_id,
+                old_program_id: student.program_id,
+                new_program_id: program_id || student.program_id,
+                old_year_level: student.year_level,
+                new_year_level: year_level || student.year_level,
+                old_status: student.status,
+                new_status: status || student.status,
+                updated_by: updatedBy, // Correctly use the updatedBy variable
+                changed_at: new Date()
+            };
+        });
 
+        // Insert the history records into the user_history table
+        const historyQuery = `
+            INSERT INTO user_history (user_id, old_department_id, new_department_id, old_program_id, new_program_id, 
+                old_year_level, new_year_level, old_status, new_status, updated_by, changed_at)
+            VALUES ?
+        `;
+        const historyValues = historyRecords.map(record => [
+            record.user_id,
+            record.old_department_id,
+            record.new_department_id,
+            record.old_program_id,
+            record.new_program_id,
+            record.old_year_level,
+            record.new_year_level,
+            record.old_status,
+            record.new_status,
+            record.updated_by,
+            record.changed_at
+        ]);
+
+        await db.promise().query(historyQuery, [historyValues]);
+
+        // Generate the update query for the student records
         const placeholders = student_ids.map(() => '?').join(', '); // Generate placeholders for IDs
-
-        // Update query
         const updateQuery = `
             UPDATE user
             SET 
-                year_level = IFNULL(?, year_level), 
-                department_id = IFNULL(?, department_id), 
-                program_id = IFNULL(?, program_id), 
+                year_level = IFNULL(?, year_level),
+                department_id = IFNULL(?, department_id),
+                program_id = IFNULL(?, program_id),
                 status = IFNULL(?, status)
             WHERE student_idnumber IN (${placeholders})
         `;
@@ -739,13 +882,12 @@ router.put('/students', async (req, res) => {
         console.log('Student IDs:', student_ids);  // Log the student IDs
 
         // Return success response
-        res.status(200).json({ message: 'Students updated successfully', programs });
+        res.status(200).json({ message: 'Students updated successfully' });
     } catch (error) {
         console.error('Error updating students:', error);
         res.status(500).json({ error: 'Internal Server Error' });
     }
 });
-
 
 
 

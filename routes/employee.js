@@ -13,85 +13,153 @@ const secretKey = 'your_secret_key'; // Change to your actual secret key
 
 
 /* POST: Import Employee CSV */
-router.post('/importcsv-employee', upload.single('file'), async (req, res) => {
+router.post("/importcsv-employee", upload.single("file"), async (req, res) => {
     const results = [];
-  
+
     try {
         fs.createReadStream(req.file.path)
             .pipe(csv())
-            .on('data', (data) => {
-                const { employee_idnumber, first_name, last_name, email, password, profile_photo_filename, role_id, birthdate } = data;
+            .on("data", (data) => {
+                const {
+                    employee_idnumber,
+                    first_name,
+                    last_name,
+                    email,
+                    password,
+                    created_by,
+                    role_code,
+                } = data;
 
                 // Check for missing fields
-                if (!employee_idnumber || !first_name || !last_name || !email || !password) {
-                    console.warn(`Missing required fields for record: ${JSON.stringify(data)}`);
+                if (
+                    !employee_idnumber ||
+                    !first_name ||
+                    !last_name ||
+                    !email ||
+                    !password ||
+                    !created_by ||
+                    !role_code
+                ) {
+                    console.warn(
+                        `Missing required fields for record: ${JSON.stringify(data)}`
+                    );
                     return; // Skip this record if any required field is missing
                 }
-
-                // Format the birthdate to YYYY-MM-DD if it exists
-                const formattedBirthdate = birthdate ? new Date(birthdate).toISOString().split('T')[0] : '';
 
                 results.push({
                     employee_idnumber,
                     first_name,
-                    middle_name: data.middle_name || '',
+                    middle_name: data.middle_name || "",
                     last_name,
-                    suffix: data.suffix || '',
-                    birthdate: formattedBirthdate, // Use the formatted birthdate
+                    suffix: data.suffix || "",
+                    birthdate: data.birthdate || null,
                     email,
                     password,
-                    profile_photo_filename: profile_photo_filename || '',
-                    role_id
+                    created_by,
+                    role_code,
                 });
             })
-            .on('end', async () => {
-                const insertResults = [];
-                
-                for (const record of results) {
-                    const hashedPassword = await bcrypt.hash(record.password, 10);
-                    insertResults.push([ // Push data for SQL insertion
-                        record.employee_idnumber,
-                        record.first_name,
-                        record.middle_name,
-                        record.last_name,
-                        record.suffix,
-                        record.birthdate,
-                        record.email,
-                        hashedPassword,
-                        record.profile_photo_filename,
-                        record.role_id
-                    ]);
-                }
+            .on("end", async () => {
+                try {
+                    const insertResults = [];
 
-                // Check for duplicate email or employee_idnumber before inserting
-                for (const record of insertResults) {
-                    const [existingEmployee] = await db.promise().query('SELECT * FROM user WHERE employee_idnumber = ? OR email = ?', [record[0], record[6]]);
-                    if (existingEmployee.length > 0) {
-                        return res.status(400).json({
-                            error: `Duplicate entry found: ${existingEmployee[0].employee_idnumber === record[0] ? 'employee ID number' : 'email'} already exists.`
-                        });
+                    for (const record of results) {
+                        // Step 1: Map role_code to role_id
+                        const [role] = await db
+                            .promise()
+                            .query("SELECT role_id FROM role WHERE role_code = ?", [
+                                record.role_code,
+                            ]);
+
+                        if (!role.length) {
+                            console.warn(`Role with code ${record.role_code} not found.`);
+                            continue; // Skip if role_id is not found
+                        }
+
+                        const role_id = role[0].role_id;
+
+                        // Step 2: Validate created_by exists
+                        const [creator] = await db
+                            .promise()
+                            .query("SELECT user_id FROM user WHERE user_id = ?", [
+                                record.created_by,
+                            ]);
+
+                        if (!creator.length) {
+                            console.warn(
+                                `Creator ID ${record.created_by} not found. Skipping record.`
+                            );
+                            continue;
+                        }
+
+                        // Step 3: Check for duplicate email or employee_idnumber
+                        const [existingEmployee] = await db
+                            .promise()
+                            .query(
+                                "SELECT * FROM user WHERE employee_idnumber = ? OR email = ?",
+                                [record.employee_idnumber, record.email]
+                            );
+
+                        if (existingEmployee.length > 0) {
+                            console.warn(
+                                `Duplicate entry found for employee ID: ${record.employee_idnumber} or email: ${record.email}. Skipping record.`
+                            );
+                            continue;
+                        }
+
+                        // Step 4: Hash password
+                        const hashedPassword = await bcrypt.hash(record.password, 10);
+
+                        // Step 5: Prepare the record for insertion
+                        insertResults.push([
+                            record.employee_idnumber,
+                            record.first_name,
+                            record.middle_name,
+                            record.last_name,
+                            record.suffix,
+                            record.birthdate,
+                            record.email,
+                            hashedPassword,
+                            record.created_by,
+                            role_id,
+                        ]);
                     }
-                }
 
-                // Construct the SQL insert query
-                const insertEmployeeQuery = `
-                    INSERT INTO user 
-                    (employee_idnumber, first_name, middle_name, last_name, suffix, birthdate, email, password, profile_photo_filename, role_id) 
-                    VALUES ?
-                `;
-                
-                await db.promise().query(insertEmployeeQuery, [insertResults]);
-                res.status(201).json({ message: 'Employees registered successfully' });
+                    if (insertResults.length === 0) {
+                        return res
+                            .status(400)
+                            .json({ error: "No valid records to insert." });
+                    }
+
+                    // Step 6: Insert records into the database
+                    const insertEmployeeQuery = `
+                        INSERT INTO user 
+                        (employee_idnumber, first_name, middle_name, last_name, suffix, birthdate, email, password, created_by, role_id) 
+                        VALUES ?
+                    `;
+                    await db.promise().query(insertEmployeeQuery, [insertResults]);
+
+                    res.status(201).json({
+                        message: `${insertResults.length} employees registered successfully.`,
+                    });
+                } catch (error) {
+                    console.error("Error processing CSV data:", error);
+                    res.status(500).json({ error: "Failed to process CSV data." });
+                }
             })
-            .on('error', (error) => {
-                console.error('Error parsing CSV:', error);
-                res.status(500).json({ error: 'Failed to parse CSV file' });
+            .on("error", (error) => {
+                console.error("Error parsing CSV:", error);
+                res.status(500).json({ error: "Failed to parse CSV file." });
             });
     } catch (error) {
-        console.error('Error registering employees:', error);
-        res.status(500).json({ error: 'Internal Server Error' });
+        console.error("Error registering employees:", error);
+        res.status(500).json({ error: "Internal Server Error." });
     }
 });
+
+    
+
+    
 
 
 
@@ -151,8 +219,20 @@ router.post('/register-employee', async (req, res) => {
             birthdate,
             email,
             password,
-            role_id
+            role_id,
+            created_by 
         } = req.body;
+
+
+        // Log the input data for debugging purposes
+        console.log("Request Body:", req.body);
+
+        // Replace undefined fields with null
+        const validatedMiddleName = middle_name ?? null;
+        const validatedSuffix = suffix ?? null;
+        const validatedBirthdate = birthdate ?? null;
+        const validatedCreatedBy = created_by ?? null;
+
 
         // Validate required fields
         if (!employee_idnumber || !first_name || !last_name || !birthdate || !email || !password || !role_id) {
@@ -202,24 +282,36 @@ router.post('/register-employee', async (req, res) => {
         // Hash password
         const hashedPassword = await bcrypt.hash(password, 10);
 
+        // Log the values being passed to the SQL query for debugging
+        console.log("Values being passed to the query:", [
+            employee_idnumber,
+            first_name,
+            validatedMiddleName,
+            last_name,
+            validatedSuffix,
+            validatedBirthdate,
+            email,
+            hashedPassword,
+            created_by
+        ]);
+
         // Insert employee into database
         const insertEmployeeQuery = `
-            INSERT INTO user (
-                employee_idnumber, first_name, middle_name, last_name, suffix, 
-                birthdate, email, password, role_id
-            ) 
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO user 
+            (employee_idnumber, first_name, middle_name, last_name, suffix, birthdate, email, password, role_id, created_by) 
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `;
         await db.promise().execute(insertEmployeeQuery, [
             employee_idnumber,
             first_name,
-            middle_name,
+            validatedMiddleName,
             last_name,
-            suffix,
-            birthdate,
+            validatedSuffix,
+            validatedBirthdate,
             email,
             hashedPassword,
-            role_id
+            role_id,
+            validatedCreatedBy
         ]);
 
         res.status(201).json({ message: 'Employee registered successfully' });
@@ -265,6 +357,9 @@ router.post('/register-employee', async (req, res) => {
         });
     }    
 });
+
+
+
 
 
 /*get: 1 employee*/
@@ -360,6 +455,8 @@ router.get('/employees', (req, res) => {
 
 
 
+
+
 /*put: employee*/
 router.put('/employee/:id', async (req, res) => {
     let user_id = req.params.id;
@@ -377,7 +474,8 @@ router.put('/employee/:id', async (req, res) => {
             email,
             password,
             role_id,
-            status
+            status,
+            updatedBy
         } = req.body;
 
         // Validate required fields
@@ -435,47 +533,113 @@ router.put('/employee/:id', async (req, res) => {
             }
         }
 
-        // Update query
-        const updates = [
-            'employee_idnumber = ?',
-            'first_name = ?',
-            'middle_name = ?',
-            'last_name = ?',
-            'suffix = ?',
-            'birthdate = ?',
-            'email = ?',
-            'role_id = ?',
-            'status = ?'
-        ];
-
-        const values = [
-            employee_idnumber,
-            first_name,
-            middle_name,
-            last_name,
-            suffix,
-            birthdate,
-            email,
-            role_id,
-            status
-        ];
-
-        if (hashedPassword) {
-            updates.push('password = ?');
-            values.push(hashedPassword);
-        }
-
-        db.query(
-            `UPDATE user SET ${updates.join(', ')} WHERE user_id = ?`,
-            [...values, user_id],
-            (err, result) => {
-                if (err) {
-                    console.error('Error updating employee:', err);
-                    return res.status(500).json({ message: 'Error updating employee information. Please try again later.' });
-                }
-                res.status(200).json(result);
+        // Fetch the current role and status for user history
+        db.query('SELECT role_id, status FROM user WHERE user_id = ?', [user_id], async (err, result) => {
+            if (err) {
+                console.error('Error fetching current user info:', err);
+                return res.status(500).json({ message: 'Error fetching user information.' });
             }
-        );
+
+            if (result.length === 0) {
+                return res.status(404).json({ message: 'User not found.' });
+            }
+
+            const currentRoleId = result[0]?.role_id;
+            const currentStatus = result[0]?.status;
+
+
+            // Check if any changes occurred
+            const changes = {
+                role_id: currentRoleId !== role_id,
+                status: currentStatus !== status,
+            };
+
+            const historyValues = [
+                user_id,
+                currentRoleId, role_id,
+                currentStatus, status,
+                updatedBy // Use the updatedBy value passed from frontend
+            ];
+
+            // Update the history values based on changes
+            Object.keys(changes).forEach((field, index) => {
+                if (!changes[field]) {
+                    historyValues[index * 2 + 1] = null; // Set old value to null if no change
+                    historyValues[index * 2 + 2] = null; // Set new value to null if no change
+                }
+            });
+
+            const historyColumns = [
+                'user_id', 
+                'old_role_id', 'new_role_id', 
+                'old_status', 'new_status',
+                'updated_by'
+            ];
+
+
+            if (historyValues.some(val => val !== null)) {
+                // Insert into user_history only if there's a change
+                db.query(
+                    `INSERT INTO user_history (${historyColumns.join(', ')}) VALUES (${historyValues.map(() => '?').join(', ')})`,
+                    historyValues,
+                    (err, result) => {
+                        if (err) {
+                            console.error('Error inserting into user_history:', err);
+                            return res.status(500).json({ message: 'Error logging changes.' });
+                        }
+                    }
+                );
+            }
+            
+
+           
+            
+                   
+
+                    // Update the user table with new values
+                    const updates = [
+                        'employee_idnumber = ?',
+                        'first_name = ?',
+                        'middle_name = ?',
+                        'last_name = ?',
+                        'suffix = ?',
+                        'birthdate = ?',
+                        'email = ?',
+                        'role_id = ?',
+                        'status = ?'
+                    ];
+
+                    const values = [
+                        employee_idnumber,
+                        first_name,
+                        middle_name,
+                        last_name,
+                        suffix,
+                        birthdate,
+                        email,
+                        role_id,
+                        status
+                    ];
+
+                    if (hashedPassword) {
+                        updates.push('password = ?');
+                        values.push(hashedPassword);
+                    }
+
+                    db.query(
+                        `UPDATE user SET ${updates.join(', ')} WHERE user_id = ?`,
+                        [...values, user_id],
+                        (err, result) => {
+                            if (err) {
+                                console.error('Error updating employee:', err);
+                                return res.status(500).json({ message: 'Error updating employee information. Please try again later.' });
+                            }
+                            res.status(200).json(result);
+                        }
+                    );
+                }
+            );
+        
     } catch (error) {
         console.error('Error updating employee:', error);
         res.status(500).json({ error: 'An unexpected error occurred while updating employee information.' });
@@ -486,110 +650,11 @@ router.put('/employee/:id', async (req, res) => {
 
 
 
-
-
-
-/*put: employee password*/
-router.put('/password-change/:id', async (req, res) => {
-    const user_id = req.params.id;
-    const { current_password, new_password } = req.body;
-
-    // Validate required fields
-    if (!user_id || !current_password || !new_password) {
-        return res.status(400).json({ error: 'Please provide all required details' });
-    }
-
-    try {
-        // Fetch the current hashed password from the database
-        db.query('SELECT password FROM user WHERE user_id = ?', [user_id], async (err, results) => {
-            if (err) {
-                console.error('Error fetching user:', err);
-                return res.status(500).json({ error: 'Internal Server Error' });
-            }
-
-            if (results.length === 0) {
-                return res.status(404).json({ error: 'User not found' });
-            }
-
-            const hashedPassword = results[0].password;
-
-            // Verify the current password
-            const match = await bcrypt.compare(current_password, hashedPassword);
-            if (!match) {
-                return res.status(401).json({ error: 'Current password is incorrect' });
-            }
-
-            // Hash the new password
-            const newHashedPassword = await bcrypt.hash(new_password, 10);
-
-            // Update the new password in the database
-            db.query('UPDATE user SET password = ? WHERE user_id = ?', [newHashedPassword, user_id], (err, result) => {
-                if (err) {
-                    console.error('Error updating password:', err);
-                    return res.status(500).json({ error: 'Internal Server Error' });
-                }
-                res.status(200).json({ message: 'Password updated successfully' });
-            });
-        });
-    } catch (error) {
-        console.error('Error updating password:', error);
-        res.status(500).json({ error: 'Internal Server Error' });
-    }
-});
-
-
-
-/*delete: employee*/
-router.delete('/employee/:id', async (req, res) => {
-    try {
-        const user_id = req.params.id;
-
-        // Check if employee exists
-        const checkEmployeeQuery = 'SELECT * FROM user WHERE user_id = ?';
-        const [rows] = await db.promise().execute(checkEmployeeQuery, [user_id]);
-
-        if (rows.length === 0) {
-            return res.status(404).json({ message: 'Employee not found' });
-        }
-
-        const deleteQuery = 'DELETE FROM user WHERE user_id = ?';
-        await db.promise().execute(deleteQuery, [user_id]);
-
-        res.status(200).json({ message: 'Employee deleted successfully' });
-    } catch (error) {
-        console.error('Error deleting employee:', error);
-        res.status(500).json({ error: 'Internal Server Error' });
-    }
-});
-
-
-
-
-
-// DELETE: Batch delete employees
-router.delete('/employees', async (req, res) => {
-    const { employee_ids } = req.body;
-
-    if (!Array.isArray(employee_ids) || employee_ids.length === 0) {
-        return res.status(400).json({ error: 'Please provide valid employee IDs' });
-    }
-
-    try {
-        const deleteQuery = `DELETE FROM user WHERE employee_idnumber IN (?)`;
-        await db.promise().query(deleteQuery, [employee_ids]);
-
-        res.status(200).json({ message: 'Employees deleted successfully' });
-    } catch (error) {
-        console.error('Error deleting employees:', error);
-        res.status(500).json({ error: 'Internal Server Error' });
-    }
-});
-
-
-
 // PUT: Batch update employees
 router.put('/employees', async (req, res) => {
-    const { employee_ids, updates } = req.body;
+    const { employee_ids, updates, updatedBy } = req.body;
+
+    console.log('Request Body:', req.body);  // Log the whole request body for debugging
 
     // Validate employee_ids
     if (!Array.isArray(employee_ids) || employee_ids.length === 0) {
@@ -610,11 +675,47 @@ router.put('/employees', async (req, res) => {
         return res.status(400).json({ error: 'Status must be a valid string' });
     }
 
-
     try {
-        const placeholders = employee_ids.map(() => '?').join(', '); // Generate placeholders for IDs
+        // Fetch current roles and statuses for the employees
+        const employeesQuery = `SELECT user_id, role_id, status FROM user WHERE employee_idnumber IN (?)`;
+        const [employees] = await db.promise().query(employeesQuery, [employee_ids]);
 
-        // Update query
+        if (employees.length === 0) {
+            return res.status(404).json({ error: 'Some employees not found' });
+        }
+
+        // Prepare the history records to be inserted, including the updatedBy field
+        const historyRecords = employees.map(employee => {
+            return {
+                user_id: employee.user_id,
+                old_role_id: employee.role_id,
+                new_role_id: role_id || employee.role_id,
+                old_status: employee.status,
+                new_status: status || employee.status,
+                changed_at: new Date(),
+                updated_by: updatedBy // Correctly use the updatedBy variable
+            };
+        });
+
+        // Insert the history records into the user_history table
+        const historyQuery = `
+            INSERT INTO user_history (user_id, old_role_id, new_role_id, old_status, new_status, updated_by, changed_at)
+            VALUES ?
+        `;
+        const historyValues = historyRecords.map(record => [
+            record.user_id, 
+            record.old_role_id, 
+            record.new_role_id, 
+            record.old_status, 
+            record.new_status, 
+            record.updated_by,  // Include updatedBy in the history insert
+            record.changed_at
+        ]);
+
+        await db.promise().query(historyQuery, [historyValues]);
+
+        // Generate the update query for the employee records
+        const placeholders = employee_ids.map(() => '?').join(', '); // Generate placeholders for IDs
         const updateQuery = `
             UPDATE user
             SET 
@@ -642,6 +743,57 @@ router.put('/employees', async (req, res) => {
         res.status(500).json({ error: 'Internal Server Error' });
     }
 });
+
+
+
+
+
+/*delete: employee*/
+router.delete('/employee/:id', (req, res) => {
+    let user_id = req.params.id;
+
+    if (!user_id) {
+        return res.status(400).send({ error: true, message: 'Please provide user_id' });
+    }
+
+    try {
+        db.query('DELETE FROM user WHERE user_id = ?', [user_id], (err, result, fields) => {
+            if (err) {
+                console.error('Error deleting employee:', err);
+                return res.status(500).json({ message: 'Internal Server Error', details: err });
+            } else {
+                res.status(200).json({ message: 'Employee deleted successfully' });
+            }
+        });
+    } catch (error) {
+        console.error('Error loading employee:', error);
+        res.status(500).json({ error: 'Internal Server Error', details: error });
+    }
+});
+
+
+
+
+
+// DELETE: Batch delete employees
+router.delete('/employees', async (req, res) => {
+    const { employee_ids } = req.body;
+
+    if (!Array.isArray(employee_ids) || employee_ids.length === 0) {
+        return res.status(400).json({ error: 'Please provide valid employee IDs' });
+    }
+
+    try {
+        const deleteQuery = `DELETE FROM user WHERE employee_idnumber IN (?)`;
+        await db.promise().query(deleteQuery, [employee_ids]);
+
+        res.status(200).json({ message: 'Employees deleted successfully' });
+    } catch (error) {
+        console.error('Error deleting employees:', error);
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
+
 
 
 

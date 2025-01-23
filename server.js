@@ -31,6 +31,7 @@ const announcement = require('./routes/announcement');
 const settings = require('./routes/settings');
 const violation_user = require('./routes/violation_user');
 const violation_sanction = require('./routes/violation_sanction');
+const history = require('./routes/history');
 const graphs = require('./routes/graphs');
 
 
@@ -57,6 +58,7 @@ app.use('/', announcement);
 app.use('/', settings);
 app.use('/', violation_user);
 app.use('/', violation_sanction);
+app.use('/', history);
 app.use('/', graphs);
 
   
