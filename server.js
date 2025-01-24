@@ -5,11 +5,7 @@ const bodyParser = require('body-parser');
 const app = express();
 /*enables submitting data*/
 const cors = require('cors'); 
-app.use(cors({
-    origin: 'https://your-frontend-domain.vercel.app', // Replace with your actual frontend domain
-    methods: ['GET', 'POST', 'PUT', 'DELETE'],
-    allowedHeaders: ['Content-Type', 'Authorization']
-}));
+app.use(cors());
 
 /*port number*/
 const PORT = 10121 || 9000; 
