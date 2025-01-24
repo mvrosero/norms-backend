@@ -214,7 +214,6 @@ router.get('/account-history/:user_id', (req, res) => {
 /* GET: Export all user histories to CSV */
 router.get('/histories/export', async (req, res) => {
     try {
-        console.log('Executing query...');
         const [rows] = await db.promise().query(`
             SELECT 
                 user_history.history_id, 
@@ -253,21 +252,9 @@ router.get('/histories/export', async (req, res) => {
             LEFT JOIN user AS updated_by ON user_history.updated_by = updated_by.user_id
         `);
 
-        console.log('Query result:', rows);
-
         if (rows.length === 0) {
             return res.status(404).json({ message: 'No records found' });
         }
-
-        // Sanitize rows
-        const sanitizedRows = rows.map(row => {
-            Object.keys(row).forEach(key => {
-                if (row[key] === null || row[key] === undefined) {
-                    row[key] = '';
-                }
-            });
-            return row;
-        });
 
         // Define CSV fields
         const fields = [
@@ -289,23 +276,24 @@ router.get('/histories/export', async (req, res) => {
             { label: 'Updated By', value: 'updated_by' },
         ];
 
-        // Convert to CSV
-        const csv = parse(sanitizedRows, { fields });
-        console.log('Generated CSV:', csv);
+        // Convert rows to CSV
+        const csv = parse(rows, { fields });
 
-        // Write to file
+        // Generate a temporary file path
         const filePath = path.join(__dirname, '..', 'exports', `user_histories.csv`);
+
+        // Write CSV to a file
         fs.writeFileSync(filePath, csv);
 
-        // Send file to client
-        res.download(filePath, `user_histories.csv`, err => {
+        // Send the file to the client
+        res.download(filePath, `user_histories.csv`, (err) => {
             if (err) {
                 console.error('Error sending file:', err);
                 res.status(500).send({ error: 'Error exporting CSV file' });
             }
 
-            // Delete the file
-            fs.unlink(filePath, unlinkErr => {
+            // Delete the file after sending it
+            fs.unlink(filePath, (unlinkErr) => {
                 if (unlinkErr) {
                     console.error('Error deleting temporary file:', unlinkErr);
                 }
@@ -316,6 +304,8 @@ router.get('/histories/export', async (req, res) => {
         res.status(500).json({ error: 'Internal Server Error' });
     }
 });
+
+
 
 
 
