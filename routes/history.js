@@ -291,7 +291,7 @@ router.get('/histories/export', async (req, res) => {
             ];
     
             // Convert rows to CSV
-            const csv = parse(sanitizedRows, { fields });
+            const csv = parse(sanitizedRows, { fields, quote: '"' });
     
             // Generate a temporary file path
             const filePath = path.join(__dirname, '..', 'exports', `user_histories.csv`);
