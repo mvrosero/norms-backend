@@ -5,156 +5,140 @@ const csv = require('csv-parser');
 const db = require('../app/configuration/database');
 const bcrypt = require('bcrypt'); // Make sure to import bcrypt
 const router = express.Router();
-const cors = require('cors');
-
-
-// Use CORS middleware
-const corsOptions = {
-    origin: 'https://norms-frontend.vercel.app',  // Replace with your frontend URL
-    methods: 'GET,POST,PUT,DELETE',  // Allow specific methods
-    allowedHeaders: 'Content-Type, Authorization',  // Allow specific headers
-};
-router.use(cors(corsOptions));
-
-
-
-// Multer setup for file uploads
-const upload = multer({ dest: 'uploads/' });
+const storage = multer.memoryStorage();
+const upload = multer({ storage });
 
 
 
 
 /* POST: Import Students by Department CSV */
+// POST: Import Students by Department CSV
 router.post('/importcsv-departmental/:department_code', upload.single('file'), async (req, res) => {
     const results = [];
     const department_code = req.params.department_code;
 
     try {
-        // Read and parse the CSV file
-        fs.createReadStream(req.file.path)
-            .pipe(csv())
-            .on('data', (data) => {
-                console.log('Parsed data:', data); // Log parsed data
+        // Use the buffer from memory storage and parse the CSV data directly
+        const csvData = req.file.buffer.toString('utf-8');
+        const parsedData = await csv().fromString(csvData);
 
-                const {
-                    student_idnumber,
-                    first_name,
-                    middle_name,
-                    last_name,
-                    suffix,
-                    birthdate,
-                    email,
-                    password,
-                    profile_photo_filename,
-                    year_level,
-                    batch,
-                    created_by,
-                    program_code // Changed from program_id to program_name
-                } = data;
+        parsedData.forEach((data) => {
+            console.log('Parsed data:', data); // Log parsed data
 
-                // Check if required fields are present
-                if (!student_idnumber || !first_name || !last_name || !email || !password || !created_by) {
-                    console.warn(`Missing required fields for record: ${JSON.stringify(data)}`);
-                    return; // Skip this record if any required field is missing
-                }
+            const {
+                student_idnumber,
+                first_name,
+                middle_name,
+                last_name,
+                suffix,
+                birthdate,
+                email,
+                password,
+                profile_photo_filename,
+                year_level,
+                batch,
+                created_by,
+                program_code // Changed from program_id to program_name
+            } = data;
 
-                // Log valid records
-                console.log(`Valid record found: ${JSON.stringify(data)}`);
+            // Check if required fields are present
+            if (!student_idnumber || !first_name || !last_name || !email || !password || !created_by) {
+                console.warn(`Missing required fields for record: ${JSON.stringify(data)}`);
+                return; // Skip this record if any required field is missing
+            }
 
-                // Push the record to results before hashing the password
-                results.push({
-                    student_idnumber,
-                    first_name,
-                    middle_name: middle_name || '', // Optional
-                    last_name,
-                    suffix: suffix || '', // Optional
-                    birthdate: birthdate || '', // Optional
-                    email,
-                    password: password, // Raw password for hashing later
-                    profile_photo_filename: profile_photo_filename || '', // Optional
-                    year_level,
-                    batch,
-                    created_by,
-                    program_code, // Changed from program_id to program_name
-                    role_id: 3 // Default role_id set to 3
-                });
-            })
-            .on('end', async () => {
-                // Check if any valid records were found
-                if (results.length === 0) {
-                    console.warn('No valid records found in results:', results);
-                    return res.status(400).json({ error: 'No valid student records found in CSV' });
-                }
+            // Log valid records
+            console.log(`Valid record found: ${JSON.stringify(data)}`);
 
-                // Retrieve department_id based on the department_code
-                const [departmentRows] = await db.promise().query(`
-                    SELECT department_id FROM department WHERE department_code = ?
-                `, [department_code]);
-
-                if (departmentRows.length === 0) {
-                    return res.status(400).json({ error: 'Invalid department code' });
-                }
-
-                const department_id = departmentRows[0].department_id;
-
-                // Map program_name to program_id
-                const [programRows] = await db.promise().query(`
-                    SELECT program_id, program_code FROM program
-                `);
-
-                const programMap = {};
-                programRows.forEach(row => {
-                    programMap[row.program_code] = row.program_id;
-                });
-
-                const insertResults = [];
-                for (const record of results) {
-                    const program_id = programMap[record.program_code];
-                    if (!program_id) {
-                        console.warn(`Invalid program_code: ${record.program_code}`);
-                        continue; // Skip records with invalid program_name
-                    }
-
-                    const hashedPassword = await bcrypt.hash(record.password, 10);
-                    insertResults.push([
-                        record.student_idnumber,
-                        record.first_name,
-                        record.middle_name,
-                        record.last_name,
-                        record.suffix,
-                        record.birthdate,
-                        record.email,
-                        hashedPassword, 
-                        record.profile_photo_filename,
-                        record.year_level,
-                        record.batch,
-                        record.created_by,
-                        department_id, 
-                        program_id, 
-                        record.role_id
-                    ]);
-                }
-
-                if (insertResults.length === 0) {
-                    return res.status(400).json({ error: 'No valid records to insert' });
-                }
-
-                // Construct the SQL insert query
-                const insertStudentQuery = `
-                    INSERT INTO user 
-                    (student_idnumber, first_name, middle_name, last_name, suffix, birthdate, email, password, profile_photo_filename, year_level, batch, created_by, department_id, program_id, role_id) 
-                    VALUES ?
-                `;
-
-                // Insert all student records at once
-                await db.promise().query(insertStudentQuery, [insertResults]);
-
-                res.status(201).json({ message: 'Students registered successfully' });
-            })
-            .on('error', (error) => {
-                console.error('Error parsing CSV:', error);
-                res.status(500).json({ error: 'Failed to parse CSV file' });
+            // Push the record to results before hashing the password
+            results.push({
+                student_idnumber,
+                first_name,
+                middle_name: middle_name || '', // Optional
+                last_name,
+                suffix: suffix || '', // Optional
+                birthdate: birthdate || '', // Optional
+                email,
+                password: password, // Raw password for hashing later
+                profile_photo_filename: profile_photo_filename || '', // Optional
+                year_level,
+                batch,
+                created_by,
+                program_code, // Changed from program_id to program_name
+                role_id: 3 // Default role_id set to 3
             });
+        });
+
+        // Check if any valid records were found
+        if (results.length === 0) {
+            console.warn('No valid records found in results:', results);
+            return res.status(400).json({ error: 'No valid student records found in CSV' });
+        }
+
+        // Retrieve department_id based on the department_code
+        const [departmentRows] = await db.promise().query(`
+            SELECT department_id FROM department WHERE department_code = ?
+        `, [department_code]);
+
+        if (departmentRows.length === 0) {
+            return res.status(400).json({ error: 'Invalid department code' });
+        }
+
+        const department_id = departmentRows[0].department_id;
+
+        // Map program_name to program_id
+        const [programRows] = await db.promise().query(`
+            SELECT program_id, program_code FROM program
+        `);
+
+        const programMap = {};
+        programRows.forEach(row => {
+            programMap[row.program_code] = row.program_id;
+        });
+
+        const insertResults = [];
+        for (const record of results) {
+            const program_id = programMap[record.program_code];
+            if (!program_id) {
+                console.warn(`Invalid program_code: ${record.program_code}`);
+                continue; // Skip records with invalid program_name
+            }
+
+            const hashedPassword = await bcrypt.hash(record.password, 10);
+            insertResults.push([
+                record.student_idnumber,
+                record.first_name,
+                record.middle_name,
+                record.last_name,
+                record.suffix,
+                record.birthdate,
+                record.email,
+                hashedPassword, 
+                record.profile_photo_filename,
+                record.year_level,
+                record.batch,
+                record.created_by,
+                department_id, 
+                program_id, 
+                record.role_id
+            ]);
+        }
+
+        if (insertResults.length === 0) {
+            return res.status(400).json({ error: 'No valid records to insert' });
+        }
+
+        // Construct the SQL insert query
+        const insertStudentQuery = `
+            INSERT INTO user 
+            (student_idnumber, first_name, middle_name, last_name, suffix, birthdate, email, password, profile_photo_filename, year_level, batch, created_by, department_id, program_id, role_id) 
+            VALUES ?
+        `;
+
+        // Insert all student records at once
+        await db.promise().query(insertStudentQuery, [insertResults]);
+
+        res.status(201).json({ message: 'Students registered successfully' });
     } catch (error) {
         console.error('Error registering students:', error);
         res.status(500).json({ error: 'Internal Server Error' });
