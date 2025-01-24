@@ -13,8 +13,10 @@ const secretKey = 'your_secret_key'; // Change to your actual secret key
 
 
 /* POST: Import Employee CSV */
+/* POST: Import Employee CSV */
 router.post("/importcsv-employee", upload.single("file"), async (req, res) => {
     const results = [];
+    const errors = []; // Array to collect skipped records and error messages
 
     try {
         fs.createReadStream(req.file.path)
@@ -40,9 +42,10 @@ router.post("/importcsv-employee", upload.single("file"), async (req, res) => {
                     !created_by ||
                     !role_code
                 ) {
-                    console.warn(
-                        `Missing required fields for record: ${JSON.stringify(data)}`
-                    );
+                    errors.push({
+                        record: data,
+                        error: "Missing required fields.",
+                    });
                     return; // Skip this record if any required field is missing
                 }
 
@@ -64,71 +67,84 @@ router.post("/importcsv-employee", upload.single("file"), async (req, res) => {
                     const insertResults = [];
 
                     for (const record of results) {
-                        // Step 1: Map role_code to role_id
-                        const [role] = await db
-                            .promise()
-                            .query("SELECT role_id FROM role WHERE role_code = ?", [
-                                record.role_code,
-                            ]);
+                        try {
+                            // Step 1: Map role_code to role_id
+                            const [role] = await db
+                                .promise()
+                                .query("SELECT role_id FROM role WHERE role_code = ?", [
+                                    record.role_code,
+                                ]);
 
-                        if (!role.length) {
-                            console.warn(`Role with code ${record.role_code} not found.`);
-                            continue; // Skip if role_id is not found
-                        }
+                            if (!role.length) {
+                                errors.push({
+                                    record,
+                                    error: `Role with code ${record.role_code} not found.`,
+                                });
+                                continue; // Skip if role_id is not found
+                            }
 
-                        const role_id = role[0].role_id;
+                            const role_id = role[0].role_id;
 
-                        // Step 2: Validate created_by exists
-                        const [creator] = await db
-                            .promise()
-                            .query("SELECT user_id FROM user WHERE user_id = ?", [
+                            // Step 2: Validate created_by exists
+                            const [creator] = await db
+                                .promise()
+                                .query("SELECT user_id FROM user WHERE user_id = ?", [
+                                    record.created_by,
+                                ]);
+
+                            if (!creator.length) {
+                                errors.push({
+                                    record,
+                                    error: `Creator ID ${record.created_by} not found.`,
+                                });
+                                continue;
+                            }
+
+                            // Step 3: Check for duplicate email or employee_idnumber
+                            const [existingEmployee] = await db
+                                .promise()
+                                .query(
+                                    "SELECT * FROM user WHERE employee_idnumber = ? OR email = ?",
+                                    [record.employee_idnumber, record.email]
+                                );
+
+                            if (existingEmployee.length > 0) {
+                                errors.push({
+                                    record,
+                                    error: `Duplicate entry found for employee ID: ${record.employee_idnumber} or email: ${record.email}.`,
+                                });
+                                continue;
+                            }
+
+                            // Step 4: Hash password
+                            const hashedPassword = await bcrypt.hash(record.password, 10);
+
+                            // Step 5: Prepare the record for insertion
+                            insertResults.push([
+                                record.employee_idnumber,
+                                record.first_name,
+                                record.middle_name,
+                                record.last_name,
+                                record.suffix,
+                                record.birthdate,
+                                record.email,
+                                hashedPassword,
                                 record.created_by,
+                                role_id,
                             ]);
-
-                        if (!creator.length) {
-                            console.warn(
-                                `Creator ID ${record.created_by} not found. Skipping record.`
-                            );
-                            continue;
+                        } catch (error) {
+                            errors.push({
+                                record,
+                                error: `Error processing record: ${error.message}`,
+                            });
                         }
-
-                        // Step 3: Check for duplicate email or employee_idnumber
-                        const [existingEmployee] = await db
-                            .promise()
-                            .query(
-                                "SELECT * FROM user WHERE employee_idnumber = ? OR email = ?",
-                                [record.employee_idnumber, record.email]
-                            );
-
-                        if (existingEmployee.length > 0) {
-                            console.warn(
-                                `Duplicate entry found for employee ID: ${record.employee_idnumber} or email: ${record.email}. Skipping record.`
-                            );
-                            continue;
-                        }
-
-                        // Step 4: Hash password
-                        const hashedPassword = await bcrypt.hash(record.password, 10);
-
-                        // Step 5: Prepare the record for insertion
-                        insertResults.push([
-                            record.employee_idnumber,
-                            record.first_name,
-                            record.middle_name,
-                            record.last_name,
-                            record.suffix,
-                            record.birthdate,
-                            record.email,
-                            hashedPassword,
-                            record.created_by,
-                            role_id,
-                        ]);
                     }
 
                     if (insertResults.length === 0) {
-                        return res
-                            .status(400)
-                            .json({ error: "No valid records to insert." });
+                        return res.status(400).json({
+                            error: "No valid records to insert.",
+                            details: errors,
+                        });
                     }
 
                     // Step 6: Insert records into the database
@@ -141,6 +157,7 @@ router.post("/importcsv-employee", upload.single("file"), async (req, res) => {
 
                     res.status(201).json({
                         message: `${insertResults.length} employees registered successfully.`,
+                        errors: errors.length ? errors : null,
                     });
                 } catch (error) {
                     console.error("Error processing CSV data:", error);
