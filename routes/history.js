@@ -258,13 +258,15 @@ router.get('/histories/export', async (req, res) => {
             }
     
             // Sanitize rows
-            const sanitizedRows = rows.map((row) => {
-                const sanitizedRow = {};
-                Object.keys(row).forEach((key) => {
-                    sanitizedRow[key] = row[key] !== null && row[key] !== undefined ? row[key] : '';
+            const sanitizedRows = rows.map(row => {
+                Object.keys(row).forEach(key => {
+                    if (row[key] === null || row[key] === undefined) {
+                        row[key] = ''; // Replace null/undefined with an empty string
+                    }
                 });
-                return sanitizedRow;
+                return row;
             });
+            
     
             console.log('Sanitized rows:', sanitizedRows);
     
