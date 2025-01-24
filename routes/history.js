@@ -214,6 +214,7 @@ router.get('/account-history/:user_id', (req, res) => {
 /* GET: Export all user histories to CSV */
 router.get('/histories/export', async (req, res) => {
     try {
+        console.log('Executing query...');
         const [rows] = await db.promise().query(`
             SELECT 
                 user_history.history_id, 
@@ -251,6 +252,8 @@ router.get('/histories/export', async (req, res) => {
             LEFT JOIN user ON user_history.user_id = user.user_id
             LEFT JOIN user AS updated_by ON user_history.updated_by = updated_by.user_id
         `);
+        console.log('Query result:', rows);
+        
 
         if (rows.length === 0) {
             return res.status(404).json({ message: 'No records found' });

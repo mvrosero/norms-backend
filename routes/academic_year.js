@@ -144,7 +144,7 @@ router.put('/academic_year/:id', async (req, res) => {
 
     // Check if start_year is earlier than end_year
     if (start_year >= end_year) {
-        return res.status(400).json({ error: 'The start year must be earlier than end_year' });
+        return res.status(400).json({ error: 'The start year must be earlier than end year' });
     }
 
     // Check if the duration is exactly 1 year
