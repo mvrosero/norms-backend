@@ -5,6 +5,18 @@ const csv = require('csv-parser');
 const db = require('../app/configuration/database');
 const bcrypt = require('bcrypt'); // Make sure to import bcrypt
 const router = express.Router();
+const cors = require('cors');
+
+
+// Use CORS middleware
+const corsOptions = {
+    origin: 'https://norms-frontend.vercel.app',  // Replace with your frontend URL
+    methods: 'GET,POST,PUT,DELETE',  // Allow specific methods
+    allowedHeaders: 'Content-Type, Authorization',  // Allow specific headers
+};
+router.use(cors(corsOptions));
+
+
 
 // Multer setup for file uploads
 const upload = multer({ dest: 'uploads/' });
