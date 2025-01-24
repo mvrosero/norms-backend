@@ -14,148 +14,160 @@ const secretKey = 'your_secret_key'; // Change to your actual secret key
 
 /* POST: Import Employee CSV */
 router.post("/importcsv-employee", upload.single("file"), async (req, res) => {
+    const results = [];
+
     try {
-        if (!req.file) {
-            return res.status(400).json({ error: "No CSV file uploaded" });
-        }
+        fs.createReadStream(req.file.path)
+            .pipe(csv())
+            .on("data", (data) => {
+                console.log("Parsed data:", data);
 
-        const results = [];
+                const { employee_idnumber, first_name, last_name, email, password, created_by, role_code } = data;
 
-        // Parse the CSV file
-        const parseCsv = () =>
-            new Promise((resolve, reject) => {
-                fs.createReadStream(req.file.path)
-                    .pipe(csv())
-                    .on("data", (data) => {
-                        const { employee_idnumber, first_name, last_name, email, password, created_by, role_code } = data;
-
-                        // Validate required fields
-                        if (!employee_idnumber || !first_name || !last_name || !email || !password || !created_by || !role_code) {
-                            console.warn(`Missing required fields for record: ${JSON.stringify(data)}`);
-                            return; // Skip invalid record
-                        }
-
-                        results.push({
-                            employee_idnumber,
-                            first_name,
-                            middle_name: data.middle_name || "",
-                            last_name,
-                            suffix: data.suffix || "",
-                            birthdate: data.birthdate || null,
-                            email,
-                            password,
-                            created_by,
-                            role_code,
-                        });
-                    })
-                    .on("end", () => resolve(results))
-                    .on("error", (error) => reject(error));
-            });
-
-        await parseCsv();
-
-        if (results.length === 0) {
-            console.warn("No valid records found in the CSV file");
-            return res.status(400).json({ error: "No valid employee records found in CSV" });
-        }
-
-        // Check and enrich records with role_id and created_by validation
-        const enrichedRecords = await Promise.all(
-            results.map(async (record) => {
-                const [role] = await db
-                    .promise()
-                    .query("SELECT role_id FROM role WHERE role_code = ?", [record.role_code]);
-
-                if (!role.length) {
-                    console.warn(`Role with code ${record.role_code} not found. Skipping record.`);
-                    return null; // Skip record if role_code is invalid
+                // Check for missing fields
+                if (!employee_idnumber || !first_name || !last_name || !email || !password || !created_by || !role_code) {
+                    console.warn(`Missing required fields for record: ${JSON.stringify(data)}`);
+                    return;
                 }
 
-                const [creator] = await db
-                    .promise()
-                    .query("SELECT user_id FROM user WHERE user_id = ?", [record.created_by]);
+                console.log(`Valid record found: ${JSON.stringify(data)}`);
 
-                if (!creator.length) {
-                    console.warn(`Creator ID ${record.created_by} not found. Skipping record.`);
-                    return null; // Skip record if creator is invalid
-                }
-
-                return {
-                    ...record,
-                    role_id: role[0].role_id,
-                };
+                results.push({
+                    employee_idnumber,
+                    first_name,
+                    middle_name: data.middle_name || "",
+                    last_name,
+                    suffix: data.suffix || "",
+                    birthdate: data.birthdate || null,
+                    email,
+                    password,
+                    created_by,
+                    role_code,
+                });
             })
-        );
+            .on("end", async () => {
+                console.log(`Total parsed records: ${results.length}`);
+                if (results.length === 0) {
+                    console.warn("No valid records found in results:", results);
+                    return res.status(400).json({ error: "No valid employee records found in CSV" });
+                }
 
-        const validRecords = enrichedRecords.filter((record) => record !== null);
+                const validRecords = [];
+                const invalidRecords = [];
 
-        if (validRecords.length === 0) {
-            console.warn("No valid records after enrichment");
-            return res.status(400).json({ error: "No valid employee records found in CSV" });
-        }
+                // Validate role and creator for each record
+                for (const record of results) {
+                    const [role] = await db
+                        .promise()
+                        .query("SELECT role_id FROM role WHERE role_code = ?", [record.role_code]);
 
-        // Check for duplicates
-        const duplicateChecks = await Promise.all(
-            validRecords.map((record) =>
-                db
-                    .promise()
-                    .query("SELECT * FROM user WHERE employee_idnumber = ? OR email = ?", [
-                        record.employee_idnumber,
-                        record.email,
-                    ])
-            )
-        );
+                    if (!role.length) {
+                        console.warn(`Role with code ${record.role_code} not found.`);
+                        invalidRecords.push({ record, reason: `Role code ${record.role_code} not found.` });
+                        continue; // Skip if role_id is not found
+                    }
 
-        const nonDuplicateRecords = validRecords.filter((record, index) => {
-            const [existingEmployee] = duplicateChecks[index];
-            if (existingEmployee.length > 0) {
-                console.warn(
-                    `Duplicate entry found: ${
-                        existingEmployee[0].employee_idnumber === record.employee_idnumber
-                            ? "employee ID number"
-                            : "email"
-                    } already exists. Skipping record: ${JSON.stringify(record)}`
+                    const role_id = role[0].role_id;
+
+                    const [creator] = await db
+                        .promise()
+                        .query("SELECT user_id FROM user WHERE user_id = ?", [record.created_by]);
+
+                    if (!creator.length) {
+                        console.warn(`Creator ID ${record.created_by} not found. Skipping record.`);
+                        invalidRecords.push({ record, reason: `Creator ID ${record.created_by} not found.` });
+                        continue;
+                    }
+
+                    validRecords.push({ ...record, role_id });
+                }
+
+                if (validRecords.length === 0) {
+                    return res.status(400).json({
+                        error: "All records are invalid.",
+                        details: invalidRecords,
+                    });
+                }
+
+                // Check for duplicates
+                const duplicateErrors = [];
+                const nonDuplicateRecords = [];
+
+                await Promise.all(
+                    validRecords.map(async (record) => {
+                        const [existingEmployee] = await db
+                            .promise()
+                            .query("SELECT * FROM user WHERE employee_idnumber = ? OR email = ?", [
+                                record.employee_idnumber,
+                                record.email,
+                            ]);
+
+                        if (existingEmployee.length > 0) {
+                            duplicateErrors.push({
+                                record,
+                                reason: `${
+                                    existingEmployee[0].employee_idnumber === record.employee_idnumber
+                                        ? `Employee ID number ${record.employee_idnumber}`
+                                        : `Email ${record.email}`
+                                } already exists.`,
+                            });
+                        } else {
+                            nonDuplicateRecords.push(record);
+                        }
+                    })
                 );
-                return false;
-            }
-            return true;
-        });
 
-        if (nonDuplicateRecords.length === 0) {
-            return res.status(400).json({ error: "All records are duplicates or invalid" });
-        }
+                // If there are duplicates, display specific errors
+                if (duplicateErrors.length > 0) {
+                    return res.status(400).json({
+                        error: "Duplicate records found.",
+                        details: duplicateErrors.map((error) => ({
+                            record: error.record,
+                            reason: error.reason,
+                        })),
+                    });
+                }
 
-        // Prepare data for insertion
-        const insertData = await Promise.all(
-            nonDuplicateRecords.map(async (record) => [
-                record.employee_idnumber,
-                record.first_name,
-                record.middle_name,
-                record.last_name,
-                record.suffix,
-                record.birthdate,
-                record.email,
-                await bcrypt.hash(record.password, 10),
-                record.created_by,
-                record.role_id,
-            ])
-        );
+                // Insert non-duplicate records into the database
+                const insertResults = [];
+                for (const record of nonDuplicateRecords) {
+                    const hashedPassword = await bcrypt.hash(record.password, 10);
+                    insertResults.push([
+                        record.employee_idnumber,
+                        record.first_name,
+                        record.middle_name,
+                        record.last_name,
+                        record.suffix,
+                        record.birthdate,
+                        record.email,
+                        hashedPassword,
+                        record.created_by,
+                        record.role_id,
+                    ]);
+                }
 
-        // Insert records into the database
-        const insertQuery = `
-            INSERT INTO user 
-            (employee_idnumber, first_name, middle_name, last_name, suffix, birthdate, email, password, created_by, role_id) 
-            VALUES ?
-        `;
-        await db.promise().query(insertQuery, [insertData]);
+                if (insertResults.length === 0) {
+                    return res.status(400).json({ error: "No valid employee records to insert." });
+                }
 
-        res.status(201).json({ message: "Employees registered successfully" });
+                const insertEmployeeQuery = `
+                    INSERT INTO user 
+                    (employee_idnumber, first_name, middle_name, last_name, suffix, birthdate, email, password, created_by, role_id) 
+                    VALUES ?
+                `;
+                await db.promise().query(insertEmployeeQuery, [insertResults]);
+
+                res.status(201).json({ message: "Employees registered successfully" });
+            })
+            .on("error", (error) => {
+                console.error("Error parsing CSV:", error);
+                res.status(500).json({ error: error.message || "Failed to parse CSV file" });
+            });
     } catch (error) {
         console.error("Error registering employees:", error);
-        res.status(500).json({ error: "Internal Server Error" });
+        res.status(500).json({ error: error.message || "Internal Server Error" });
     }
 });
-    
 
     
 
