@@ -92,7 +92,7 @@ router.post("/importcsv-employee", upload.single("file"), async (req, res) => {
                             continue;
                         }
 
-                        // Step 3: Check for duplicate email or employee_idnumber
+                        // Step 3: Check for duplicate employee_idnumber or email
                         const [existingEmployee] = await db
                             .promise()
                             .query(
@@ -111,7 +111,7 @@ router.post("/importcsv-employee", upload.single("file"), async (req, res) => {
                         const hashedPassword = await bcrypt.hash(record.password, 10);
 
                         // Step 5: Prepare the record for insertion
-                        insertResults.push([
+                        insertResults.push([ 
                             record.employee_idnumber,
                             record.first_name,
                             record.middle_name,
