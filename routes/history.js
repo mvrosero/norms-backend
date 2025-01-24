@@ -105,95 +105,28 @@ router.get('/histories', (req, res) => {
 
 
 
+/* Get student account history */
+router.get('/account-history/:student_idnumber', (req, res) => {
+    let student_idnumber = req.params.student_idnumber;
 
-
-
-// Get: histories for a specific user
-router.get('/histories/:user_id', (req, res) => {
-    const { user_id } = req.params;
-    try {
-        const query = `
-            SELECT 
-                user_history.history_id, 
-                CONCAT(user.first_name, ' ', user.last_name, ' ', user.suffix) AS user,
-                user_history.user_id, 
-                user_history.old_department_id, 
-                old_department.department_name AS old_department_name, 
-                user_history.new_department_id, 
-                new_department.department_name AS new_department_name, 
-                user_history.old_program_id, 
-                old_program.program_name AS old_program_name, 
-                user_history.new_program_id, 
-                new_program.program_name AS new_program_name, 
-                user_history.old_year_level, 
-                user_history.new_year_level, 
-                user_history.old_status, 
-                user_history.new_status, 
-                user_history.old_batch, 
-                user_history.new_batch, 
-                user_history.old_role_id, 
-                old_role.role_name AS old_role_name, 
-                user_history.new_role_id, 
-                new_role.role_name AS new_role_name, 
-                user_history.changed_at, 
-                user_history.updated_by, 
-                CONCAT(updated_by.first_name, ' ', updated_by.last_name, ' ', updated_by.suffix) AS updated_by
-            FROM 
-                user_history
-            LEFT JOIN department AS old_department ON user_history.old_department_id = old_department.department_id
-            LEFT JOIN department AS new_department ON user_history.new_department_id = new_department.department_id
-            LEFT JOIN program AS old_program ON user_history.old_program_id = old_program.program_id
-            LEFT JOIN program AS new_program ON user_history.new_program_id = new_program.program_id
-            LEFT JOIN role AS old_role ON user_history.old_role_id = old_role.role_id
-            LEFT JOIN role AS new_role ON user_history.new_role_id = new_role.role_id
-            LEFT JOIN user ON user_history.user_id = user.user_id
-            LEFT JOIN user AS updated_by ON user_history.updated_by = updated_by.user_id
-            WHERE user_history.user_id = ?
-            ORDER BY user_history.changed_at DESC
-        `;
-        
-        db.query(query, [user_id], (err, result) => {
-            if (err) {
-                console.error('Error fetching histories:', err);
-                res.status(500).json({ message: 'Internal Server Error' });
-            } else {
-                res.status(200).json(result);
-            }
-        });
-    } catch (error) {
-        console.error('Error loading histories:', error);
-        res.status(500).json({ error: 'Internal Server Error' });
-    }
-});
-
-
-
-
-
-/* Get account history for any user (student or employee) */
-router.get('/account-history/:user_id', (req, res) => {
-    let user_id = req.params.user_id;
-
-    if (!user_id) {
-        return res.status(400).send({ error: true, message: 'Please provide user_id' });
+    if (!student_idnumber) {
+        return res.status(400).send({ error: true, message: 'Please provide student_idnumber' });
     }
 
     try {
         db.query(
             `SELECT 
-                u.user_id,
-                u.student_idnumber,
-                u.employee_idnumber,
-                u.created_at,
-                u.last_updated,
+                u.student_idnumber, 
+                u.created_at, 
+                u.last_updated, 
                 CONCAT(c.first_name, ' ', c.middle_name, ' ', c.last_name, ' ', c.suffix) AS created_by
              FROM user u
              LEFT JOIN user c ON u.created_by = c.user_id
-             WHERE u.user_id = ?`,
-            user_id,
+             WHERE u.student_idnumber = ?`,
+            student_idnumber,
             (err, result) => {
                 if (err) {
-                    console.error('Error fetching user:', err);
+                    console.error('Error fetching student:', err);
                     res.status(500).json({ message: 'Internal Server Error' });
                 } else {
                     res.status(200).json(result);
@@ -201,7 +134,44 @@ router.get('/account-history/:user_id', (req, res) => {
             }
         );
     } catch (error) {
-        console.error('Error loading user:', error);
+        console.error('Error loading student:', error);
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
+
+
+
+
+/* Get employee account history */
+router.get('/accounthistory/:employee_idnumber', (req, res) => {
+    let employee_idnumber = req.params.employee_idnumber;
+
+    if (!employee_idnumber) {
+        return res.status(400).send({ error: true, message: 'Please provide employee_idnumber' });
+    }
+
+    try {
+        db.query(
+            `SELECT 
+                u.employee_idnumber, 
+                u.created_at, 
+                u.last_updated, 
+                CONCAT(c.first_name, ' ', c.middle_name, ' ', c.last_name, ' ', c.suffix) AS created_by
+             FROM user u
+             LEFT JOIN user c ON u.created_by = c.user_id
+             WHERE u.employee_idnumber = ?`,
+            employee_idnumber,
+            (err, result) => {
+                if (err) {
+                    console.error('Error fetching student:', err);
+                    res.status(500).json({ message: 'Internal Server Error' });
+                } else {
+                    res.status(200).json(result);
+                }
+            }
+        );
+    } catch (error) {
+        console.error('Error loading employee:', error);
         res.status(500).json({ error: 'Internal Server Error' });
     }
 });
@@ -210,8 +180,6 @@ router.get('/account-history/:user_id', (req, res) => {
 
 
 
-
-/* GET: Export all user histories to CSV */
 /* GET: Export all user histories to CSV */
 router.get('/histories/export', async (req, res) => {
     try {
@@ -305,7 +273,6 @@ router.get('/histories/export', async (req, res) => {
         res.status(500).json({ error: 'Internal Server Error' });
     }
 });
-
 
 
 
