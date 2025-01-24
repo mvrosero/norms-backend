@@ -13,10 +13,12 @@ const secretKey = 'your_secret_key'; // Change to your actual secret key
 
 
 /* POST: Import Employee CSV */
+/* POST: Import Employee CSV */
 router.post("/importcsv-employee", upload.single("file"), async (req, res) => {
     const results = [];
 
     try {
+        // Parse the CSV file
         fs.createReadStream(req.file.path)
             .pipe(csv())
             .on("data", (data) => {
@@ -30,7 +32,7 @@ router.post("/importcsv-employee", upload.single("file"), async (req, res) => {
                     role_code,
                 } = data;
 
-                // Check for missing fields
+                // Check for missing required fields
                 if (
                     !employee_idnumber ||
                     !first_name ||
@@ -41,11 +43,14 @@ router.post("/importcsv-employee", upload.single("file"), async (req, res) => {
                     !role_code
                 ) {
                     console.warn(
-                        `Missing required fields for record: ${JSON.stringify(data)}`
+                        `Skipping record due to missing required fields: ${JSON.stringify(
+                            data
+                        )}`
                     );
-                    return; // Skip this record if any required field is missing
+                    return; // Skip this record
                 }
 
+                // Add to results
                 results.push({
                     employee_idnumber,
                     first_name,
@@ -60,11 +65,19 @@ router.post("/importcsv-employee", upload.single("file"), async (req, res) => {
                 });
             })
             .on("end", async () => {
+                console.log(`Total records parsed: ${results.length}`);
+
+                if (results.length === 0) {
+                    return res
+                        .status(400)
+                        .json({ error: "No valid employee records found in the CSV." });
+                }
+
                 try {
                     const insertResults = [];
 
                     for (const record of results) {
-                        // Step 1: Map role_code to role_id
+                        // Step 1: Fetch role_id
                         const [role] = await db
                             .promise()
                             .query("SELECT role_id FROM role WHERE role_code = ?", [
@@ -72,8 +85,10 @@ router.post("/importcsv-employee", upload.single("file"), async (req, res) => {
                             ]);
 
                         if (!role.length) {
-                            console.warn(`Role with code ${record.role_code} not found.`);
-                            continue; // Skip if role_id is not found
+                            console.warn(
+                                `Role with code ${record.role_code} not found. Skipping record.`
+                            );
+                            continue; // Skip this record
                         }
 
                         const role_id = role[0].role_id;
@@ -89,10 +104,10 @@ router.post("/importcsv-employee", upload.single("file"), async (req, res) => {
                             console.warn(
                                 `Creator ID ${record.created_by} not found. Skipping record.`
                             );
-                            continue;
+                            continue; // Skip this record
                         }
 
-                        // Step 3: Check for duplicate employee_idnumber or email
+                        // Step 3: Check for duplicate email or employee_idnumber
                         const [existingEmployee] = await db
                             .promise()
                             .query(
@@ -104,14 +119,14 @@ router.post("/importcsv-employee", upload.single("file"), async (req, res) => {
                             console.warn(
                                 `Duplicate entry found for employee ID: ${record.employee_idnumber} or email: ${record.email}. Skipping record.`
                             );
-                            continue;
+                            continue; // Skip this record
                         }
 
                         // Step 4: Hash password
                         const hashedPassword = await bcrypt.hash(record.password, 10);
 
-                        // Step 5: Prepare the record for insertion
-                        insertResults.push([ 
+                        // Step 5: Add the record to insertResults
+                        insertResults.push([
                             record.employee_idnumber,
                             record.first_name,
                             record.middle_name,
@@ -131,7 +146,7 @@ router.post("/importcsv-employee", upload.single("file"), async (req, res) => {
                             .json({ error: "No valid records to insert." });
                     }
 
-                    // Step 6: Insert records into the database
+                    // Step 6: Insert valid records into the database
                     const insertEmployeeQuery = `
                         INSERT INTO user 
                         (employee_idnumber, first_name, middle_name, last_name, suffix, birthdate, email, password, created_by, role_id) 
@@ -143,13 +158,13 @@ router.post("/importcsv-employee", upload.single("file"), async (req, res) => {
                         message: `${insertResults.length} employees registered successfully.`,
                     });
                 } catch (error) {
-                    console.error("Error processing CSV data:", error);
-                    res.status(500).json({ error: "Failed to process CSV data." });
+                    console.error("Error processing records:", error);
+                    res.status(500).json({ error: "Failed to process records." });
                 }
             })
             .on("error", (error) => {
-                console.error("Error parsing CSV:", error);
-                res.status(500).json({ error: "Failed to parse CSV file." });
+                console.error("Error reading the CSV file:", error);
+                res.status(500).json({ error: "Failed to read the CSV file." });
             });
     } catch (error) {
         console.error("Error registering employees:", error);
