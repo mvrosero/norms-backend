@@ -2,6 +2,7 @@ const express = require('express');
 const fs = require('fs');
 const db = require('../app/configuration/database');
 const bcrypt = require('bcrypt');
+const moment = require('moment'); 
 const csv = require('csv-parser');
 const multer = require('multer');
 const jwt = require('jsonwebtoken'); // Import jsonwebtoken
@@ -533,6 +534,14 @@ router.put('/employee/:id', async (req, res) => {
             return res.status(400).json({ error: 'Password must be at least 3 characters.' });
         }
 
+        // Inside your PUT route, before updating the user
+        let formattedBirthdate = birthdate;
+
+        // Check if the birthdate is an ISO string, and convert it to 'YYYY-MM-DD'
+        if (formattedBirthdate && typeof formattedBirthdate === 'string') {
+            formattedBirthdate = moment(formattedBirthdate).format('YYYY-MM-DD');
+}
+
         let hashedPassword = null;
         if (password) {
             try {
@@ -601,11 +610,6 @@ router.put('/employee/:id', async (req, res) => {
                 );
             }
             
-
-           
-            
-                   
-
                     // Update the user table with new values
                     const updates = [
                         'employee_idnumber = ?',
@@ -625,7 +629,7 @@ router.put('/employee/:id', async (req, res) => {
                         middle_name,
                         last_name,
                         suffix,
-                        birthdate,
+                        formattedBirthdate,
                         email,
                         role_id,
                         status
