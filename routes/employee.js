@@ -533,15 +533,6 @@ router.put('/employee/:id', async (req, res) => {
         if (password && password.length < 3) {
             return res.status(400).json({ error: 'Password must be at least 3 characters.' });
         }
-
-        // Inside your PUT route, before updating the user
-        let formattedBirthdate = birthdate;
-
-        // Check if the birthdate is an ISO string, and convert it to 'YYYY-MM-DD'
-        if (formattedBirthdate && typeof formattedBirthdate === 'string') {
-            formattedBirthdate = moment(formattedBirthdate).format('YYYY-MM-DD');
-}
-
         let hashedPassword = null;
         if (password) {
             try {
@@ -550,6 +541,12 @@ router.put('/employee/:id', async (req, res) => {
                 console.error('Error hashing password:', error);
                 return res.status(500).json({ message: 'Error hashing password. Please try again.' });
             }
+        }
+
+        // Format the birthdate to 'YYYY-MM-DD'
+        let formattedBirthdate = birthdate;
+        if (formattedBirthdate && typeof formattedBirthdate === 'string') {
+            formattedBirthdate = moment(formattedBirthdate).format('YYYY-MM-DD');
         }
 
         // Fetch the current role and status for user history

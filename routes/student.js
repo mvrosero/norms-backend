@@ -2,6 +2,7 @@ const express = require('express');
 const fs = require('fs');
 const db = require('../app/configuration/database');
 const bcrypt = require('bcrypt');
+const moment = require('moment'); 
 const csv = require('csv-parser');
 const jwt = require('jsonwebtoken'); // Import jsonwebtoken
 const secretKey = 'your_secret_key'; // Change to your actual secret key
@@ -590,6 +591,12 @@ router.put('/student/:id', async (req, res) => {
             console.error('Error hashing password:', error);
             return res.status(500).json({ message: 'Error hashing password. Please try again.' });
         }
+    }
+
+    // Format the birthdate to 'YYYY-MM-DD'
+    let formattedBirthdate = birthdate;
+    if (formattedBirthdate && typeof formattedBirthdate === 'string') {
+        formattedBirthdate = moment(formattedBirthdate).format('YYYY-MM-DD');
     }
 
     try {
