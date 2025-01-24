@@ -213,112 +213,110 @@ router.get('/account-history/:user_id', (req, res) => {
 
 /* GET: Export all user histories to CSV */
 router.get('/histories/export', async (req, res) => {
-        try {
-            console.log('Executing query...');
-            const [rows] = await db.promise().query(`
-                SELECT 
-                    user_history.history_id, 
-                    DATE_FORMAT(user_history.changed_at, '%Y-%m-%d, %l:%i:%s %p') AS changed_at, 
-                    CONCAT(user.first_name, ' ', user.last_name, ' ', user.suffix) AS user,
-                    user_history.user_id, 
-                    user_history.old_department_id, 
-                    old_department.department_name AS old_department_name, 
-                    user_history.new_department_id, 
-                    new_department.department_name AS new_department_name, 
-                    user_history.old_program_id, 
-                    old_program.program_name AS old_program_name, 
-                    user_history.new_program_id, 
-                    new_program.program_name AS new_program_name, 
-                    user_history.old_year_level, 
-                    user_history.new_year_level, 
-                    user_history.old_status, 
-                    user_history.new_status, 
-                    user_history.old_batch, 
-                    user_history.new_batch, 
-                    user_history.old_role_id, 
-                    old_role.role_name AS old_role_name, 
-                    user_history.new_role_id, 
-                    new_role.role_name AS new_role_name, 
-                    user_history.updated_by, 
-                    CONCAT(updated_by.first_name, ' ', updated_by.last_name, ' ', updated_by.suffix) AS updated_by
-                FROM 
-                    user_history
-                LEFT JOIN department AS old_department ON user_history.old_department_id = old_department.department_id
-                LEFT JOIN department AS new_department ON user_history.new_department_id = new_department.department_id
-                LEFT JOIN program AS old_program ON user_history.old_program_id = old_program.program_id
-                LEFT JOIN program AS new_program ON user_history.new_program_id = new_program.program_id
-                LEFT JOIN role AS old_role ON user_history.old_role_id = old_role.role_id
-                LEFT JOIN role AS new_role ON user_history.new_role_id = new_role.role_id
-                LEFT JOIN user ON user_history.user_id = user.user_id
-                LEFT JOIN user AS updated_by ON user_history.updated_by = updated_by.user_id
-            `);
-    
-            if (rows.length === 0) {
-                return res.status(404).json({ message: 'No records found' });
-            }
-    
-            // Sanitize rows
-            const sanitizedRows = rows.map(row => {
-                Object.keys(row).forEach(key => {
-                    if (row[key] === null || row[key] === undefined) {
-                        row[key] = ''; // Replace null/undefined with an empty string
-                    }
-                });
-                return row;
-            });
-            
-    
-            console.log('Sanitized rows:', sanitizedRows);
-    
-            // Define CSV fields
-            const fields = [
-                { label: 'History ID', value: 'history_id' },
-                { label: 'Changed At', value: 'changed_at' },
-                { label: 'User', value: 'user' },
-                { label: 'Old Department', value: 'old_department_name' },
-                { label: 'New Department', value: 'new_department_name' },
-                { label: 'Old Program', value: 'old_program_name' },
-                { label: 'New Program', value: 'new_program_name' },
-                { label: 'Old Year Level', value: 'old_year_level' },
-                { label: 'New Year Level', value: 'new_year_level' },
-                { label: 'Old Status', value: 'old_status' },
-                { label: 'New Status', value: 'new_status' },
-                { label: 'Old Batch', value: 'old_batch' },
-                { label: 'New Batch', value: 'new_batch' },
-                { label: 'Old Role', value: 'old_role_name' },
-                { label: 'New Role', value: 'new_role_name' },
-                { label: 'Updated By', value: 'updated_by' },
-            ];
-    
-            // Convert rows to CSV
-            const csv = parse(sanitizedRows, { fields, quote: '"' });
-    
-            // Generate a temporary file path
-            const filePath = path.join(__dirname, '..', 'exports', `user_histories.csv`);
-    
-            // Write CSV to a file
-            fs.writeFileSync(filePath, csv);
-    
-            // Send the file to the client
-            res.download(filePath, `user_histories.csv`, (err) => {
-                if (err) {
-                    console.error('Error sending file:', err);
-                    res.status(500).send({ error: 'Error exporting CSV file' });
-                }
-    
-                // Delete the file after sending it
-                fs.unlink(filePath, (unlinkErr) => {
-                    if (unlinkErr) {
-                        console.error('Error deleting temporary file:', unlinkErr);
-                    }
-                });
-            });
-        } catch (error) {
-            console.error('Error exporting user histories:', error);
-            res.status(500).json({ error: 'Internal Server Error' });
+    try {
+        console.log('Executing query...');
+        const [rows] = await db.promise().query(`
+            SELECT 
+                user_history.history_id, 
+                DATE_FORMAT(user_history.changed_at, '%Y-%m-%d, %l:%i:%s %p') AS changed_at, 
+                CONCAT(user.first_name, ' ', user.last_name, ' ', user.suffix) AS user,
+                user_history.user_id, 
+                user_history.old_department_id, 
+                old_department.department_name AS old_department_name, 
+                user_history.new_department_id, 
+                new_department.department_name AS new_department_name, 
+                user_history.old_program_id, 
+                old_program.program_name AS old_program_name, 
+                user_history.new_program_id, 
+                new_program.program_name AS new_program_name, 
+                user_history.old_year_level, 
+                user_history.new_year_level, 
+                user_history.old_status, 
+                user_history.new_status, 
+                user_history.old_batch, 
+                user_history.new_batch, 
+                user_history.old_role_id, 
+                old_role.role_name AS old_role_name, 
+                user_history.new_role_id, 
+                new_role.role_name AS new_role_name, 
+                user_history.updated_by, 
+                CONCAT(updated_by.first_name, ' ', updated_by.last_name, ' ', updated_by.suffix) AS updated_by
+            FROM 
+                user_history
+            LEFT JOIN department AS old_department ON user_history.old_department_id = old_department.department_id
+            LEFT JOIN department AS new_department ON user_history.new_department_id = new_department.department_id
+            LEFT JOIN program AS old_program ON user_history.old_program_id = old_program.program_id
+            LEFT JOIN program AS new_program ON user_history.new_program_id = new_program.program_id
+            LEFT JOIN role AS old_role ON user_history.old_role_id = old_role.role_id
+            LEFT JOIN role AS new_role ON user_history.new_role_id = new_role.role_id
+            LEFT JOIN user ON user_history.user_id = user.user_id
+            LEFT JOIN user AS updated_by ON user_history.updated_by = updated_by.user_id
+        `);
+
+        console.log('Query result:', rows);
+
+        if (rows.length === 0) {
+            return res.status(404).json({ message: 'No records found' });
         }
-    });
-    
+
+        // Sanitize rows
+        const sanitizedRows = rows.map(row => {
+            Object.keys(row).forEach(key => {
+                if (row[key] === null || row[key] === undefined) {
+                    row[key] = '';
+                }
+            });
+            return row;
+        });
+
+        // Define CSV fields
+        const fields = [
+            { label: 'History ID', value: 'history_id' },
+            { label: 'Changed At', value: 'changed_at' },
+            { label: 'User', value: 'user' },
+            { label: 'Old Department', value: 'old_department_name' },
+            { label: 'New Department', value: 'new_department_name' },
+            { label: 'Old Program', value: 'old_program_name' },
+            { label: 'New Program', value: 'new_program_name' },
+            { label: 'Old Year Level', value: 'old_year_level' },
+            { label: 'New Year Level', value: 'new_year_level' },
+            { label: 'Old Status', value: 'old_status' },
+            { label: 'New Status', value: 'new_status' },
+            { label: 'Old Batch', value: 'old_batch' },
+            { label: 'New Batch', value: 'new_batch' },
+            { label: 'Old Role', value: 'old_role_name' },
+            { label: 'New Role', value: 'new_role_name' },
+            { label: 'Updated By', value: 'updated_by' },
+        ];
+
+        // Convert to CSV
+        const csv = parse(sanitizedRows, { fields });
+        console.log('Generated CSV:', csv);
+
+        // Write to file
+        const filePath = path.join(__dirname, '..', 'exports', `user_histories.csv`);
+        fs.writeFileSync(filePath, csv);
+
+        // Send file to client
+        res.download(filePath, `user_histories.csv`, err => {
+            if (err) {
+                console.error('Error sending file:', err);
+                res.status(500).send({ error: 'Error exporting CSV file' });
+            }
+
+            // Delete the file
+            fs.unlink(filePath, unlinkErr => {
+                if (unlinkErr) {
+                    console.error('Error deleting temporary file:', unlinkErr);
+                }
+            });
+        });
+    } catch (error) {
+        console.error('Error exporting user histories:', error);
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
+
 
 
 
