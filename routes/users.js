@@ -104,6 +104,20 @@ router.post('/importcsv-departmental/:department_code', upload.single('file'), a
                     }
 
                     const hashedPassword = await bcrypt.hash(record.password, 10);
+
+                    // Check for duplicate student_idnumber or email (Gmail)
+                    const [existingStudent] = await db.promise().query(`
+                        SELECT * FROM user WHERE student_idnumber = ? OR email = ?
+                    `, [record.student_idnumber, record.email]);
+
+                    if (existingStudent.length > 0) {
+                        return res.status(400).json({
+                            error: `Duplicate entry found: ${
+                                existingStudent[0].student_idnumber === record.student_idnumber ? 'student ID number' : 'email'
+                            } already exists.`
+                        });
+                    }
+
                     insertResults.push([
                         record.student_idnumber,
                         record.first_name,
