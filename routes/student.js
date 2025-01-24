@@ -682,7 +682,7 @@ router.put('/student/:id', async (req, res) => {
 
             const values = [
                 student_idnumber,
-                birthdate,
+                formattedBirthdate,
                 first_name,
                 middle_name,
                 last_name,
