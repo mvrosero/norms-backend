@@ -252,6 +252,7 @@ router.get('/histories/export', async (req, res) => {
             LEFT JOIN user ON user_history.user_id = user.user_id
             LEFT JOIN user AS updated_by ON user_history.updated_by = updated_by.user_id
         `);
+        console.log('Rows:', rows);
 
         if (rows.length === 0) {
             return res.status(404).json({ message: 'No records found' });
@@ -281,8 +282,7 @@ router.get('/histories/export', async (req, res) => {
         const csv = parse(rows, { fields });
 
         // Generate a temporary file path
-        const tempDir = os.tmpdir();
-        const filePath = path.join(tempDir, `user_histories_${Date.now()}.csv`);
+        const filePath = path.join(__dirname, '..', 'exports', `user_histories.csv`);
 
         // Write CSV to a file
         fs.writeFileSync(filePath, csv);
@@ -306,6 +306,7 @@ router.get('/histories/export', async (req, res) => {
         res.status(500).json({ error: 'Internal Server Error' });
     }
 });
+
 
 
 
