@@ -109,23 +109,29 @@ router.post('/importcsv-student', upload.single('file'), async (req, res) => {
                     return res.status(400).json({ error: 'No valid student records found in CSV' });
                 }
 
-                try {
-                    const insertStudentQuery = `
-                        INSERT INTO user 
-                        (student_idnumber, first_name, middle_name, last_name, suffix, birthdate, email, password, year_level, batch, department_id, program_id, role_id, created_by) 
-                        VALUES ?
-                    `;
-                    await db.promise().query(insertStudentQuery, [insertResults]);
-
-                    res.status(201).json({ message: 'Students registered successfully' });
-                } catch (dbError) {
-                    // Handle duplicate key error
-                    if (dbError.code === 'ER_DUP_ENTRY') {
-                        console.error('Duplicate entry error:', dbError.sqlMessage);
-                        return res.status(400).json({ error: 'Duplicate entry found: Check student ID number or email.' });
+                // Check for duplicate student records (by student_idnumber or email)
+                for (const record of insertResults) {
+                    const [existingStudent] = await db.promise().query(
+                        'SELECT * FROM user WHERE student_idnumber = ? OR email = ?',
+                        [record[0], record[6]]
+                    );
+                    if (existingStudent.length > 0) {
+                        return res.status(400).json({
+                            error: `Duplicate entry found: ${
+                                existingStudent[0].student_idnumber === record[0] ? 'student ID number' : 'email'
+                            } already exists.`
+                        });
                     }
-                    throw dbError; // Re-throw other errors
                 }
+
+                const insertStudentQuery = `
+                    INSERT INTO user 
+                    (student_idnumber, first_name, middle_name, last_name, suffix, birthdate, email, password, year_level, batch, department_id, program_id, role_id, created_by) 
+                    VALUES ?
+                `;
+                await db.promise().query(insertStudentQuery, [insertResults]);
+
+                res.status(201).json({ message: 'Students registered successfully' });
             })
             .on('error', (error) => {
                 console.error('Error parsing CSV:', error);
@@ -136,6 +142,8 @@ router.post('/importcsv-student', upload.single('file'), async (req, res) => {
         res.status(500).json({ error: error.message || 'Internal Server Error' });
     }
 });
+
+
 
 
 
@@ -880,6 +888,7 @@ router.put('/students', async (req, res) => {
         res.status(500).json({ error: 'Internal Server Error' });
     }
 });
+
 
 
 
