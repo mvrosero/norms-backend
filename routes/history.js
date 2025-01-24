@@ -258,7 +258,7 @@ router.get('/histories/export', async (req, res) => {
             return res.status(404).json({ message: 'No records found' });
         }
 
-        // Define CSV fields
+        // Define CSV fields 
         const fields = [
             { label: 'History ID', value: 'history_id' },
             { label: 'Changed At', value: 'changed_at' },
