@@ -424,89 +424,90 @@ router.get('/violation-records/year-level', (req, res) => {
 
 // Route for getting violation record totals by week (days of the week), month, and year
 router.get('/violation-records/totals', (req, res) => {
-    const { start_date, end_date } = req.query;
+  const { start_date, end_date } = req.query;
 
-    // Base query condition for date filtering
-    let dateCondition = '';
-    const queryParams = [];
+  // Base query condition for date filtering
+  let dateCondition = '';
+  const queryParams = [];
 
-    if (start_date) {
-        dateCondition += ' AND created_at >= ?';
-        queryParams.push(start_date);
-    }
+  if (start_date) {
+      dateCondition += ' AND created_at >= ?';
+      queryParams.push(start_date);
+  }
 
-    if (end_date) {
-        dateCondition += ' AND created_at <= ?';
-        queryParams.push(end_date);
-    }
+  if (end_date) {
+      dateCondition += ' AND created_at <= ?';
+      queryParams.push(end_date);
+  }
 
-    // Query to get daily totals (grouped by day of the week)
-    const dailyQuery = `
-      SELECT 
-        DAYNAME(created_at) AS day_of_week, 
-        COUNT(*) AS total
-      FROM violation_record
-      WHERE 1=1 ${dateCondition}  -- Make sure to start with "WHERE 1=1" to allow AND conditions
-      GROUP BY DAYOFWEEK(created_at)
-      ORDER BY FIELD(DAYOFWEEK(created_at), 1, 2, 3, 4, 5, 6, 7); -- This ensures the days are in correct order (Mon, Tue, etc.)
-    `;
-  
-    // Query to get monthly totals (grouped by month)
-    const monthlyQuery = `
-      SELECT 
-        MONTHNAME(created_at) AS month, 
-        COUNT(*) AS total
-      FROM violation_record
-      WHERE 1=1 ${dateCondition}  -- Make sure to start with "WHERE 1=1" to allow AND conditions
-      GROUP BY MONTH(created_at)
-      ORDER BY MONTH(created_at);
-    `;
-  
-    // Query to get yearly totals (grouped by year)
-    const yearlyQuery = `
-      SELECT 
-        YEAR(created_at) AS year, 
-        COUNT(*) AS total
-      FROM violation_record
-      WHERE 1=1 ${dateCondition}  -- Make sure to start with "WHERE 1=1" to allow AND conditions
-      GROUP BY YEAR(created_at)
-      ORDER BY YEAR(created_at);
-    `;
-  
-    // Run all queries in parallel
-    Promise.all([
-      new Promise((resolve, reject) => {
-        db.query(dailyQuery, queryParams, (err, dailyResults) => {
-          if (err) reject(err);
-          else resolve(dailyResults);
-        });
-      }),
-      new Promise((resolve, reject) => {
-        db.query(monthlyQuery, queryParams, (err, monthlyResults) => {
-          if (err) reject(err);
-          else resolve(monthlyResults);
-        });
-      }),
-      new Promise((resolve, reject) => {
-        db.query(yearlyQuery, queryParams, (err, yearlyResults) => {
-          if (err) reject(err);
-          else resolve(yearlyResults);
-        });
-      })
-    ])
-      .then(([dailyData, monthlyData, yearlyData]) => {
-        // Format the results into a structured response
-        res.json({
-          daily: dailyData,
-          monthly: monthlyData,
-          yearly: yearlyData,
-        });
-      })
-      .catch((error) => {
-        console.error('Error fetching data:', error);
-        res.status(500).json({ message: 'Error fetching data' });
+  // Query to get daily totals (grouped by day of the week)
+  const dailyQuery = `
+    SELECT 
+      DAYOFWEEK(created_at) AS day_of_week, 
+      COUNT(*) AS total
+    FROM violation_record
+    WHERE 1=1 ${dateCondition}  -- Make sure to start with "WHERE 1=1" to allow AND conditions
+    GROUP BY DAYOFWEEK(created_at)
+    ORDER BY DAYOFWEEK(created_at);  -- Ordering directly by the weekday number (1=Sun, 2=Mon, ...)
+  `;
+
+  // Query to get monthly totals (grouped by month)
+  const monthlyQuery = `
+    SELECT 
+      MONTH(created_at) AS month, 
+      COUNT(*) AS total
+    FROM violation_record
+    WHERE 1=1 ${dateCondition}  -- Make sure to start with "WHERE 1=1" to allow AND conditions
+    GROUP BY MONTH(created_at)
+    ORDER BY MONTH(created_at);  -- Ordering by month number
+  `;
+
+  // Query to get yearly totals (grouped by year)
+  const yearlyQuery = `
+    SELECT 
+      YEAR(created_at) AS year, 
+      COUNT(*) AS total
+    FROM violation_record
+    WHERE 1=1 ${dateCondition}  -- Make sure to start with "WHERE 1=1" to allow AND conditions
+    GROUP BY YEAR(created_at)
+    ORDER BY YEAR(created_at);  -- Ordering by year
+  `;
+
+  // Run all queries in parallel
+  Promise.all([    
+    new Promise((resolve, reject) => {
+      db.query(dailyQuery, queryParams, (err, dailyResults) => {
+        if (err) reject(err);
+        else resolve(dailyResults);
       });
+    }),
+    new Promise((resolve, reject) => {
+      db.query(monthlyQuery, queryParams, (err, monthlyResults) => {
+        if (err) reject(err);
+        else resolve(monthlyResults);
+      });
+    }),
+    new Promise((resolve, reject) => {
+      db.query(yearlyQuery, queryParams, (err, yearlyResults) => {
+        if (err) reject(err);
+        else resolve(yearlyResults);
+      });
+    })
+  ])
+    .then(([dailyData, monthlyData, yearlyData]) => {
+      // Format the results into a structured response
+      res.json({
+        daily: dailyData,
+        monthly: monthlyData,
+        yearly: yearlyData,
+      });
+    })
+    .catch((error) => {
+      console.error('Error fetching data:', error);
+      res.status(500).json({ message: 'Error fetching data' });
+    });
 });
+
 
 
 
@@ -542,42 +543,38 @@ router.get('/uniform-defiances/totals', (req, res) => {
       queryParams.push(formattedEndDate);
   }
 
-  // Query to get daily totals (grouped by day of the week)
-  const dailyQuery = `
-  SELECT 
-    DAYOFWEEK(created_at) AS day_of_week, 
-    COUNT(*) AS total
-  FROM uniform_defiance
-  WHERE 1=1 ${dateCondition}
-  GROUP BY DAYOFWEEK(created_at)
-  ORDER BY DAYOFWEEK(created_at);  -- Ordering directly by the weekday number
-`;
+      // Query to get daily totals (grouped by day of the week)
+      const dailyQuery = `
+      SELECT 
+        DAYOFWEEK(created_at) AS day_of_week, 
+        COUNT(*) AS total
+      FROM uniform_defiance
+      WHERE 1=1 ${dateCondition}
+      GROUP BY DAYOFWEEK(created_at)
+      ORDER BY DAYOFWEEK(created_at);  -- Ordering directly by the weekday number
+    `;
 
+      // Query to get monthly totals (grouped by month)
+      const monthlyQuery = `
+      SELECT 
+        MONTH(created_at) AS month, 
+        COUNT(*) AS total
+      FROM uniform_defiance
+      WHERE 1=1 ${dateCondition}
+      GROUP BY MONTH(created_at)
+      ORDER BY MONTH(created_at);  -- Ordering by month number
+    `;
 
-
-  // Query to get monthly totals (grouped by month)
-  const monthlyQuery = `
-  SELECT 
-    MONTH(created_at) AS month, 
-    COUNT(*) AS total
-  FROM uniform_defiance
-  WHERE 1=1 ${dateCondition}
-  GROUP BY MONTH(created_at)
-  ORDER BY MONTH(created_at);  -- Ordering by month number
-`;
-
-
-  // Query to get yearly totals (grouped by year)
-  const yearlyQuery = `
-  SELECT 
-    YEAR(created_at) AS year, 
-    COUNT(*) AS total
-  FROM uniform_defiance
-  WHERE 1=1 ${dateCondition}
-  GROUP BY YEAR(created_at)
-  ORDER BY YEAR(created_at);  -- Ordering by year
-`;
-
+      // Query to get yearly totals (grouped by year)
+      const yearlyQuery = `
+      SELECT 
+        YEAR(created_at) AS year, 
+        COUNT(*) AS total
+      FROM uniform_defiance
+      WHERE 1=1 ${dateCondition}
+      GROUP BY YEAR(created_at)
+      ORDER BY YEAR(created_at);  -- Ordering by year
+    `;
 
   // Run all queries in parallel
   Promise.all([  
