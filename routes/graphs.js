@@ -544,36 +544,37 @@ router.get('/uniform-defiances/totals', (req, res) => {
 
   // Query to get daily totals (grouped by day of the week)
   const dailyQuery = `
-    SELECT 
-      DAYNAME(created_at) AS day_of_week, 
-      COUNT(*) AS total
-    FROM uniform_defiance
-    WHERE 1=1 ${dateCondition}
-    GROUP BY DAYOFWEEK(created_at)
-    ORDER BY FIELD(DAYOFWEEK(created_at), 1, 2, 3, 4, 5, 6, 7); -- Ensures days are ordered from Mon to Sun
-  `;
+  SELECT 
+    DAYOFWEEK(created_at) AS day_of_week,  
+    COUNT(*) AS total
+  FROM uniform_defiance
+  WHERE 1=1 ${dateCondition}
+  GROUP BY DAYOFWEEK(created_at)
+  ORDER BY FIELD(DAYOFWEEK(created_at), 1, 2, 3, 4, 5, 6, 7);  -- Ensures days are ordered from Mon to Sun
+`;
+
 
   // Query to get monthly totals (grouped by month)
   const monthlyQuery = `
-    SELECT 
-      MONTHNAME(created_at) AS month, 
-      COUNT(*) AS total
-    FROM uniform_defiance
-    WHERE 1=1 ${dateCondition}
-    GROUP BY MONTH(created_at)
-    ORDER BY MONTH(created_at);
-  `;
+  SELECT 
+    MONTH(created_at) AS month, 
+    COUNT(*) AS total
+  FROM uniform_defiance
+  WHERE 1=1 ${dateCondition}
+  GROUP BY MONTH(created_at)
+  ORDER BY MONTH(created_at);
+`;
 
   // Query to get yearly totals (grouped by year)
   const yearlyQuery = `
-    SELECT 
-      YEAR(created_at) AS year, 
-      COUNT(*) AS total
-    FROM uniform_defiance
-    WHERE 1=1 ${dateCondition}
-    GROUP BY YEAR(created_at)
-    ORDER BY YEAR(created_at);
-  `;
+  SELECT 
+    YEAR(created_at) AS year,  
+    COUNT(*) AS total
+  FROM uniform_defiance
+  WHERE 1=1 ${dateCondition}
+  GROUP BY YEAR(created_at)
+  ORDER BY YEAR(created_at);
+`;
 
   // Run all queries in parallel
   Promise.all([  
