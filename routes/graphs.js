@@ -514,92 +514,122 @@ router.get('/violation-records/totals', (req, res) => {
 
 
 // Route for getting uniform defiance records totals by week (days of the week), month, and year
+// Route for getting uniform defiance records totals by week (days of the week), month, and year
 router.get('/uniform-defiances/totals', (req, res) => {
-    const { start_date, end_date } = req.query;
+  const { start_date, end_date } = req.query;
 
-    // Base query condition for date filtering
-    let dateCondition = '';
-    const queryParams = [];
+  // Base query condition for date filtering
+  let dateCondition = '';
+  const queryParams = [];
 
-    if (start_date) {
-        // Format the start date to 'YYYY-MM-DD' to ensure it matches the format of created_at
-        dateCondition += ' AND DATE(created_at) >= ?';
-        queryParams.push(start_date);  // assuming 'start_date' is in 'YYYY-MM-DD'
-    }
+  // Validate and format start_date if provided
+  if (start_date) {
+      const formattedStartDate = formatDate(start_date);
+      if (!formattedStartDate) {
+          return res.status(400).json({ message: 'Invalid start_date format. Use YYYY-MM-DD.' });
+      }
+      dateCondition += ' AND DATE(created_at) >= ?';
+      queryParams.push(formattedStartDate);
+  }
 
-    if (end_date) {
-        // Format the end date to 'YYYY-MM-DD' to ensure it matches the format of created_at
-        dateCondition += ' AND DATE(created_at) <= ?';
-        queryParams.push(end_date);  // assuming 'end_date' is in 'YYYY-MM-DD'
-    }
+  // Validate and format end_date if provided
+  if (end_date) {
+      const formattedEndDate = formatDate(end_date);
+      if (!formattedEndDate) {
+          return res.status(400).json({ message: 'Invalid end_date format. Use YYYY-MM-DD.' });
+      }
+      dateCondition += ' AND DATE(created_at) <= ?';
+      queryParams.push(formattedEndDate);
+  }
 
-    // Query to get daily totals (grouped by day of the week)
-    const dailyQuery = `
-      SELECT 
-        DAYNAME(created_at) AS day_of_week, 
-        COUNT(*) AS total
-      FROM uniform_defiance
-      WHERE 1=1 ${dateCondition}
-      GROUP BY DAYOFWEEK(created_at)
-      ORDER BY FIELD(DAYOFWEEK(created_at), 1, 2, 3, 4, 5, 6, 7); -- Ensures days are ordered from Mon to Sun
-    `;
-  
-    // Query to get monthly totals (grouped by month)
-    const monthlyQuery = `
-      SELECT 
-        MONTHNAME(created_at) AS month, 
-        COUNT(*) AS total
-      FROM uniform_defiance
-      WHERE 1=1 ${dateCondition}
-      GROUP BY MONTH(created_at)
-      ORDER BY MONTH(created_at);
-    `;
-  
-    // Query to get yearly totals (grouped by year)
-    const yearlyQuery = `
-      SELECT 
-        YEAR(created_at) AS year, 
-        COUNT(*) AS total
-      FROM uniform_defiance
-      WHERE 1=1 ${dateCondition}
-      GROUP BY YEAR(created_at)
-      ORDER BY YEAR(created_at);
-    `;
-  
-    // Run all queries in parallel
-    Promise.all([
-      new Promise((resolve, reject) => {
-        db.query(dailyQuery, queryParams, (err, dailyResults) => {
-          if (err) reject(err);
-          else resolve(dailyResults);
-        });
-      }),
-      new Promise((resolve, reject) => {
-        db.query(monthlyQuery, queryParams, (err, monthlyResults) => {
-          if (err) reject(err);
-          else resolve(monthlyResults);
-        });
-      }),
-      new Promise((resolve, reject) => {
-        db.query(yearlyQuery, queryParams, (err, yearlyResults) => {
-          if (err) reject(err);
-          else resolve(yearlyResults);
-        });
-      })
-    ])
-      .then(([dailyData, monthlyData, yearlyData]) => {
-        // Format the results into a structured response
-        res.json({
-          daily: dailyData,
-          monthly: monthlyData,
-          yearly: yearlyData,
-        });
-      })
-      .catch((error) => {
-        console.error('Error fetching data:', error);
-        res.status(500).json({ message: 'Error fetching data' });
+  // Query to get daily totals (grouped by day of the week)
+  const dailyQuery = `
+    SELECT 
+      DAYNAME(created_at) AS day_of_week, 
+      COUNT(*) AS total
+    FROM uniform_defiance
+    WHERE 1=1 ${dateCondition}
+    GROUP BY DAYOFWEEK(created_at)
+    ORDER BY FIELD(DAYOFWEEK(created_at), 1, 2, 3, 4, 5, 6, 7); -- Ensures days are ordered from Mon to Sun
+  `;
+
+  // Query to get monthly totals (grouped by month)
+  const monthlyQuery = `
+    SELECT 
+      MONTHNAME(created_at) AS month, 
+      COUNT(*) AS total
+    FROM uniform_defiance
+    WHERE 1=1 ${dateCondition}
+    GROUP BY MONTH(created_at)
+    ORDER BY MONTH(created_at);
+  `;
+
+  // Query to get yearly totals (grouped by year)
+  const yearlyQuery = `
+    SELECT 
+      YEAR(created_at) AS year, 
+      COUNT(*) AS total
+    FROM uniform_defiance
+    WHERE 1=1 ${dateCondition}
+    GROUP BY YEAR(created_at)
+    ORDER BY YEAR(created_at);
+  `;
+
+  // Run all queries in parallel
+  Promise.all([  
+    new Promise((resolve, reject) => {
+      db.query(dailyQuery, queryParams, (err, dailyResults) => {
+        if (err) {
+          console.error('Error executing daily query:', err);  // Log detailed error
+          reject(err);
+        } else {
+          resolve(dailyResults);
+        }
       });
+    }),
+    new Promise((resolve, reject) => {
+      db.query(monthlyQuery, queryParams, (err, monthlyResults) => {
+        if (err) {
+          console.error('Error executing monthly query:', err);  // Log detailed error
+          reject(err);
+        } else {
+          resolve(monthlyResults);
+        }
+      });
+    }),
+    new Promise((resolve, reject) => {
+      db.query(yearlyQuery, queryParams, (err, yearlyResults) => {
+        if (err) {
+          console.error('Error executing yearly query:', err);  // Log detailed error
+          reject(err);
+        } else {
+          resolve(yearlyResults);
+        }
+      });
+    })
+  ])
+  .then(([dailyData, monthlyData, yearlyData]) => {
+      // Format the results into a structured response
+      res.json({
+        daily: dailyData,
+        monthly: monthlyData,
+        yearly: yearlyData,
+      });
+    })
+    .catch((error) => {
+      console.error('Error fetching data:', error);
+      res.status(500).json({ message: 'Error fetching data', error: error.message });
+    });
 });
+
+// Helper function to validate and format the date
+function formatDate(dateStr) {
+  const regex = /^\d{4}-\d{2}-\d{2}$/;  // YYYY-MM-DD format
+  if (!regex.test(dateStr)) {
+      return null;
+  }
+  return dateStr;  // If valid, return the date as is
+}
 
 
 
