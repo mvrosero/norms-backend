@@ -214,7 +214,7 @@ router.get('/individual_violationrecords/:student_idnumber', async (req, res) =>
                 c.category_name,
                 o.offense_name,  -- Corrected alias for offense_name
                 s.semester_name,
-                ay.acadyear_name,
+                CONCAT(ay.start_year, ' - ', ay.end_year) AS academic_year,  -- Format academic year
                 sc.subcategory_name,
                 GROUP_CONCAT(DISTINCT sa.sanction_name) AS sanction_names
                 
@@ -241,7 +241,6 @@ router.get('/individual_violationrecords/:student_idnumber', async (req, res) =>
         res.status(500).json({ error: 'Internal Server Error' });
     }
 });
-
 
 
 
