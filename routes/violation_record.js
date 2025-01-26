@@ -50,7 +50,7 @@ router.post('/create-violationrecord', async (req, res) => {
         );
 
         // Ensure description doesn't exceed the maximum length
-        const maxDescriptionLength = 1000; // Set your desired length limit
+        const maxDescriptionLength = 5000; // Set your desired length limit
         if (description && description.length > maxDescriptionLength) {
             return res.status(400).json({ error: `Description exceeds the maximum length of ${maxDescriptionLength} characters` });
         }
@@ -123,6 +123,12 @@ router.post('/create-violationrecord/:student_idnumber', async (req, res) => {
                 [record_id, sanction_id]
             )
         );
+
+        // Ensure description doesn't exceed the maximum length
+        const maxDescriptionLength = 5000; // Set your desired length limit
+        if (description && description.length > maxDescriptionLength) {
+            return res.status(400).json({ error: `Description exceeds the maximum length of ${maxDescriptionLength} characters` });
+        }
 
         // Execute all sanction insertions in parallel
         await Promise.all(sanctionInsertPromises);
