@@ -82,19 +82,23 @@ router.get('/academic_year/:id', (req, res) => {
 /* GET: All academic years */
 router.get('/academic_years', (req, res) => {
     try {
-        db.query('SELECT * FROM academic_year', (err, result) => {
-            if (err) {
-                console.error('Error fetching academic years:', err);
-                res.status(500).json({ message: 'Internal Server Error' });
-            } else {
-                res.status(200).json(result);
+        db.query(
+            `SELECT *, CONCAT(start_year, ' - ', end_year) AS academic_year FROM academic_year`,
+            (err, result) => {
+                if (err) {
+                    console.error('Error fetching academic years:', err);
+                    res.status(500).json({ message: 'Internal Server Error' });
+                } else {
+                    res.status(200).json(result);
+                }
             }
-        });
+        );
     } catch (error) {
         console.error('Error loading academic years:', error);
         res.status(500).json({ error: 'Internal Server Error' });
     }
 });
+
 
 
 
