@@ -197,7 +197,7 @@ router.get('/individual_violationrecords/:student_idnumber', async (req, res) =>
 
         const user_id = userResult[0].user_id;
 
-        // Fetch all violation records linked to the user, only retaining the name fields
+        // Fetch all violation records linked to the user, retaining the sanction handling as it was
         const [violations] = await db.promise().query(`
             SELECT 
                 vr.created_at, 
@@ -205,19 +205,19 @@ router.get('/individual_violationrecords/:student_idnumber', async (req, res) =>
                 c.category_name,
                 o.offense_name, 
                 s.semester_name,
-                CONCAT(ay.start_year, ' - ', ay.end_year) AS academic_year,  -- Format academic year
+                CONCAT(ay.start_year, ' - ', ay.end_year) AS academic_year,  
                 sc.subcategory_name,
+                -- Handle multiple sanctions and single sanctions (sanction_id for one, sanction_ids for multiple)
                 GROUP_CONCAT(DISTINCT sa.sanction_name) AS sanction_names
-                
             FROM violation_record vr
             LEFT JOIN violation_user vu ON vr.record_id = vu.record_id
             LEFT JOIN violation_sanction vs ON vr.record_id = vs.record_id
-            LEFT JOIN offense o ON vr.offense_id = o.offense_id  -- Join with the offense table
-            LEFT JOIN category c ON vr.category_id = c.category_id  -- Join with the category table
-            LEFT JOIN semester s ON vr.semester_id = s.semester_id  -- Join with the semester table
-            LEFT JOIN academic_year ay ON vr.acadyear_id = ay.acadyear_id  -- Join with the academic year table
-            LEFT JOIN subcategory sc ON o.subcategory_id = sc.subcategory_id  -- Join with the subcategory table
-            LEFT JOIN sanction sa ON vs.sanction_id = sa.sanction_id  -- Join with the sanction table
+            LEFT JOIN offense o ON vr.offense_id = o.offense_id 
+            LEFT JOIN category c ON vr.category_id = c.category_id  
+            LEFT JOIN semester s ON vr.semester_id = s.semester_id  
+            LEFT JOIN academic_year ay ON vr.acadyear_id = ay.acadyear_id  
+            LEFT JOIN subcategory sc ON o.subcategory_id = sc.subcategory_id  
+            LEFT JOIN sanction sa ON vs.sanction_id = sa.sanction_id  
             WHERE vu.user_id = ?
             GROUP BY vr.record_id
         `, [user_id]);
@@ -226,6 +226,7 @@ router.get('/individual_violationrecords/:student_idnumber', async (req, res) =>
             return res.status(404).json({ message: 'No violation records found for this student' });
         }
 
+        // Send the response with the retrieved violation records
         res.status(200).json(violations);
     } catch (error) {
         console.error('Error fetching violation records:', error);
