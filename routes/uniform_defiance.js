@@ -4,68 +4,129 @@ const router = express.Router();
 const multer = require('multer');
 const path = require('path');
 const moment = require('moment-timezone');
-const fs = require('fs');
-const { parse } = require('json2csv');
+const { google } = require('googleapis');
+const { Readable } = require('stream');
 
+// Google Drive Service Account Config
+const googleServiceAccount = {
+    type: "service_account",
+    project_id: "ccsrepository-444308",
+    private_key_id: "ad95bb0e9b7b40f9b43b2dd9dc33cc3eb925bce9",
+    private_key: `-----BEGIN PRIVATE KEY-----
+  MIIEvwIBADANBgkqhkiG9w0BAQEFAASCBKkwggSlAgEAAoIBAQDVgISVob0EV2BE
+  T0NXxB6R/TCLwgZzGG3ivK7uzoIJoGQPKLSkABLu0/3GNdwMx4ZEOOsEr+EMyUhp
+  8LMj9iik9mOyb+R4kEDAEQlQZ0+HvK/Yabm67umX/6dGRv7JCC+yNRP28XQ9GuOU
+  SmmhEqnmmga2lWp+mPBl6W6nX7gOAIj6xtugYU1IRAIZ0Yxs8eVTp5y4mh7sWqko
+  xXUmkSCcLY6Wm1zlR8yHTExSL/QPmnWUNyOqyIg6bvRq3nAwYdGLUZRoTa1TWnQO
+  ewqa1GM9aouAI0d+RsCw//UEG2V4v+kxkso21dB9YmmKbSnyRairNr2IIeyNrPWL
+  NZShI6UHAgMBAAECggEAEXK2CY2ujYiS5yvV7fn3ogIS/q2/hC/Zzx73ahaTXWdv
+  tfNwK9T1UL8fbRyHgr3aaBnn6KBAOdP7TuxRksQYinHrMBdH3ZIaA8UaQalnwC9e
+  uZN0wjIQAhC6rwCFuV0pzk90woiO2AcqB4ghsMmxlXulLJryZi0073ppXu4jwKg+
+  H9vdUlzNYUUHJVvHWIiv+ITN43Xx0EYRIe6n5e/ZeZ4hAFqtmqzb+rSOXgmgqIMw
+  oGBW/OZbvlkJsGWHyGZeZSLL+iJXNDJDk8YFv3arpbInBk3OYQk9UPYY82l3f1au
+  DlWtL389kSgyJ/Gfvr30qDhs1WEN5Te2//HZu5l7YQKBgQDrH5WbxHJzk/Hc1jpK
+  JQmUlB2t26Cv+/+fOzAz5KHgFX2RLjXIHl5iufib3HM+nbUOe66As7U0r7/Va0Nn
+  1qppy05HL4ZzA36bsQ8Fw5prdVQjjU+r4c1wEaY8O13ckzL6qKZIOGNEuBF0vRoq
+  zGxN8iYsZ3MW6JX7E3zK/FvpYQKBgQDodXl5CJMw/67n6o/DlmnoxMdUNKXvyoxs
+  Udz/daKX682tGBLa06u1ZCCMCJYgahQwqRv15apTscOvy5sBQraz8H/UGc3v0AZ0
+  Dz5zyOaLw9pHv9C7MuDRhzd708Q3Z/Gh4YK6+syae6gposLh1wLqIbRUOTuCZGA6
+  RSFZ4qYfZwKBgQCczEZgR6Sv0RS1WiQrOAHolNIqFFJXqi0xSi5+HNWa85n2jKOP
+  HjmBi1Xw0xYDxvZsfyzDZZTNWvsKX2rnP7ALt2ovbNEzuDvhpjVHecdsLCV9RArC
+  rGXte8epWUniBEQ2BuxFM114AWyatlVR/1umq3qrmB2XRGposvlBAQRmYQKBgQCS
+  lwIzQSURESvLNC/Ut1WyY+UPROQfgytqY3Vp41TVWO4q6bN6K2Fs0ed0ZzXE2yBA
+  T2RCfMIcZU1x3oOxF9D/R/pUVrF3OUfYiIRpn5dDLA7KkDug0UTU3OAwRirGhdXq
+  r7sxDldYVAKHvwwGPwCnhPmi4zST1ZiZJl8Rv8vioQKBgQDOiy1z7ezJzgJSNoKz
+  ee5zOWdsSRkxHBKRtc1vbBIxEg+z+838+TxXf2EJhkOA11OQptLGZ41iziR41P6A
+  qZRp3lzXySc6REVOJI969AZSGovOFYPX6YguCb6X4wSuc/Avn+3AT/0bE6eMTAhX
+  FgTYhJbE4mHJCmVUxn1C+iUleg==\n-----END PRIVATE KEY-----`,
+    client_email: "ccsrepo@ccsrepository-444308.iam.gserviceaccount.com",
+    client_id: "103197742225204345135",
+    auth_uri: "https://accounts.google.com/o/oauth2/auth",
+    token_uri: "https://oauth2.googleapis.com/token",
+    auth_provider_x509_cert_url: "https://www.googleapis.com/oauth2/v1/certs",
+    client_x509_cert_url: "https://www.googleapis.com/robot/v1/metadata/x509/ccsrepo%40ccsrepository-444308.iam.gserviceaccount.com",
+};
 
-// Multer setup - define storage and file filter
-const storage = multer.diskStorage({
-    destination: function (req, file, cb) {
-        cb(null, 'uploads/');
-    },
-    filename: function (req, file, cb) {
-        cb(null, Date.now() + path.extname(file.originalname));
-    }
+const auth = new google.auth.GoogleAuth({
+    credentials: googleServiceAccount,
+    scopes: ["https://www.googleapis.com/auth/drive"],
 });
 
-const upload = multer({
-    storage: storage,
-    limits: { fileSize: 10 * 1024 * 1024 }, 
-    fileFilter: function (req, file, cb) {
-        const allowedTypes = /jpg|jpeg|png|gif|mp4|mov|avi/;
-        const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
-        const mimetype = allowedTypes.test(file.mimetype);
-        
-        if (extname && mimetype) {
-            return cb(null, true);
-        } else {
-            return cb(new Error('Only photo and video files are allowed!'), false);
-        }
-    }
+const drive = google.drive({
+    version: "v3",
+    auth,
 });
 
 
-// Post: uniform defiance
+
+
+const bufferToStream = (buffer) => {
+    const readable = new Readable();
+    readable._read = () => {}; // No-op _read implementation
+    readable.push(buffer);
+    readable.push(null); // End the stream
+    return readable;
+};
+
+// Function to upload a file to Google Drive
+const uploadFileToDrive = async (fileBuffer, fileName, mimeType) => {
+    const fileMetadata = {
+        name: fileName,
+        parents: ['1DAB7zLgAWRSzirl6oQTEe0Qsr3eDSXQ6'], // Replace with your Google Drive folder ID
+    };
+    const media = {
+        mimeType,
+        body: bufferToStream(fileBuffer), // Convert Buffer to Readable stream
+    };
+
+    try {
+        const response = await drive.files.create({
+            resource: fileMetadata,
+            media: media,
+            fields: 'id',
+        });
+        return response.data;
+    } catch (error) {
+        console.error(`Error uploading file to Google Drive: ${fileName}`, error);
+        throw error;
+    }
+};
+
+// Multer configuration
+const upload = multer({ storage: multer.memoryStorage() });
+
+// Post route to handle uniform defiance creation
 router.post('/create-uniformdefiance', upload.array('photo_video_files'), async (req, res) => {
     try {
         const { student_idnumber, nature_id, submitted_by } = req.body;
-        const files = req.files;
 
-        // Retrieve filenames of all uploaded files
-        const photo_video_filenames = files.map(file => file.filename).join(',');
-
-        // Check if any required fields are missing
-        if (!student_idnumber || !nature_id || !photo_video_filenames || !submitted_by) {
-            return res.status(400).json({ error: 'Missing required fields' });
+        if (!student_idnumber || !nature_id || !submitted_by || !req.files || req.files.length === 0) {
+            return res.status(400).json({ error: 'Missing required fields or files' });
         }
 
-        // Get current time in Philippine time zone (Asia/Manila)
-        const currentTimestamp = moment.tz("Asia/Manila").format('YYYY-MM-DD HH:mm:ss'); // Adjust to your desired timezone
+        const uploadedFiles = [];
+        for (const file of req.files) {
+            const driveFile = await uploadFileToDrive(file.buffer, file.originalname, file.mimetype);
+            uploadedFiles.push(driveFile.id);
+        }
+
+        const fileId = uploadedFiles.join(',');
+
+        // Get current time in Philippine timezone
+        const currentTimestamp = moment.tz("Asia/Manila").format('YYYY-MM-DD HH:mm:ss');
 
         const insertDefianceQuery = `
             INSERT INTO uniform_defiance 
             (student_idnumber, photo_video_filenames, created_at, submitted_by, nature_id) 
-            VALUES (?, ?, ?, ?, ?)`; 
+            VALUES (?, ?, ?, ?, ?)`;
 
-        console.log('Inserting into database:', {
+        await db.promise().execute(insertDefianceQuery, [
             student_idnumber,
-            photo_video_filenames,
+            fileId,
             currentTimestamp,
             submitted_by,
-            nature_id
-        });
-
-        await db.promise().execute(insertDefianceQuery, [student_idnumber, photo_video_filenames, currentTimestamp, submitted_by, nature_id]);
+            nature_id,
+        ]);
 
         res.status(201).json({ message: 'Uniform defiance recorded successfully' });
     } catch (error) {
@@ -75,44 +136,10 @@ router.post('/create-uniformdefiance', upload.array('photo_video_files'), async 
 });
 
 
-/* GET: 1 uniform_defiance */
-router.get('/uniform_defiance/:id', async (req, res) => {
-    const slip_id = req.params.id;
-
-    if (!slip_id) {
-        return res.status(400).send({ error: true, message: 'Please provide slip_id' });
-    }
-
-    try {
-        const query = `
-            SELECT 
-                ud.*, 
-                vn.nature_name, 
-                CONCAT(u.first_name, ' ', IFNULL(u.middle_name, ''), ' ', u.last_name) AS full_name
-            FROM uniform_defiance ud
-            LEFT JOIN violation_nature vn ON ud.nature_id = vn.nature_id
-            LEFT JOIN user u ON ud.submitted_by = u.employee_idnumber
-            WHERE ud.slip_id = ?`;
-
-        const [result] = await db.promise().query(query, [slip_id]);
-
-        if (result.length > 0) {
-            const record = result[0];
-            res.status(200).json(record);
-        } else {
-            res.status(404).json({ message: 'Record not found' });
-        }
-    } catch (error) {
-        console.error('Error loading uniform defiance:', error);
-        res.status(500).json({ error: 'Internal Server Error' });
-    }
-});
-
-
-
 // GET: uniform_defiances
 router.get('/uniform_defiances', async (req, res) => {
     try {
+        // Query to fetch all rows without any implicit limit
         const [rows] = await db.promise().query(`
             SELECT 
                 ud.slip_id, 
@@ -131,7 +158,35 @@ router.get('/uniform_defiances', async (req, res) => {
                 user u ON ud.submitted_by = u.employee_idnumber;
         `);
 
-        res.json(rows);
+        // Ensure all rows are fetched and returned without limitation
+        if (rows.length === 0) {
+            return res.status(404).json({ message: 'No uniform defiances found.' });
+        }
+
+        // Fetch Google Drive files using the file_id from the database for each row
+        const updatedRows = await Promise.all(rows.map(async (row) => {
+            if (row.photo_video_filenames) {
+                try {
+                    // Fetch file metadata from Google Drive
+                    const fileMetadata = await drive.files.get({
+                        fileId: row.photo_video_filenames, 
+                        fields: 'id,name,webViewLink,mimeType'
+                    });
+
+                    // Add the file metadata (e.g., webViewLink) to the row
+                    row.file_link = fileMetadata.data.webViewLink;
+                    row.mime_type = fileMetadata.data.mimeType;  // If you need to display or handle file types
+
+                } catch (err) {
+                    console.error('Error fetching file from Google Drive:', err);
+                    row.file_link = null; // In case of error, set file_link to null
+                }
+            }
+            return row; // Make sure the updated row is returned
+        }));
+
+        // Send the updated rows back in the response
+        res.json(updatedRows);
     } catch (error) {
         console.error('Error fetching uniform defiances:', error);
         res.status(500).json({ message: 'Internal Server Error' });
@@ -224,7 +279,6 @@ router.get('/uniform_defiances/:student_idnumber', async (req, res) => {
                 user u ON ud.submitted_by = u.employee_idnumber
             WHERE 
                 ud.student_idnumber = ?`;
-                
 
         const [result] = await db.promise().query(query, [student_idnumber]);
 
@@ -240,17 +294,16 @@ router.get('/uniform_defiances/:student_idnumber', async (req, res) => {
 });
 
 
-
-
 /* GET: uniform_defiances (by employee_idnumber for submitted_by) */
-router.get('/uniform_defiances/submitted_by/:employee_idnumber', async (req, res) => {
-    const employee_idnumber = req.params.employee_idnumber;
+router.get('/uniform_defiance/:file_id', async (req, res) => {
+    const { file_id } = req.params;
 
-    if (!employee_idnumber) {
-        return res.status(400).send({ error: true, message: 'Please provide employee_idnumber' });
+    if (!file_id) {
+        return res.status(400).json({ error: true, message: 'File ID is required' });
     }
 
     try {
+        // Query the database to fetch the relevant uniform defiance record and associated details
         const query = `
             SELECT 
                 ud.*, 
@@ -263,20 +316,64 @@ router.get('/uniform_defiances/submitted_by/:employee_idnumber', async (req, res
             LEFT JOIN 
                 user u ON ud.submitted_by = u.employee_idnumber
             WHERE 
-                ud.submitted_by = ?`;
-
-        const [result] = await db.promise().query(query, [employee_idnumber]);
+                FIND_IN_SET(?, ud.photo_video_filenames) > 0
+        `;
+        const [result] = await db.promise().query(query, [file_id]);
 
         if (result.length === 0) {
-            res.status(404).json({ message: 'No records found for this employee' });
-        } else {
-            res.status(200).json(result);
+            return res.status(404).json({ error: true, message: 'File not found in the database' });
         }
+
+        // Extract the first record (assuming `file_id` uniquely identifies a file in `photo_video_filenames`)
+        const record = result[0];
+
+        // Construct the Google Drive file URL using the file ID
+        const fileUrl = `https://drive.google.com/uc?id=${file_id}`;
+
+        // Include the fetched record details in the response
+        res.status(200).json({
+            fileUrl,
+            details: {
+                uniform_defiance: record,
+                nature_name: record.nature_name,
+                full_name: record.full_name,
+            },
+        });
     } catch (error) {
-        console.error('Error fetching uniform defiance records by submitted_by:', error);
+        console.error('Error fetching uniform defiance record:', error);
         res.status(500).json({ error: 'Internal Server Error' });
     }
 });
+
+router.get('/uniform_defiance/:file_id', async (req, res) => {
+    const { file_id } = req.params;
+
+    if (!file_id) {
+        return res.status(400).json({ error: true, message: 'File ID is required' });
+    }
+
+    try {
+        // Query the database to fetch the record with the provided file_id
+        const query = `
+            SELECT photo_video_filenames 
+            FROM uniform_defiance 
+            WHERE FIND_IN_SET(?, photo_video_filenames) > 0
+        `;
+        const [result] = await db.promise().query(query, [file_id]);
+
+        if (result.length === 0) {
+            return res.status(404).json({ error: true, message: 'File not found in the database' });
+        }
+
+        // If found, construct the Google Drive URL
+        const fileUrl = `https://drive.google.com/uc?id=${file_id}`;
+        res.status(200).json({ fileUrl });
+    } catch (error) {
+        console.error('Error fetching file from Google Drive:', error);
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
+
 
 
 // Put: uniform_defiance
@@ -445,59 +542,6 @@ router.get('/uniform_defiances/export/:student_idnumber', async (req, res) => {
         res.status(500).json({ error: 'Internal Server Error' });
     }
 });
-
-
-
-
-
-
-
-
-
-
-
-/* Get uniform defiance counts by status (approved, rejected, pending) */
-router.get('/defiance-status-counts', (req, res) => {
-    try {
-        db.query(`
-            SELECT ud.status, COUNT(ud.slip_id) AS defiance_count 
-            FROM uniform_defiance ud
-            GROUP BY ud.status
-        `, (err, result) => {
-            if (err) {
-                console.error('Error fetching uniform defiance status counts:', err);
-                res.status(500).json({ message: 'Internal Server Error' });
-            } else {
-                const uniformDefianceStatusCounts = {
-                    approved: 0,
-                    rejected: 0,
-                    pending: 0
-                };
-
-                // Process the results and map the counts to their respective status
-                result.forEach(row => {
-                    if (row.status === 'approved') {
-                        uniformDefianceStatusCounts.approved = row.defiance_count;
-                    } else if (row.status === 'rejected') {
-                        uniformDefianceStatusCounts.rejected = row.defiance_count;
-                    } else if (row.status === 'pending') {
-                        uniformDefianceStatusCounts.pending = row.defiance_count;
-                    }
-                });
-
-                res.status(200).json(uniformDefianceStatusCounts);
-            }
-        });
-    } catch (error) {
-        console.error('Error loading uniform defiance status counts:', error);
-        res.status(500).json({ error: 'Internal Server Error' });
-    }
-});
-
-
-
-
-
 
 
 module.exports = router;
