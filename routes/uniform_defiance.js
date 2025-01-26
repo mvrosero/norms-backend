@@ -170,12 +170,19 @@ router.get('/uniform_defiances', async (req, res) => {
                     // Fetch file metadata from Google Drive
                     const fileMetadata = await drive.files.get({
                         fileId: row.photo_video_filenames, 
-                        fields: 'id,name,webViewLink,mimeType'
+                        fields: 'id,name,webViewLink, mimeType'
                     });
 
                     // Add the file metadata (e.g., webViewLink) to the row
                     row.file_link = fileMetadata.data.webViewLink;
                     row.mime_type = fileMetadata.data.mimeType;  // If you need to display or handle file types
+
+                    // You can also stream the file or use it as needed (optional):
+                    // const fileContent = await drive.files.get({
+                    //     fileId: row.photo_video_filenames,
+                    //     alt: 'media', // Get the raw file data
+                    // }, { responseType: 'stream' });
+                    // row.file_stream = bufferToStream(fileContent.data);
 
                 } catch (err) {
                     console.error('Error fetching file from Google Drive:', err);
@@ -542,6 +549,48 @@ router.get('/uniform_defiances/export/:student_idnumber', async (req, res) => {
         res.status(500).json({ error: 'Internal Server Error' });
     }
 });
+
+
+
+
+/* Get uniform defiance counts by status (approved, rejected, pending) */
+router.get('/defiance-status-counts', (req, res) => {
+    try {
+        db.query(`
+            SELECT ud.status, COUNT(ud.slip_id) AS defiance_count 
+            FROM uniform_defiance ud
+            GROUP BY ud.status
+        `, (err, result) => {
+            if (err) {
+                console.error('Error fetching uniform defiance status counts:', err);
+                res.status(500).json({ message: 'Internal Server Error' });
+            } else {
+                const uniformDefianceStatusCounts = {
+                    approved: 0,
+                    rejected: 0,
+                    pending: 0
+                };
+
+                // Process the results and map the counts to their respective status
+                result.forEach(row => {
+                    if (row.status === 'approved') {
+                        uniformDefianceStatusCounts.approved = row.defiance_count;
+                    } else if (row.status === 'rejected') {
+                        uniformDefianceStatusCounts.rejected = row.defiance_count;
+                    } else if (row.status === 'pending') {
+                        uniformDefianceStatusCounts.pending = row.defiance_count;
+                    }
+                });
+
+                res.status(200).json(uniformDefianceStatusCounts);
+            }
+        });
+    } catch (error) {
+        console.error('Error loading uniform defiance status counts:', error);
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
+
 
 
 module.exports = router;
