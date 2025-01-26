@@ -205,7 +205,7 @@ router.get('/individual_violationrecords/:student_idnumber', async (req, res) =>
                 c.category_name,
                 o.offense_name, 
                 s.semester_name,
-                CONCAT(ay.start_year, ' - ', ay.end_year) AS academic_year,  
+                ay.academic_year,
                 sc.subcategory_name,
                 GROUP_CONCAT(DISTINCT sa.sanction_name SEPARATOR ', ') AS sanction_names
             FROM violation_record vr
@@ -701,7 +701,7 @@ router.get('/myrecords-history/:student_idnumber', async (req, res) => {
                 c.category_name,
                 o.offense_name,
                 s.semester_name,
-                CONCAT(ay.start_year, ' - ', ay.end_year) AS academic_year,
+                ay.academic_year,
                 sc.subcategory_name,
                 -- Format sanctions with space after the comma
                 GROUP_CONCAT(DISTINCT sa.sanction_name SEPARATOR ', ') AS sanction_names,
