@@ -200,6 +200,7 @@ router.get('/individual_violationrecords/:student_idnumber', async (req, res) =>
         // Fetch all violation records linked to the user, only retaining the name fields
         const [violations] = await db.promise().query(`
             SELECT 
+                vr.created_at, 
                 vr.description, 
                 c.category_name,
                 o.offense_name, 
