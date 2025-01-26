@@ -197,22 +197,12 @@ router.get('/individual_violationrecords/:student_idnumber', async (req, res) =>
 
         const user_id = userResult[0].user_id;
 
-        // Fetch all violation records linked to the user, including the created_at field and subcategory_id
+        // Fetch all violation records linked to the user, only retaining the name fields
         const [violations] = await db.promise().query(`
             SELECT 
-                vr.record_id, 
                 vr.description, 
-                vr.category_id, 
-                vr.offense_id, 
-                vr.acadyear_id, 
-                vr.semester_id, 
-                vr.created_at,
-                o.subcategory_id,  -- Include subcategory_id from offense table
-                GROUP_CONCAT(DISTINCT vs.sanction_id) AS sanction_ids,
-                
-                -- Join with related tables to get the names
                 c.category_name,
-                o.offense_name,  -- Corrected alias for offense_name
+                o.offense_name, 
                 s.semester_name,
                 CONCAT(ay.start_year, ' - ', ay.end_year) AS academic_year,  -- Format academic year
                 sc.subcategory_name,
@@ -241,6 +231,7 @@ router.get('/individual_violationrecords/:student_idnumber', async (req, res) =>
         res.status(500).json({ error: 'Internal Server Error' });
     }
 });
+
 
 
 
