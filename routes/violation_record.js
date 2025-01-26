@@ -212,7 +212,7 @@ router.get('/individual_violationrecords/:student_idnumber', async (req, res) =>
                 
                 -- Join with related tables to get the names
                 c.category_name,
-                f.offense_name,
+                o.offense_name,  -- Corrected alias for offense_name
                 s.semester_name,
                 ay.acadyear_name,
                 sc.subcategory_name,
@@ -241,6 +241,7 @@ router.get('/individual_violationrecords/:student_idnumber', async (req, res) =>
         res.status(500).json({ error: 'Internal Server Error' });
     }
 });
+
 
 
 
