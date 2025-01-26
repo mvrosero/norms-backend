@@ -207,8 +207,7 @@ router.get('/individual_violationrecords/:student_idnumber', async (req, res) =>
                 s.semester_name,
                 CONCAT(ay.start_year, ' - ', ay.end_year) AS academic_year,  
                 sc.subcategory_name,
-                -- Handle multiple sanctions and single sanctions (sanction_id for one, sanction_ids for multiple)
-                GROUP_CONCAT(DISTINCT sa.sanction_name) AS sanction_names
+                GROUP_CONCAT(DISTINCT sa.sanction_name SEPARATOR ', ') AS sanction_names
             FROM violation_record vr
             LEFT JOIN violation_user vu ON vr.record_id = vu.record_id
             LEFT JOIN violation_sanction vs ON vr.record_id = vs.record_id
