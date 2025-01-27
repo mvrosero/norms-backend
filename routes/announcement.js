@@ -150,7 +150,7 @@ router.post('/create-announcement', upload.array('files'), async (req, res) => {
 
 
 
-// PUT: Update announcement fields individually
+// PUT: Update announcement fields 
 router.put('/announcement/:announcement_id', upload.array('files'), async (req, res) => {
     const { announcement_id } = req.params;
     const { title, content, status } = req.body;
@@ -334,12 +334,13 @@ router.get('/announcements', async (req, res) => {
 
 
 // PUT: Update announcement fields individually
-router.put('/announcement_field/:announcement_id', async (req, res) => {
+router.put('/announcement_field/:announcement_id', upload.array('files'), async (req, res) => {
     const { announcement_id } = req.params;
-    const { title, content, filenames, status } = req.body;
+    const { title, content, status } = req.body;
+    const files = req.files; // Array of files
 
     try {
-        // Fetch the existing announcement to get current values
+        // Fetch existing announcement to get current values
         const [existingAnnouncement] = await db.promise().query('SELECT * FROM announcement WHERE announcement_id = ?', [announcement_id]);
 
         // Ensure the announcement exists
@@ -347,45 +348,41 @@ router.put('/announcement_field/:announcement_id', async (req, res) => {
             return res.status(404).json({ error: 'Announcement not found' });
         }
 
-        // Prepare file metadata if filenames are provided
-        let fileLinks = [];
-        let mimeTypes = [];
+        // Prepare to update specific fields
+        let updatedTitle = title || existingAnnouncement[0].title;
+        let updatedContent = content || existingAnnouncement[0].content;
+        let updatedStatus = status || existingAnnouncement[0].status;
+        let filenames = existingAnnouncement[0].filenames; // Default to existing filenames
 
-        // If filenames are provided, get the metadata for each file
-        if (filenames) {
-            const fileIds = filenames.split(',');
+        // Handle file uploads if new files are provided
+        if (files && files.length > 0) {
+            const fileUploadPromises = files.map(async (file) => {
+                const fileBuffer = file.buffer;
+                const fileName = file.originalname;
+                const mimeType = file.mimetype;
 
-            // Loop through each file ID to fetch its metadata
-            for (const fileId of fileIds) {
-                try {
-                    const fileMetadata = await drive.files.get({
-                        fileId, // Get the metadata of the file
-                        fields: 'id, mimeType, webViewLink',
-                    });
+                // Upload the file to Google Drive and get the file ID
+                const driveResponse = await uploadFileToDrive(fileBuffer, fileName, mimeType);
+                return driveResponse.id;
+            });
 
-                    fileLinks.push(fileMetadata.data.webViewLink);
-                    mimeTypes.push(fileMetadata.data.mimeType);
-                } catch (error) {
-                    console.error('Error fetching file metadata for fileId:', fileId, error);
-                    return res.status(500).json({ error: 'Failed to fetch file metadata' });
-                }
-            }
+            // Wait for all files to be uploaded and gather their IDs
+            const fileIds = await Promise.all(fileUploadPromises);
+            filenames = filenames ? filenames + ',' + fileIds.join(',') : fileIds.join(','); // Append new files to existing filenames
         }
 
-        // Update query for updating the announcement, including file metadata
+        // Update announcement query with updated_at field
         const updateQuery = `
             UPDATE announcement
-            SET title = ?, content = ?, filenames = ?, status = ?, file_links = ?, mime_types = ?, updated_at = CURRENT_TIMESTAMP
+            SET title = ?, content = ?, filenames = ?, status = ?, updated_at = CURRENT_TIMESTAMP
             WHERE announcement_id = ?
         `;
 
         const values = [
-            title, 
-            content, 
-            filenames, // Assuming this stores the file IDs or filenames as a comma-separated string
-            status, 
-            JSON.stringify(fileLinks), // Store file links as JSON array
-            JSON.stringify(mimeTypes), // Store MIME types as JSON array
+            updatedTitle, 
+            updatedContent, 
+            filenames, 
+            updatedStatus, 
             announcement_id
         ];
 
@@ -460,7 +457,7 @@ router.put('/announcement/:id/unpin', async (req, res) => {
 
 
 // DELETE: Remove a file attached to an announcement
-router.delete('/announcement/:id/file/:filename', async (req, res) => {
+router.delete('/announcement/:announcement_id/file/:filename', async (req, res) => {
     const announcement_id = req.params.id;
     const filename = req.params.filename;
 
