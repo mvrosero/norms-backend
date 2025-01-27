@@ -333,7 +333,7 @@ router.get('/uniform_defiance/:file_id', async (req, res) => {
         }
 
         // Fetch the file from Google Drive
-        const drive = await googleServiceAccount();
+        const drive = google.drive({ version: 'v3', auth: await googleServiceAccount() });
 
         // Get file metadata to validate file existence
         const fileMetadata = await drive.files.get({
