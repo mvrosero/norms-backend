@@ -273,29 +273,24 @@ router.get('/histories/export', async (req, res) => {
 
         // Convert rows to CSV
         const csv = parse(rows, { fields });
-
-        // Generate a temporary file path
-        const filePath = path.join(os.tmpdir(), `user_histories.csv`);
+        const filePath = path.join(os.tmpdir(), `user_logs.csv`);
 
         // Write CSV to a temporary file
-        fs.writeFileSync(filePath, csv);
-
-        // Send the file to the client
-        res.download(filePath, `user_histories.csv`, (err) => {
+        await fs.promises.writeFile(filePath, csv);
+        res.download(filePath, 'user_logs.csv', async (err) => {
             if (err) {
                 console.error('Error sending file:', err);
-                return res.status(500).json({ error: 'Error exporting CSV file' });
+                return res.status(500).send({ error: 'Error exporting CSV file' });
             }
-
-            // Delete the temporary file after sending it
-            fs.unlink(filePath, (unlinkErr) => {
-                if (unlinkErr) {
-                    console.error('Error deleting temporary file:', unlinkErr);
-                }
-            });
+            try {
+                await fs.promises.unlink(filePath);
+                console.log('Temporary file deleted:', filePath);
+            } catch (unlinkErr) {
+                console.error('Error deleting temporary file:', unlinkErr);
+            }
         });
     } catch (error) {
-        console.error('Error exporting user histories:', error);
+        console.error('Error exporting user logs:', error);
         res.status(500).json({ error: 'Internal Server Error' });
     }
 });
