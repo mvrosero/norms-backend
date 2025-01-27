@@ -219,10 +219,9 @@ router.put('/announcement/:announcement_id', upload.array('files'), async (req, 
 
 
 
-// PUT: Update announcement fields individually
-// PUT: Update announcement fields individually
+
 // PUT: Update announcement fields with file upload support, allowing partial updates
-router.put('/announcement/:announcement_id', upload.array('files'), async (req, res) => {
+router.put('/announcement_field/:announcement_id', upload.array('files'), async (req, res) => {
     const { announcement_id } = req.params;
     const { title, content, status } = req.body;
     const files = req.files; // Array of files
@@ -463,8 +462,6 @@ router.put('/announcement/:id/unpin', async (req, res) => {
 
 
 
-// DELETE: Remove a file attached to an announcement
-// DELETE: Remove a file attached to an announcement
 // DELETE: Remove a file attached to an announcement
 router.delete('/announcement/:announcement_id/file/:filename', async (req, res) => {
     const announcement_id = req.params.announcement_id;
