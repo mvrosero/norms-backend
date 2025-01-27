@@ -760,7 +760,7 @@ router.get('/violationrecords-history/:student_idnumber', (req, res) => {
   }
 
   const query = `
- SELECT 
+    SELECT 
       vr.record_id,
       vr.description,
       vr.created_at AS violation_created_at,
@@ -768,20 +768,6 @@ router.get('/violationrecords-history/:student_idnumber', (req, res) => {
       vr.offense_id,
       vr.acadyear_id,
       vr.semester_id,
-      -- Join with the category table
-      c.category_name AS category_name,
-      -- Join with the offense table
-      o.offense_name AS offense_name,
-      -- Join with academic_year to get start_year and end_year
-      ay.start_year, 
-      ay.end_year,
-      CONCAT(ay.start_year, ' - ', ay.end_year) AS acadyear_name,
-      -- Join with the semester table
-      s.semester_name AS semester_name,
-      -- Join with the department table
-      d.department_name AS department_name,
-      -- Join with the program table
-      p.program_name AS program_name,
       COALESCE((
         SELECT uh.old_department_id
         FROM user_history uh
@@ -800,25 +786,10 @@ router.get('/violationrecords-history/:student_idnumber', (req, res) => {
       ), u.program_id) AS program_id
     FROM 
       violation_record vr
-    -- Join with violation_user table to link violation records to users
     JOIN 
       violation_user vu ON vr.record_id = vu.record_id
-    -- Join with the user table to fetch user details
     JOIN 
       user u ON vu.user_id = u.user_id
-    -- Left joins to bring in additional information for category, offense, academic year, semester, department, and program
-    LEFT JOIN 
-      category c ON c.category_id = c.category_id
-    LEFT JOIN 
-      offense o ON o.offense_id = o.offense_id
-    LEFT JOIN 
-      academic_year ay ON vr.acadyear_id = ay.acadyear_id
-    LEFT JOIN 
-      semester s ON s.semester_id = s.semester_id
-    LEFT JOIN 
-      department d ON d.department_id = d.department_id
-    LEFT JOIN 
-      program p ON p.program_id = p.program_id
     WHERE 
       u.student_idnumber = ?
     ORDER BY 
@@ -838,6 +809,8 @@ router.get('/violationrecords-history/:student_idnumber', (req, res) => {
     return res.json(results);
   });
 });
+
+
 
 
 
