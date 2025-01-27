@@ -582,7 +582,7 @@ router.get('/uniform_defiances/export/:student_idnumber', async (req, res) => {
     const student_idnumber = req.params.student_idnumber;
 
     if (!student_idnumber) {
-        return res.status(400).send({ error: true, message: 'Please provide student_idnumber' });
+        return res.status(400).json({ error: true, message: 'Please provide student_idnumber' });
     }
 
     try {
@@ -602,40 +602,42 @@ router.get('/uniform_defiances/export/:student_idnumber', async (req, res) => {
                 user u ON ud.submitted_by = u.employee_idnumber
             WHERE 
                 ud.student_idnumber = ? AND
-                ud.status = 'approved'`;
+                ud.status = 'approved'
+        `;
 
-        const [result] = await db.promise().query(query, [student_idnumber]);
+        const [rows] = await db.promise().query(query, [student_idnumber]);
 
-        if (result.length === 0) {
+        if (rows.length === 0) {
             return res.status(404).json({ message: 'No records found' });
         }
 
-        // Convert JSON result to CSV
+        // Define CSV fields
         const fields = [
             { label: 'Slip ID', value: 'slip_id' },
-            { label: 'Created At', value: 'created_at' }, 
-            { label: 'Updated At', value: 'updated_at' }, 
+            { label: 'Created At', value: 'created_at' },
+            { label: 'Updated At', value: 'updated_at' },
             { label: 'Nature of Violation', value: 'nature_name' },
             { label: 'Status', value: 'status' },
             { label: 'Submitted By', value: 'full_name' },
         ];
 
-        const csv = parse(result, { fields });
+        // Convert rows to CSV
+        const csv = parse(rows, { fields });
 
         // Generate a temporary file path
-        const filePath = path.join(__dirname, '..', 'exports', `individual_uniform_defiances_${student_idnumber}.csv`);
+        const filePath = path.join(os.tmpdir(), `individual_uniform_defiances_${student_idnumber}.csv`);
 
-        // Write CSV to a file
+        // Write CSV to a temporary file
         fs.writeFileSync(filePath, csv);
 
         // Send the file to the client
         res.download(filePath, `individual_uniform_defiances_${student_idnumber}.csv`, (err) => {
             if (err) {
                 console.error('Error sending file:', err);
-                res.status(500).send({ error: 'Error exporting CSV file' });
+                return res.status(500).json({ error: 'Error exporting CSV file' });
             }
 
-            // Delete the file after sending it
+            // Delete the temporary file after sending it
             fs.unlink(filePath, (unlinkErr) => {
                 if (unlinkErr) {
                     console.error('Error deleting temporary file:', unlinkErr);
@@ -647,7 +649,6 @@ router.get('/uniform_defiances/export/:student_idnumber', async (req, res) => {
         res.status(500).json({ error: 'Internal Server Error' });
     }
 });
-
 
 
 
