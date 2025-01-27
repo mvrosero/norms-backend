@@ -706,8 +706,8 @@ router.get('/myrecords-history/:student_idnumber', async (req, res) => {
                 -- Format sanctions with space after the comma
                 GROUP_CONCAT(DISTINCT sa.sanction_name SEPARATOR ', ') AS sanction_names,
                 -- Department and program names at the time of violation
-                IFNULL(d.department_name, ud.department_name) AS department_name,
-                IFNULL(p.program_name, up.program_name) AS program_name
+                IFNULL(d.department_name, u.department_name) AS department_name,
+                IFNULL(p.program_name, u.program_name) AS program_name
             FROM violation_record vr
             LEFT JOIN violation_user vu ON vr.record_id = vu.record_id
             LEFT JOIN violation_sanction vs ON vr.record_id = vs.record_id
@@ -717,16 +717,11 @@ router.get('/myrecords-history/:student_idnumber', async (req, res) => {
             LEFT JOIN semester s ON vr.semester_id = s.semester_id
             LEFT JOIN academic_year ay ON vr.acadyear_id = ay.acadyear_id
             LEFT JOIN subcategory sc ON o.subcategory_id = sc.subcategory_id
-            LEFT JOIN user_history uh ON vu.user_id = uh.user_id
-            LEFT JOIN department d ON 
-                (uh.new_department_id IS NULL OR uh.changed_at > vr.created_at) 
-                AND d.department_id = uh.new_department_id
-            LEFT JOIN program p ON 
-                (uh.new_program_id IS NULL OR uh.changed_at > vr.created_at) 
-                AND p.program_id = uh.new_program_id
             LEFT JOIN user u ON vu.user_id = u.user_id
-            LEFT JOIN department ud ON u.department_id = ud.department_id
-            LEFT JOIN program up ON u.program_id = up.program_id
+            LEFT JOIN department d ON 
+                (d.department_id = u.department_id AND d.created_at <= vr.created_at)
+            LEFT JOIN program p ON 
+                (p.program_id = u.program_id AND p.created_at <= vr.created_at)
             WHERE vu.user_id = ?
             GROUP BY vr.record_id, department_name, program_name
             ORDER BY vr.created_at
