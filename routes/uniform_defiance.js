@@ -308,10 +308,10 @@ router.get('/uniform-defiance/:slip_id', async (req, res) => {
 
     try {
         // Retrieve the file_id from the database based on slip_id
-        const [result] = await db.query('SELECT defiance_image FROM uniform_defiance WHERE slip_id = ?', [slipId]);
+        const [result] = await db.query('SELECT photo_video_filenames FROM uniform_defiance WHERE slip_id = ?', [slipId]);
 
         if (result.length > 0) {
-            const fileId = result[0].defiance_image;
+            const fileId = result[0].photo_video_filenames;
 
             if (!fileId) {
                 return res.status(404).send('Uniform defiance image not set for this slip');
