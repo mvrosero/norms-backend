@@ -786,17 +786,17 @@ router.get('/violationrecords-history/:student_idnumber', (req, res) => {
         user u ON vu.user_id = u.user_id
       -- Left joins to bring in additional information for category, offense, academic year, semester, department, and program
       LEFT JOIN 
-        category c ON vr.category_id = c.category_id
+        category c ON c.category_id = c.category_id
       LEFT JOIN 
-        offense o ON vr.offense_id = o.offense_id
+        offense o ON o.offense_id = o.offense_id
       LEFT JOIN 
         academic_year ay ON vr.acadyear_id = ay.acadyear_id
       LEFT JOIN 
-        semester s ON vr.semester_id = s.semester_id
+        semester s ON s.semester_id = s.semester_id
       LEFT JOIN 
-        department d ON vr.department_id = d.department_id
+        department d ON d.department_id = d.department_id
       LEFT JOIN 
-        program p ON vr.program_id = p.program_id
+        program p ON p.program_id = p.program_id
       WHERE 
         u.student_idnumber = ?
       ORDER BY 
