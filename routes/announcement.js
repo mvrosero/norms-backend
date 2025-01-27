@@ -469,8 +469,8 @@ router.delete('/announcement/:id/file/:filename', async (req, res) => {
     }
 
     try {
-        // Fetch existing announcement to get current file links and mime types
-        const [existingAnnouncement] = await db.promise().query('SELECT file_links, mime_types FROM announcement WHERE announcement_id = ?', [announcement_id]);
+        // Fetch existing announcement to get current filenames
+        const [existingAnnouncement] = await db.promise().query('SELECT filenames FROM announcement WHERE announcement_id = ?', [announcement_id]);
 
         // Ensure the announcement exists
         if (existingAnnouncement.length === 0) {
@@ -478,18 +478,16 @@ router.delete('/announcement/:id/file/:filename', async (req, res) => {
         }
 
         const existingData = existingAnnouncement[0];
-        let fileLinks = JSON.parse(existingData.file_links || '[]');
-        let mimeTypes = JSON.parse(existingData.mime_types || '[]');
+        let filenames = existingData.filenames.split(',');
 
-        // Find the index of the file link and mime type corresponding to the filename
-        const fileIndex = fileLinks.findIndex(link => link.includes(filename));
+        // Find the index of the filename to be removed
+        const fileIndex = filenames.findIndex(file => file === filename);
         if (fileIndex === -1) {
             return res.status(404).json({ error: 'File not found in the announcement' });
         }
 
-        // Remove the file link and mime type from the arrays
-        fileLinks.splice(fileIndex, 1);
-        mimeTypes.splice(fileIndex, 1);
+        // Remove the filename from the list
+        filenames.splice(fileIndex, 1);
 
         // Remove the file from the filesystem (if it's stored locally)
         const filePath = path.join(__dirname, '../uploads', filename);
@@ -503,13 +501,12 @@ router.delete('/announcement/:id/file/:filename', async (req, res) => {
         // Update the announcement entry in the database
         const updateAnnouncementQuery = `
             UPDATE announcement
-            SET file_links = ?, mime_types = ?
+            SET filenames = ?
             WHERE announcement_id = ?
         `;
 
         await db.promise().execute(updateAnnouncementQuery, [
-            JSON.stringify(fileLinks),
-            JSON.stringify(mimeTypes),
+            filenames.join(','),
             announcement_id
         ]);
 
@@ -519,7 +516,6 @@ router.delete('/announcement/:id/file/:filename', async (req, res) => {
         res.status(500).json({ error: 'Internal Server Error' });
     }
 });
-
 
 
 
