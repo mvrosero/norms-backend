@@ -763,10 +763,10 @@ router.get('/violationrecords-history/:student_idnumber', (req, res) => {
  SELECT 
     vr.record_id,
     vr.description,
-    vr.created_at AS violation_created_at,
+    vr.created_at,
     c.category_name,
     o.offense_name,  
-    ay.acadyear_code,
+    CONCAT(ay.start_year, ' - ', ay.end_year) AS academic_year,
     s.semester_name,
     
     COALESCE((
