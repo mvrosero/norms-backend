@@ -693,7 +693,7 @@ router.get('/myrecords-history/:student_idnumber', async (req, res) => {
 
         const user_id = userResult[0].user_id;
 
-        // Fetch all violation records linked to the user, ensuring department and program are from the history at the time of violation
+        // Fetch all violation records linked to the user, ensuring department and program are from the user_history at the time of violation
         const [violations] = await db.promise().query(`
             SELECT 
                 vr.created_at, 
@@ -723,7 +723,7 @@ router.get('/myrecords-history/:student_idnumber', async (req, res) => {
                     h.user_id, 
                     h.department_name,
                     h.changed_at 
-                FROM department_program_history h
+                FROM user_history h
                 WHERE h.user_id = ? AND h.changed_at <= vr.created_at
                 ORDER BY h.changed_at DESC
                 LIMIT 1
@@ -734,7 +734,7 @@ router.get('/myrecords-history/:student_idnumber', async (req, res) => {
                     h.user_id, 
                     h.program_name,
                     h.changed_at 
-                FROM department_program_history h
+                FROM user_history h
                 WHERE h.user_id = ? AND h.changed_at <= vr.created_at
                 ORDER BY h.changed_at DESC
                 LIMIT 1
