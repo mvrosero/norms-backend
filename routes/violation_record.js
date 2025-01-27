@@ -673,7 +673,7 @@ router.get('/student-myrecords/subcategory/:student_idnumber', async (req, res) 
 
 
 
-/* Get: All violation records by student_idnumber with department and program at the time of violation */
+/* FIRST ATTEMPT TO Get: All violation records by student_idnumber with department and program at the time of violation */
 router.get('/myrecords-history/:student_idnumber', async (req, res) => {
     const student_idnumber = req.params.student_idnumber;
 
@@ -742,6 +742,74 @@ router.get('/myrecords-history/:student_idnumber', async (req, res) => {
         res.status(500).json({ error: 'Internal Server Error' });
     }
 });
+
+
+
+
+
+
+
+
+/*FROM DATABASE QUERY*/
+router.get('/violationrecords-history/:student_idnumber', (req, res) => {
+    const student_idnumber = req.params.student_idnumber;
+  
+    // Check if student_idnumber is provided
+    if (!student_idnumber) {
+      return res.status(400).json({ error: 'Please provide student_idnumber' });
+    }
+  
+    const query = `
+      SELECT 
+        vr.record_id,
+        vr.description,
+        vr.created_at AS violation_created_at,
+        vr.category_id,
+        vr.offense_id,
+        vr.acadyear_id,
+        vr.semester_id,
+        COALESCE((
+          SELECT uh.old_department_id
+          FROM user_history uh
+          WHERE uh.user_id = u.user_id
+          AND uh.changed_at <= vr.created_at
+          ORDER BY uh.changed_at DESC
+          LIMIT 1
+        ), u.department_id) AS department_id,
+        COALESCE((
+          SELECT uh.old_program_id
+          FROM user_history uh
+          WHERE uh.user_id = u.user_id
+          AND uh.changed_at <= vr.created_at
+          ORDER BY uh.changed_at DESC
+          LIMIT 1
+        ), u.program_id) AS program_id
+      FROM 
+        violation_record vr
+      JOIN 
+        violation_user vu ON vr.record_id = vu.record_id
+      JOIN 
+        user u ON vu.user_id = u.user_id
+      WHERE 
+        u.student_idnumber = ?
+      ORDER BY 
+        vr.created_at DESC;
+    `;
+  
+    db.query(query, [student_idnumber], (err, results) => {
+      if (err) {
+        console.error('Error fetching violation records:', err);
+        return res.status(500).json({ message: 'Internal server error' });
+      }
+  
+      if (results.length === 0) {
+        return res.status(404).json({ message: 'No violations found for the student' });
+      }
+  
+      return res.json(results);
+    });
+  });
+
 
 
 
