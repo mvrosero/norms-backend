@@ -150,33 +150,75 @@ router.post('/create-announcement', upload.array('files'), async (req, res) => {
 
 
 /* GET: Retrieve a specific announcement by ID */
-router.get('/announcement/:id', (req, res) => {
-    const announcement_id = req.params.id;
-
-    if (!announcement_id) {
-        return res.status(400).send({ error: true, message: 'Please provide announcement_id' });
-    }
+// PUT: Update announcement fields individually
+router.put('/announcement/:announcement_id', upload.array('files'), async (req, res) => {
+    const { announcement_id } = req.params;
+    const { title, content, status } = req.body;
+    const files = req.files; // Array of files
 
     try {
-        db.query(
-            'SELECT title, content, status, filenames, created_at, updated_at FROM announcement WHERE announcement_id = ?', 
-            [announcement_id], 
-            (err, result) => {
-                if (err) {
-                    console.error('Error fetching announcement:', err);
-                    res.status(500).json({ message: 'Internal Server Error' });
-                } else if (result.length === 0) {
-                    res.status(404).json({ message: 'Announcement not found' });
-                } else {
-                    res.status(200).json(result[0]);
-                }
-            }
-        );
+        // Fetch existing announcement to get current values
+        const [existingAnnouncement] = await db.promise().query('SELECT * FROM announcement WHERE announcement_id = ?', [announcement_id]);
+
+        // Ensure the announcement exists
+        if (existingAnnouncement.length === 0) {
+            return res.status(404).json({ error: 'Announcement not found' });
+        }
+
+        // Validate required fields
+        if (!title || !content || !status) {
+            return res.status(400).json({ error: 'Title, content, and status are required' });
+        }
+
+        if (content.length > 1000) {
+            return res.status(400).json({ error: 'Content length cannot exceed 1000 characters' });
+        }
+
+        // Handle file uploads if there are new files
+        let filenames = existingAnnouncement[0].filenames; // Default to the existing filenames
+        if (files && files.length > 0) {
+            // Handle filenames and upload files to Google Drive
+            const fileUploadPromises = files.map(async (file) => {
+                const fileBuffer = file.buffer;
+                const fileName = file.originalname;
+                const mimeType = file.mimetype;
+
+                // Upload the file to Google Drive and return the file ID
+                const driveResponse = await uploadFileToDrive(fileBuffer, fileName, mimeType);
+                return driveResponse.id;
+            });
+
+            // Wait for all files to be uploaded to Google Drive
+            const fileIds = await Promise.all(fileUploadPromises);
+            filenames = fileIds.join(','); // Update filenames with the new file IDs
+        }
+
+        const updateQuery = `
+            UPDATE announcement
+            SET title = ?, content = ?, filenames = ?, status = ?, updated_at = CURRENT_TIMESTAMP
+            WHERE announcement_id = ?
+        `;
+
+        const values = [title, content, filenames, status, announcement_id];
+        
+        // Execute the update query
+        const [result] = await db.promise().query(updateQuery, values);
+
+        if (result.affectedRows === 0) {
+            return res.status(400).json({ error: 'Failed to update announcement' });
+        }
+
+        res.status(200).json({ message: 'Announcement updated successfully' });
+
     } catch (error) {
-        console.error('Error loading announcement:', error);
-        res.status(500).json({ error: 'Internal Server Error' });
+        console.error('Error updating announcement:', error);
+        res.status(500).json({ error: 'Server error' });
     }
 });
+
+
+
+
 
 /* GET: Retrieve all announcements */
 router.get('/announcements', (req, res) => {
