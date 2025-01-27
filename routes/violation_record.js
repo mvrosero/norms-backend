@@ -693,7 +693,7 @@ router.get('/myrecords-history/:student_idnumber', async (req, res) => {
 
         const user_id = userResult[0].user_id;
 
-        // Fetch all violation records linked to the user,  department and program are from the user_history at the time of violation
+        // Fetch all violation records linked to the user
         const [violations] = await db.promise().query(`
             SELECT 
                 vr.created_at, 
@@ -725,7 +725,7 @@ router.get('/myrecords-history/:student_idnumber', async (req, res) => {
                     h.changed_at 
                 FROM user_history h
                 LEFT JOIN department d ON d.department_id = h.new_department_id
-                WHERE h.user_id = ? AND h.changed_at <= vr.created_at
+                WHERE h.user_id = ? AND h.changed_at <= (SELECT vr.created_at FROM violation_record vr WHERE vr.record_id = ?)
                 ORDER BY h.changed_at DESC
                 LIMIT 1
             ) dh ON vu.user_id = dh.user_id
@@ -737,7 +737,7 @@ router.get('/myrecords-history/:student_idnumber', async (req, res) => {
                     h.changed_at 
                 FROM user_history h
                 LEFT JOIN program p ON p.program_id = h.new_program_id
-                WHERE h.user_id = ? AND h.changed_at <= vr.created_at
+                WHERE h.user_id = ? AND h.changed_at <= (SELECT vr.created_at FROM violation_record vr WHERE vr.record_id = ?)
                 ORDER BY h.changed_at DESC
                 LIMIT 1
             ) ph ON vu.user_id = ph.user_id
@@ -745,7 +745,7 @@ router.get('/myrecords-history/:student_idnumber', async (req, res) => {
             WHERE vu.user_id = ?
             GROUP BY vr.record_id
             ORDER BY vr.created_at
-        `, [user_id, user_id, user_id]);
+        `, [user_id, user_id, user_id, user_id, user_id]);
 
         if (violations.length === 0) {
             return res.status(404).json({ message: 'No violation records found for this student' });
