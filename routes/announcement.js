@@ -200,59 +200,71 @@ router.get('/announcements', (req, res) => {
 
 
 // PUT: Update announcement fields individually
+// PUT: Edit an announcement with optional file uploads
 router.put('/announcement/:id', upload.array('files'), async (req, res) => {
-    const announcement_id = req.params.id;
+    const { id } = req.params;
     const { title, content, status } = req.body;
-    const newFiles = req.files; // Array of new files
-
-    if (!announcement_id) {
-        return res.status(400).json({ error: 'Announcement ID is required' });
-    }
+    const files = req.files; // Array of files
 
     try {
-        // Fetch existing announcement to get current values
-        const [existingAnnouncement] = await db.promise().query('SELECT * FROM announcement WHERE announcement_id = ?', [announcement_id]);
+        if (!id) {
+            return res.status(400).json({ error: 'Announcement ID is required' });
+        }
 
-        // Ensure the announcement exists
+        if (!title || !content || !status) {
+            return res.status(400).json({ error: 'Title, content, and status are required' });
+        }
+
+        if (content.length > 1000) {
+            return res.status(400).json({ error: 'Content length cannot exceed 1000 characters' });
+        }
+
+        // Handle new file uploads
+        let fileIds = [];
+        if (files && files.length > 0) {
+            const fileUploadPromises = files.map(async (file) => {
+                const fileBuffer = file.buffer;
+                const fileName = file.originalname;
+                const mimeType = file.mimetype;
+
+                // Upload the file to Google Drive and return the file ID
+                const driveResponse = await uploadFileToDrive(fileBuffer, fileName, mimeType);
+                return driveResponse.id;
+            });
+
+            // Wait for all files to be uploaded to Google Drive
+            fileIds = await Promise.all(fileUploadPromises);
+        }
+
+        // Fetch existing filenames from the database
+        const fetchAnnouncementQuery = `
+            SELECT filenames FROM announcement WHERE id = ?
+        `;
+        const [existingAnnouncement] = await db.promise().execute(fetchAnnouncementQuery, [id]);
         if (existingAnnouncement.length === 0) {
             return res.status(404).json({ error: 'Announcement not found' });
         }
 
-        if (content && content.length > 1000) {
-            return res.status(400).json({ error: 'Content length cannot exceed 1000 characters' });
-        }
+        const existingFilenames = existingAnnouncement[0].filenames ? existingAnnouncement[0].filenames.split(',') : [];
 
-        const existingData = existingAnnouncement[0];
-        const updatedTitle = title || existingData.title;
-        const updatedContent = content || existingData.content;
-        const updatedStatus = status || existingData.status;
+        // Combine existing filenames with new file IDs, if any
+        const updatedFilenames = [...existingFilenames, ...fileIds].join(',');
 
-        let filenames = existingData.filenames || '';
-        if (newFiles.length > 0) {
-            const newFilenames = newFiles.map(file => file.filename);
-            filenames = updateFilenames(filenames, newFilenames);
-        }
-
-        // Handle removing old files if needed 
-        if (newFiles.length > 0) {
-        }
-
+        // Update the announcement in the database
         const updateAnnouncementQuery = `
-            UPDATE announcement 
+            UPDATE announcement
             SET title = ?, content = ?, status = ?, filenames = ?, updated_at = ?
-            WHERE announcement_id = ?
+            WHERE id = ?
         `;
-
         const currentTimestamp = new Date().toISOString().slice(0, 19).replace('T', ' ');
 
-        // Execute the update query
         await db.promise().execute(updateAnnouncementQuery, [
-            updatedTitle,
-            updatedContent,
-            updatedStatus,
-            filenames,
+            title,
+            content,
+            status,
+            updatedFilenames,
             currentTimestamp,
-            announcement_id
+            id
         ]);
 
         res.status(200).json({ message: 'Announcement updated successfully' });
