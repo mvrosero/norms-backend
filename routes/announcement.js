@@ -200,7 +200,7 @@ router.get('/announcements', (req, res) => {
 
 
 // PUT: Update announcement fields individually
-router.put('/update-announcement/:announcement_id', async (req, res) => {
+router.put('/announcement/:announcement_id', async (req, res) => {
     const { announcement_id } = req.params;
     const { title, description, filenames, status } = req.body;
 
