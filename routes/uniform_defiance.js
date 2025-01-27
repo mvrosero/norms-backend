@@ -352,34 +352,49 @@ router.get('/uniform_defiance/:file_id', async (req, res) => {
     }
 });
 
-router.get('/uniform_defiance/:file_id', async (req, res) => {
-    const { file_id } = req.params;
 
-    if (!file_id) {
-        return res.status(400).json({ error: true, message: 'File ID is required' });
+
+
+
+
+/* GET: uniform_defiances (by employee_idnumber for submitted_by) */
+router.get('/uniform_defiances/submitted_by/:employee_idnumber', async (req, res) => {
+    const employee_idnumber = req.params.employee_idnumber;
+
+    if (!employee_idnumber) {
+        return res.status(400).send({ error: true, message: 'Please provide employee_idnumber' });
     }
 
     try {
-        // Query the database to fetch the record with the provided file_id
         const query = `
-            SELECT photo_video_filenames 
-            FROM uniform_defiance 
-            WHERE FIND_IN_SET(?, photo_video_filenames) > 0
-        `;
-        const [result] = await db.promise().query(query, [file_id]);
+            SELECT 
+                ud.*, 
+                vn.nature_name, 
+                CONCAT(u.first_name, ' ', IFNULL(u.middle_name, ''), ' ', u.last_name) AS full_name
+            FROM 
+                uniform_defiance ud
+            LEFT JOIN 
+                violation_nature vn ON ud.nature_id = vn.nature_id
+            LEFT JOIN 
+                user u ON ud.submitted_by = u.employee_idnumber
+            WHERE 
+                ud.submitted_by = ?`;
+
+        const [result] = await db.promise().query(query, [employee_idnumber]);
 
         if (result.length === 0) {
-            return res.status(404).json({ error: true, message: 'File not found in the database' });
+            res.status(404).json({ message: 'No records found for this employee' });
+        } else {
+            res.status(200).json(result);
         }
-
-        // If found, construct the Google Drive URL
-        const fileUrl = `https://drive.google.com/uc?id=${file_id}`;
-        res.status(200).json({ fileUrl });
     } catch (error) {
-        console.error('Error fetching file from Google Drive:', error);
+        console.error('Error fetching uniform defiance records by submitted_by:', error);
         res.status(500).json({ error: 'Internal Server Error' });
     }
 });
+
+
+
 
 
 
