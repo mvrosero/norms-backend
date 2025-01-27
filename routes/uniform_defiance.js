@@ -504,6 +504,10 @@ router.put('/uniform_defiance/:id', async (req, res) => {
 
 
 
+
+
+
+
 /* GET: Export all uniform_defiances except status 'Pending' to CSV */
 router.get('/uniform_defiances-history/export', async (req, res) => {
     try {
@@ -511,22 +515,22 @@ router.get('/uniform_defiances-history/export', async (req, res) => {
             SELECT 
                 ud.slip_id, 
                 ud.student_idnumber, 
-                CONCAT(s.first_name, ' ', IFNULL(s.middle_name, ''), ' ', s.last_name) AS student_full_name, -- Student's full name
+                CONCAT(s.first_name, ' ', IFNULL(s.middle_name, ''), ' ', s.last_name) AS student_full_name, 
                 ud.status, 
                 DATE_FORMAT(ud.created_at, '%m/%d/%Y, %r') AS created_at, -- Formatted date
                 DATE_FORMAT(ud.updated_at, '%m/%d/%Y, %r') AS updated_at, -- Formatted date
-                CONCAT(u.first_name, ' ', IFNULL(u.middle_name, ''), ' ', u.last_name) AS submitted_by_full_name, -- Submitted by full name
+                CONCAT(u.first_name, ' ', IFNULL(u.middle_name, ''), ' ', u.last_name) AS submitted_by_full_name,
                 vn.nature_name 
             FROM 
                 uniform_defiance ud 
             LEFT JOIN 
                 violation_nature vn ON ud.nature_id = vn.nature_id
             LEFT JOIN 
-                user u ON ud.submitted_by = u.employee_idnumber -- Submitted by employee details
+                user u ON ud.submitted_by = u.employee_idnumber
             LEFT JOIN 
-                user s ON ud.student_idnumber = s.student_idnumber -- Student details
+                user s ON ud.student_idnumber = s.student_idnumber 
             WHERE 
-                ud.status != 'Pending';
+                ud.status != 'pending';
         `);
 
         if (rows.length === 0) {
@@ -537,12 +541,12 @@ router.get('/uniform_defiances-history/export', async (req, res) => {
         const fields = [
             { label: 'Slip ID', value: 'slip_id' },
             { label: 'Student ID Number', value: 'student_idnumber' },
-            { label: 'Full Name', value: 'student_full_name' }, // Added Student's Full Name
+            { label: 'Full Name', value: 'student_full_name' }, 
             { label: 'Created At', value: 'created_at' },
             { label: 'Updated At', value: 'updated_at' },
             { label: 'Nature of Violation', value: 'nature_name' },
             { label: 'Status', value: 'status' },
-            { label: 'Submitted By', value: 'submitted_by_full_name' }, // Renamed to reflect the field
+            { label: 'Submitted By', value: 'submitted_by_full_name' }, 
         ];
 
         // Convert rows to CSV
@@ -573,6 +577,9 @@ router.get('/uniform_defiances-history/export', async (req, res) => {
         res.status(500).json({ error: 'Internal Server Error' });
     }
 });
+
+
+
 
 
 /* GET: Export uniform defiance records to CSV */
