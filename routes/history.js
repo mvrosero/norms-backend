@@ -248,6 +248,9 @@ router.get('/histories/export', async (req, res) => {
             LEFT JOIN user AS updated_by ON user_history.updated_by = updated_by.user_id;
         `);
 
+        // Log rows to debug
+        console.log("Query result:", rows);
+
         // Check if no records are returned
         if (rows.length === 0) {
             return res.status(404).json({ message: 'No records found' });
@@ -271,6 +274,9 @@ router.get('/histories/export', async (req, res) => {
             updated_by: row.updated_by || 'null',
         }));
 
+        // Log cleaned data
+        console.log("Cleaned data:", cleanedRows);
+
         // Define CSV fields
         const fields = [
             { label: 'History ID', value: 'history_id' },
@@ -293,6 +299,9 @@ router.get('/histories/export', async (req, res) => {
 
         // Convert cleaned rows to CSV format
         const csv = parse(cleanedRows, { fields });
+
+        // Log CSV data
+        console.log("Generated CSV:", csv);
 
         // Define the file path for temporary CSV file
         const filePath = path.join(os.tmpdir(), 'user_logs.csv');
