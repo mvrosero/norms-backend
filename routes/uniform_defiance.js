@@ -6,6 +6,9 @@ const path = require('path');
 const moment = require('moment-timezone');
 const { google } = require('googleapis');
 const { Readable } = require('stream');
+const fs = require('fs');
+const os = require('os');
+const { parse } = require('json2csv');
 
 // Google Drive Service Account Config
 const googleServiceAccount = {
@@ -517,8 +520,8 @@ router.get('/uniform_defiances-history/export', async (req, res) => {
                 ud.student_idnumber, 
                 CONCAT(s.first_name, ' ', IFNULL(s.middle_name, ''), ' ', s.last_name) AS student_full_name, 
                 ud.status, 
-                DATE_FORMAT(ud.created_at, '%m/%d/%Y, %r') AS created_at, -- Formatted date
-                DATE_FORMAT(ud.updated_at, '%m/%d/%Y, %r') AS updated_at, -- Formatted date
+                DATE_FORMAT(ud.created_at, '%m/%d/%Y, %r') AS created_at,
+                DATE_FORMAT(ud.updated_at, '%m/%d/%Y, %r') AS updated_at,
                 CONCAT(u.first_name, ' ', IFNULL(u.middle_name, ''), ' ', u.last_name) AS submitted_by_full_name,
                 vn.nature_name 
             FROM 
@@ -537,47 +540,39 @@ router.get('/uniform_defiances-history/export', async (req, res) => {
             return res.status(404).json({ message: 'No records found' });
         }
 
-        // Define CSV fields
         const fields = [
             { label: 'Slip ID', value: 'slip_id' },
             { label: 'Student ID Number', value: 'student_idnumber' },
-            { label: 'Full Name', value: 'student_full_name' }, 
+            { label: 'Full Name', value: 'student_full_name' },
             { label: 'Created At', value: 'created_at' },
             { label: 'Updated At', value: 'updated_at' },
             { label: 'Nature of Violation', value: 'nature_name' },
             { label: 'Status', value: 'status' },
-            { label: 'Submitted By', value: 'submitted_by_full_name' }, 
+            { label: 'Submitted By', value: 'submitted_by_full_name' },
         ];
 
-        // Convert rows to CSV
         const csv = parse(rows, { fields });
+        const filePath = path.join(os.tmpdir(), `uniform_defiances_history.csv`);
 
-        // Generate a temporary file path
-        const filePath = path.join(__dirname, '..', 'exports', `uniform_defiances_history.csv`);
-
-        // Write CSV to a file
-        fs.writeFileSync(filePath, csv);
-
-        // Send the file to the client
-        res.download(filePath, `uniform_defiances_history.csv`, (err) => {
+        // Write file and send it
+        await fs.promises.writeFile(filePath, csv);
+        res.download(filePath, 'uniform_defiances_history.csv', async (err) => {
             if (err) {
                 console.error('Error sending file:', err);
-                res.status(500).send({ error: 'Error exporting CSV file' });
+                return res.status(500).send({ error: 'Error exporting CSV file' });
             }
-
-            // Delete the file after sending it
-            fs.unlink(filePath, (unlinkErr) => {
-                if (unlinkErr) {
-                    console.error('Error deleting temporary file:', unlinkErr);
-                }
-            });
+            try {
+                await fs.promises.unlink(filePath);
+                console.log('Temporary file deleted:', filePath);
+            } catch (unlinkErr) {
+                console.error('Error deleting temporary file:', unlinkErr);
+            }
         });
     } catch (error) {
-        console.error('Error exporting uniform defiance records (not pending):', error);
+        console.error('Error exporting uniform defiance records:', error);
         res.status(500).json({ error: 'Internal Server Error' });
     }
 });
-
 
 
 
