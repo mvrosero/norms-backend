@@ -332,32 +332,32 @@ router.get('/uniform_defiance/:file_id', async (req, res) => {
             return res.status(404).json({ error: true, message: 'File not found in the database' });
         }
 
-    
-
-        // Retrieve the file from Google Drive
+        // Retrieve the file from Google Drive and its mimeType
         const driveResponse = await drive.files.get(
             {
                 fileId: file_id,
-                alt: 'media', // This tells the API to return the file content
+                alt: 'media',
             },
-            { responseType: 'stream' } // Stream the response for larger files
+            { responseType: 'stream' } 
         );
 
-        // Stream the file back to the client
-        res.setHeader('Content-Type', driveResponse.headers['content-type']);
-        driveResponse.data.pipe(res);
+        const mimeType = driveResponse.headers['content-type']; // Get the mime type of the file
+        const fileData = {
+            fileUrl: `https://test-backend-api-2.onrender.com/uniform_defiance/${file_id}`,
+            mimeType: mimeType
+        };
+
+        // Send the file URL and mimeType back to the frontend
+        res.json(fileData);
 
     } catch (error) {
         console.error('Error fetching file from Google Drive:', error);
-
         if (error.code === 404) {
             return res.status(404).json({ error: true, message: 'File not found on Google Drive' });
         }
-
         res.status(500).json({ error: 'Internal Server Error' });
     }
 });
-
 
 
 
