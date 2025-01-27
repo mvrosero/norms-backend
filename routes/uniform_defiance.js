@@ -303,69 +303,50 @@ router.get('/uniform_defiances/:student_idnumber', async (req, res) => {
 
 
 
-router.get('/uniform_defiance/:file_id', async (req, res) => {
-    const { file_id } = req.params;
-
-    if (!file_id) {
-        return res.status(400).json({ error: true, message: 'File ID is required' });
-    }
+router.get('/uniform-defiance/:slip_id', async (req, res) => {
+    const slipId = req.params.slip_id;
 
     try {
-        // Query the database to verify the file ID exists
-        const query = `
-            SELECT 
-                ud.*, 
-                vn.nature_name, 
-                CONCAT(u.first_name, ' ', IFNULL(u.middle_name, ''), ' ', u.last_name) AS full_name
-            FROM 
-                uniform_defiance ud
-            LEFT JOIN 
-                violation_nature vn ON ud.nature_id = vn.nature_id
-            LEFT JOIN 
-                user u ON ud.submitted_by = u.employee_idnumber
-            WHERE 
-                FIND_IN_SET(?, ud.photo_video_filenames) > 0
-        `;
-        const [result] = await db.promise().query(query, [file_id]);
+        // Retrieve the file_id from the database based on slip_id
+        const [result] = await db.query('SELECT defiance_image FROM uniform_defiance WHERE slip_id = ?', [slipId]);
 
-        if (result.length === 0) {
-            return res.status(404).json({ error: true, message: 'File not found in the database' });
-        }
+        if (result.length > 0) {
+            const fileId = result[0].defiance_image;
 
-        // Fetch the file from Google Drive
-        const drive = await getDriveClient();
+            if (!fileId) {
+                return res.status(404).send('Uniform defiance image not set for this slip');
+            }
 
-        // Get file metadata to validate file existence
-        const fileMetadata = await drive.files.get({
-            fileId: file_id,
-            fields: 'id, name, mimeType',
-        });
+            try {
+                // Fetch file metadata from Google Drive
+                const metadataResponse = await drive.files.get({
+                    fileId: fileId,
+                    fields: 'name',
+                });
+                const fileName = metadataResponse.data.name || 'uniform-defiance.jpg';
 
-        const { mimeType } = fileMetadata.data;
+                // Fetch file content from Google Drive
+                const driveResponse = await drive.files.get({
+                    fileId: fileId,
+                    alt: 'media',
+                }, { responseType: 'stream' });
 
-        // Pipe the file directly to the response
-        const driveStream = await drive.files.get(
-            { fileId: file_id, alt: 'media' },
-            { responseType: 'stream' }
-        );
-
-        res.setHeader('Content-Type', mimeType);
-        driveStream.data
-            .on('error', (err) => {
-                console.error('Error streaming file:', err);
-                res.status(500).send('Error retrieving file');
-            })
-            .pipe(res);
-    } catch (error) {
-        console.error('Error retrieving file from Google Drive:', error);
-        if (error.code === 404) {
-            res.status(404).json({ error: true, message: 'File not found in Google Drive' });
+                // Set headers and send the file
+                res.setHeader('Content-Type', 'image/jpeg');
+                res.setHeader('Content-Disposition', `inline; filename="${fileName}"`);
+                driveResponse.data.pipe(res);
+            } catch (err) {
+                console.error('Error retrieving the uniform defiance image from Google Drive:', err.message);
+                res.status(500).send('Error retrieving the uniform defiance image');
+            }
         } else {
-            res.status(500).json({ error: true, message: 'Internal Server Error' });
+            res.status(404).send('Slip not found');
         }
+    } catch (err) {
+        console.error("Error fetching uniform defiance image:", err.message);
+        res.status(500).send('Internal Server Error');
     }
 });
-
 
 
 /* GET: uniform_defiances (by employee_idnumber for submitted_by) */
