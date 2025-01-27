@@ -201,6 +201,8 @@ router.get('/uniform_defiances', async (req, res) => {
 });
 
 
+
+// GET: All uniform_defiances except status 'Pending'
 // GET: All uniform_defiances except status 'Pending'
 router.get('/uniform_defiances-not-pending', async (req, res) => {
     try {
@@ -224,12 +226,48 @@ router.get('/uniform_defiances-not-pending', async (req, res) => {
                 ud.status != 'pending';
         `);
 
-        res.json(rows);
+        // Log the initial rows for debugging
+        console.log("Initial rows:", rows);
+
+        // Fetch Google Drive files for each non-pending uniform defiance row
+        const updatedRows = await Promise.all(rows.map(async (row) => {
+            if (row.photo_video_filenames) {
+                try {
+                    // Fetch file metadata from Google Drive
+                    const fileMetadata = await drive.files.get({
+                        fileId: row.photo_video_filenames, 
+                        fields: 'id,name,webViewLink, mimeType'
+                    });
+
+                    // Log the file metadata for debugging
+                    console.log(`File metadata for ${row.slip_id}:`, fileMetadata.data);
+
+                    // Add the file metadata (e.g., webViewLink) to the row
+                    row.file_link = `https://drive.google.com/file/d/${fileMetadata.data.id}/view?usp=drivesdk`;
+                    row.mime_type = fileMetadata.data.mimeType;  // If you need to display or handle file types
+
+                } catch (err) {
+                    console.error('Error fetching file from Google Drive:', err);
+                    row.file_link = null; // In case of error, set file_link to null
+                    row.mime_type = null;
+                }
+            }
+            return row; // Make sure the updated row is returned
+        }));
+
+        // Log the updated rows to check if the file_link and mime_type were added
+        console.log("Updated rows with file metadata:", updatedRows);
+
+        // Send the updated rows back in the response
+        res.json(updatedRows);
     } catch (error) {
         console.error('Error fetching uniform defiances (not pending):', error);
         res.status(500).json({ message: 'Internal Server Error' });
     }
 });
+
+
+
 
 
 
