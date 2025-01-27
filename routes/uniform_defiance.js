@@ -306,63 +306,34 @@ router.get('/uniform_defiances/:student_idnumber', async (req, res) => {
 router.get('/uniform_defiance/:file_id', async (req, res) => {
     const { file_id } = req.params;
 
-    if (!file_id) {
-        return res.status(400).json({ error: true, message: 'File ID is required' });
-    }
+    // Ensure only the file ID is used (without extensions)
+    const sanitizedFileId = file_id.replace(/\.[^/.]+$/, '');
 
     try {
-        // Query the database to verify the file ID exists
-        const query = `
-            SELECT 
-                ud.*, 
-                vn.nature_name, 
-                CONCAT(u.first_name, ' ', IFNULL(u.middle_name, ''), ' ', u.last_name) AS full_name
-            FROM 
-                uniform_defiance ud
-            LEFT JOIN 
-                violation_nature vn ON ud.nature_id = vn.nature_id
-            LEFT JOIN 
-                user u ON ud.submitted_by = u.employee_idnumber
-            WHERE 
-                FIND_IN_SET(?, ud.photo_video_filenames) > 0
-        `;
-        const [result] = await db.promise().query(query, [file_id]);
-
-        if (result.length === 0) {
-            return res.status(404).json({ error: true, message: 'File not found in the database' });
-        }
-
-        // Fetch the file from Google Drive
         const drive = await getDriveClient();
 
-        // Get file metadata to validate file existence
         const fileMetadata = await drive.files.get({
-            fileId: file_id,
+            fileId: sanitizedFileId,
             fields: 'id, name, mimeType',
         });
 
         const { mimeType } = fileMetadata.data;
 
-        // Pipe the file directly to the response
         const driveStream = await drive.files.get(
-            { fileId: file_id, alt: 'media' },
+            { fileId: sanitizedFileId, alt: 'media' },
             { responseType: 'stream' }
         );
 
         res.setHeader('Content-Type', mimeType);
-        driveStream.data
-            .on('error', (err) => {
-                console.error('Error streaming file:', err);
-                res.status(500).send('Error retrieving file');
-            })
-            .pipe(res);
+        driveStream.data.pipe(res);
     } catch (error) {
-        console.error('Error retrieving file from Google Drive:', error);
         if (error.code === 404) {
-            res.status(404).json({ error: true, message: 'File not found in Google Drive' });
-        } else {
-            res.status(500).json({ error: true, message: 'Internal Server Error' });
+            return res.status(404).json({
+                error: true,
+                message: `File not found: ${sanitizedFileId}`,
+            });
         }
+        res.status(500).json({ error: 'Internal Server Error' });
     }
 });
 
