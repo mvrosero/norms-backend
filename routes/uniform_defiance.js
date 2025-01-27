@@ -311,20 +311,21 @@ router.get('/uniform_defiance/:file_id', async (req, res) => {
     }
 
     try {
-        // Query the database to verify the file ID exists
+        // Query the database to fetch details about the file
         const query = `
             SELECT 
-                ud.*, 
-                vn.nature_name, 
-                CONCAT(u.first_name, ' ', IFNULL(u.middle_name, ''), ' ', u.last_name) AS full_name
-            FROM 
-                uniform_defiance ud
-            LEFT JOIN 
-                violation_nature vn ON ud.nature_id = vn.nature_id
-            LEFT JOIN 
-                user u ON ud.submitted_by = u.employee_idnumber
-            WHERE 
-                FIND_IN_SET(?, ud.photo_video_filenames) > 0
+    ud.*, 
+    vn.nature_name, 
+    CONCAT(u.first_name, ' ', IFNULL(u.middle_name, ''), ' ', u.last_name) AS full_name
+FROM 
+    uniform_defiance ud
+LEFT JOIN 
+    violation_nature vn ON ud.nature_id = vn.nature_id
+LEFT JOIN 
+    user u ON ud.submitted_by = u.employee_idnumber
+WHERE 
+    FIND_IN_SET(?, ud.photo_video_filenames) > 0
+
         `;
         const [result] = await db.promise().query(query, [file_id]);
 
@@ -332,39 +333,33 @@ router.get('/uniform_defiance/:file_id', async (req, res) => {
             return res.status(404).json({ error: true, message: 'File not found in the database' });
         }
 
-        // Fetch the file from Google Drive
-        const drive = google.drive({ version: 'v3', auth: await googleServiceAccount() });
+    
 
-        // Get file metadata to validate file existence
-        const fileMetadata = await drive.files.get({
-            fileId: file_id,
-            fields: 'id, name, mimeType',
-        });
-
-        const { mimeType } = fileMetadata.data;
-
-        // Pipe the file directly to the response
-        const driveStream = await drive.files.get(
-            { fileId: file_id, alt: 'media' },
-            { responseType: 'stream' }
+        // Retrieve the file from Google Drive
+        const driveResponse = await drive.files.get(
+            {
+                fileId: file_id,
+                alt: 'media', // This tells the API to return the file content
+            },
+            { responseType: 'stream' } // Stream the response for larger files
         );
 
-        res.setHeader('Content-Type', mimeType);
-        driveStream.data
-            .on('error', (err) => {
-                console.error('Error streaming file:', err);
-                res.status(500).send('Error retrieving file');
-            })
-            .pipe(res);
+        // Stream the file back to the client
+        res.setHeader('Content-Type', driveResponse.headers['content-type']);
+        driveResponse.data.pipe(res);
+
     } catch (error) {
-        console.error('Error retrieving file from Google Drive:', error);
+        console.error('Error fetching file from Google Drive:', error);
+
         if (error.code === 404) {
-            res.status(404).json({ error: true, message: 'File not found in Google Drive' });
-        } else {
-            res.status(500).json({ error: true, message: 'Internal Server Error' });
+            return res.status(404).json({ error: true, message: 'File not found on Google Drive' });
         }
+
+        res.status(500).json({ error: 'Internal Server Error' });
     }
 });
+
+
 
 
 
