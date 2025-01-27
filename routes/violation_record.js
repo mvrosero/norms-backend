@@ -705,9 +705,9 @@ router.get('/myrecords-history/:student_idnumber', async (req, res) => {
                 sc.subcategory_name,
                 -- Format sanctions with space after the comma
                 GROUP_CONCAT(DISTINCT sa.sanction_name SEPARATOR ', ') AS sanction_names,
-                -- Debugging department and program names
-                dh.department_name AS department_name,
-                ph.program_name AS program_name
+                -- Department and program names at the time of violation
+                MAX(dh.department_name) AS department_name,
+                MAX(ph.program_name) AS program_name
             FROM violation_record vr
             LEFT JOIN violation_user vu ON vr.record_id = vu.record_id
             LEFT JOIN violation_sanction vs ON vr.record_id = vs.record_id
@@ -757,6 +757,7 @@ router.get('/myrecords-history/:student_idnumber', async (req, res) => {
         res.status(500).json({ error: 'Internal Server Error' });
     }
 });
+
 
 
 
