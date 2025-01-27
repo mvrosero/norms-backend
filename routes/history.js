@@ -217,44 +217,41 @@ router.get('/histories/export', async (req, res) => {
     try {
         const [rows] = await db.promise().query(`
             SELECT 
-
-    user_history.history_id, 
-    DATE_FORMAT(user_history.changed_at, '%Y-%m-%d, %l:%i:%s %p') AS changed_at, 
-    CONCAT(user.first_name, ' ', user.last_name, ' ', user.suffix) AS user,
-    user_history.user_id, 
-    IFNULL(old_department.department_name, 'Unknown') AS old_department_name, 
-    IFNULL(new_department.department_name, 'Unknown') AS new_department_name, 
-    IFNULL(old_program.program_name, 'Unknown') AS old_program_name, 
-    IFNULL(new_program.program_name, 'Unknown') AS new_program_name, 
-    user_history.old_year_level, 
-    user_history.new_year_level, 
-    user_history.old_status, 
-    user_history.new_status, 
-    user_history.old_batch, 
-    user_history.new_batch, 
-    IFNULL(old_role.role_name, 'Unknown') AS old_role_name, 
-    IFNULL(new_role.role_name, 'Unknown') AS new_role_name, 
-    user_history.updated_by, 
-    CONCAT(updated_by.first_name, ' ', updated_by.last_name, ' ', updated_by.suffix) AS updated_by
-FROM 
-    user_history
-LEFT JOIN department AS old_department ON user_history.old_department_id = old_department.department_id
-LEFT JOIN department AS new_department ON user_history.new_department_id = new_department.department_id
-LEFT JOIN program AS old_program ON user_history.old_program_id = old_program.program_id
-LEFT JOIN program AS new_program ON user_history.new_program_id = new_program.program_id
-LEFT JOIN role AS old_role ON user_history.old_role_id = old_role.role_id
-LEFT JOIN role AS new_role ON user_history.new_role_id = new_role.role_id
-LEFT JOIN user ON user_history.user_id = user.user_id
-LEFT JOIN user AS updated_by ON user_history.updated_by = updated_by.user_id;
-
+                user_history.history_id, 
+                DATE_FORMAT(user_history.changed_at, '%Y-%m-%d, %l:%i:%s %p') AS changed_at, 
+                CONCAT(user.first_name, ' ', user.last_name, ' ', user.suffix) AS user,
+                user_history.user_id, 
+                IFNULL(old_department.department_name, 'Unknown') AS old_department_name, 
+                IFNULL(new_department.department_name, 'Unknown') AS new_department_name, 
+                IFNULL(old_program.program_name, 'Unknown') AS old_program_name, 
+                IFNULL(new_program.program_name, 'Unknown') AS new_program_name, 
+                user_history.old_year_level, 
+                user_history.new_year_level, 
+                user_history.old_status, 
+                user_history.new_status, 
+                user_history.old_batch, 
+                user_history.new_batch, 
+                IFNULL(old_role.role_name, 'Unknown') AS old_role_name, 
+                IFNULL(new_role.role_name, 'Unknown') AS new_role_name, 
+                user_history.updated_by, 
+                CONCAT(updated_by.first_name, ' ', updated_by.last_name, ' ', updated_by.suffix) AS updated_by
+            FROM 
+                user_history
+            LEFT JOIN department AS old_department ON user_history.old_department_id = old_department.department_id
+            LEFT JOIN department AS new_department ON user_history.new_department_id = new_department.department_id
+            LEFT JOIN program AS old_program ON user_history.old_program_id = old_program.program_id
+            LEFT JOIN program AS new_program ON user_history.new_program_id = new_program.program_id
+            LEFT JOIN role AS old_role ON user_history.old_role_id = old_role.role_id
+            LEFT JOIN role AS new_role ON user_history.new_role_id = new_role.role_id
+            LEFT JOIN user ON user_history.user_id = user.user_id
+            LEFT JOIN user AS updated_by ON user_history.updated_by = updated_by.user_id;
         `);
-        console.log('Rows:', rows);
 
         if (rows.length === 0) {
             return res.status(404).json({ message: 'No records found' });
         }
 
-        // Define CSV fields 
+        // Define CSV fields
         const fields = [
             { label: 'History ID', value: 'history_id' },
             { label: 'Changed At', value: 'changed_at' },
@@ -278,19 +275,19 @@ LEFT JOIN user AS updated_by ON user_history.updated_by = updated_by.user_id;
         const csv = parse(rows, { fields });
 
         // Generate a temporary file path
-        const filePath = path.join(__dirname, '..', 'exports', `user_histories.csv`);
+        const filePath = path.join(os.tmpdir(), `user_histories.csv`);
 
-        // Write CSV to a file
+        // Write CSV to a temporary file
         fs.writeFileSync(filePath, csv);
 
         // Send the file to the client
         res.download(filePath, `user_histories.csv`, (err) => {
             if (err) {
                 console.error('Error sending file:', err);
-                res.status(500).send({ error: 'Error exporting CSV file' });
+                return res.status(500).json({ error: 'Error exporting CSV file' });
             }
 
-            // Delete the file after sending it
+            // Delete the temporary file after sending it
             fs.unlink(filePath, (unlinkErr) => {
                 if (unlinkErr) {
                     console.error('Error deleting temporary file:', unlinkErr);
@@ -302,8 +299,6 @@ LEFT JOIN user AS updated_by ON user_history.updated_by = updated_by.user_id;
         res.status(500).json({ error: 'Internal Server Error' });
     }
 });
-
-
 
 
 
