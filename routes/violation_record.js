@@ -705,7 +705,7 @@ router.get('/myrecords-history/:student_idnumber', async (req, res) => {
                 sc.subcategory_name,
                 -- Format sanctions with space after the comma
                 GROUP_CONCAT(DISTINCT sa.sanction_name SEPARATOR ', ') AS sanction_names,
-                -- Use historical department and program based on the violation creation time
+                -- Join user_history for department and program at the time of violation
                 dh.department_name,
                 ph.program_name
             FROM violation_record vr
@@ -721,9 +721,10 @@ router.get('/myrecords-history/:student_idnumber', async (req, res) => {
             LEFT JOIN (
                 SELECT 
                     h.user_id, 
-                    h.department_name,
+                    d.department_name, 
                     h.changed_at 
                 FROM user_history h
+                LEFT JOIN department d ON d.department_id = h.new_department_id
                 WHERE h.user_id = ? AND h.changed_at <= vr.created_at
                 ORDER BY h.changed_at DESC
                 LIMIT 1
@@ -732,9 +733,10 @@ router.get('/myrecords-history/:student_idnumber', async (req, res) => {
             LEFT JOIN (
                 SELECT 
                     h.user_id, 
-                    h.program_name,
+                    p.program_name, 
                     h.changed_at 
                 FROM user_history h
+                LEFT JOIN program p ON p.program_id = h.new_program_id
                 WHERE h.user_id = ? AND h.changed_at <= vr.created_at
                 ORDER BY h.changed_at DESC
                 LIMIT 1
