@@ -706,8 +706,8 @@ router.get('/myrecords-history/:student_idnumber', async (req, res) => {
                 -- Format sanctions with space after the comma
                 GROUP_CONCAT(DISTINCT sa.sanction_name SEPARATOR ', ') AS sanction_names,
                 -- Department and program names at the time of violation
-                IFNULL(d.department_name, u.department_name) AS department_name,
-                IFNULL(p.program_name, u.program_name) AS program_name
+                IFNULL(d.department_name, ud.department_name) AS department_name,
+                IFNULL(p.program_name, up.program_name) AS program_name
             FROM violation_record vr
             LEFT JOIN violation_user vu ON vr.record_id = vu.record_id
             LEFT JOIN violation_sanction vs ON vr.record_id = vs.record_id
@@ -722,6 +722,8 @@ router.get('/myrecords-history/:student_idnumber', async (req, res) => {
                 (d.department_id = u.department_id AND d.created_at <= vr.created_at)
             LEFT JOIN program p ON 
                 (p.program_id = u.program_id AND p.created_at <= vr.created_at)
+            LEFT JOIN department ud ON u.department_id = ud.department_id
+            LEFT JOIN program up ON u.program_id = up.program_id
             WHERE vu.user_id = ?
             GROUP BY vr.record_id, department_name, program_name
             ORDER BY vr.created_at
