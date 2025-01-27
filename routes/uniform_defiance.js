@@ -317,7 +317,8 @@ router.get('/uniform_defiance/:file_id', async (req, res) => {
             SELECT 
                 ud.*, 
                 vn.nature_name, 
-                CONCAT(u.first_name, ' ', IFNULL(u.middle_name, ''), ' ', u.last_name) AS full_name
+                CONCAT(u.first_name, ' ', IFNULL(u.middle_name, ''), ' ', u.last_name) AS full_name,
+                ud.photo_video_filenames
             FROM 
                 uniform_defiance ud
             LEFT JOIN 
@@ -334,7 +335,15 @@ router.get('/uniform_defiance/:file_id', async (req, res) => {
             return res.status(404).json({ error: true, message: 'File not found in the database' });
         }
 
-        // Step 3: Retrieve the file from Google Drive
+        // Step 3: Retrieve file metadata from Google Drive (file name)
+        const driveResponseMetadata = await drive.files.get({
+            fileId: file_id,
+            fields: 'name',
+        });
+
+        const fileName = driveResponseMetadata.data.name || 'file.jpg'; // Default name if not found
+
+        // Step 4: Retrieve the file content from Google Drive
         const driveResponse = await drive.files.get(
             {
                 fileId: file_id,
@@ -343,14 +352,15 @@ router.get('/uniform_defiance/:file_id', async (req, res) => {
             { responseType: 'stream' } // Stream the file if it's large
         );
 
-        // Step 4: Stream the file back to the client
+        // Step 5: Set headers and stream the file back to the client
         res.setHeader('Content-Type', driveResponse.headers['content-type']);
+        res.setHeader('Content-Disposition', `inline; filename="${fileName}"`);
         driveResponse.data.pipe(res);
 
     } catch (error) {
         console.error('Error fetching file from Google Drive:', error);
 
-        // Step 5: Handle errors
+        // Step 6: Handle errors
         if (error.code === 404) {
             return res.status(404).json({ error: true, message: 'File not found on Google Drive' });
         }
