@@ -214,26 +214,27 @@ router.get('/account-history/:user_id', (req, res) => {
 
 /* GET: Export all user histories to CSV */
 router.get('/histories/export', async (req, res) => {
+    console.log("Export route triggered"); // Add this to check if the route is hit
+
     try {
-        // Query to fetch user history data, handling null values with IFNULL
         const [rows] = await db.promise().query(`
             SELECT 
                 user_history.history_id, 
                 DATE_FORMAT(user_history.changed_at, '%Y-%m-%d, %l:%i:%s %p') AS changed_at, 
                 CONCAT(user.first_name, ' ', user.last_name, ' ', user.suffix) AS user,
                 user_history.user_id, 
-                IFNULL(old_department.department_name, 'null') AS old_department_name, 
-                IFNULL(new_department.department_name, 'null') AS new_department_name, 
-                IFNULL(old_program.program_name, 'null') AS old_program_name, 
-                IFNULL(new_program.program_name, 'null') AS new_program_name, 
-                IFNULL(user_history.old_year_level, 'n/a') AS old_year_level,
-                IFNULL(user_history.new_year_level, 'n/a') AS new_year_level,
-                IFNULL(user_history.old_status, 'n/a') AS old_status,
-                IFNULL(user_history.new_status, 'n/a') AS new_status,
-                IFNULL(user_history.old_batch, 'n/a') AS old_batch,
-                IFNULL(user_history.new_batch, 'n/a') AS new_batch,
-                IFNULL(old_role.role_name, 'null') AS old_role_name,
-                IFNULL(new_role.role_name, 'null') AS new_role_name,
+                old_department.department_name AS old_department_name, 
+                new_department.department_name AS new_department_name, 
+                old_program.program_name AS old_program_name, 
+                new_program.program_name AS new_program_name, 
+                user_history.old_year_level, 
+                user_history.new_year_level, 
+                user_history.old_status, 
+                user_history.new_status, 
+                user_history.old_batch, 
+                user_history.new_batch, 
+                old_role.role_name AS old_role_name, 
+                new_role.role_name AS new_role_name, 
                 user_history.updated_by, 
                 CONCAT(updated_by.first_name, ' ', updated_by.last_name, ' ', updated_by.suffix) AS updated_by
             FROM 
@@ -248,34 +249,23 @@ router.get('/histories/export', async (req, res) => {
             LEFT JOIN user AS updated_by ON user_history.updated_by = updated_by.user_id;
         `);
 
-        // Log rows to debug
-        console.log("Query result:", rows);
+        console.log("Query result:", rows); // Log query result
 
-        // Check if no records are returned
         if (rows.length === 0) {
             return res.status(404).json({ message: 'No records found' });
         }
 
-        // Clean the data by ensuring missing fields are handled
-        const cleanedRows = rows.map(row => ({
-            ...row,
-            old_department_name: row.old_department_name || 'null',
-            new_department_name: row.new_department_name || 'null',
-            old_program_name: row.old_program_name || 'null',
-            new_program_name: row.new_program_name || 'null',
-            old_year_level: row.old_year_level || 'n/a',
-            new_year_level: row.new_year_level || 'n/a',
-            old_status: row.old_status || 'n/a',
-            new_status: row.new_status || 'n/a',
-            old_batch: row.old_batch || 'n/a',
-            new_batch: row.new_batch || 'n/a',
-            old_role_name: row.old_role_name || 'null',
-            new_role_name: row.new_role_name || 'null',
-            updated_by: row.updated_by || 'null',
-        }));
+        // Handle missing fields (replace nulls with 'N/A' or 'null')
+        const cleanedRows = rows.map(row => {
+            Object.keys(row).forEach(key => {
+                if (row[key] === null) {
+                    row[key] = 'N/A'; // Replace null with 'N/A'
+                }
+            });
+            return row;
+        });
 
-        // Log cleaned data
-        console.log("Cleaned data:", cleanedRows);
+        console.log("Cleaned data:", cleanedRows); // Log cleaned data
 
         // Define CSV fields
         const fields = [
@@ -297,26 +287,21 @@ router.get('/histories/export', async (req, res) => {
             { label: 'Updated By', value: 'updated_by' },
         ];
 
-        // Convert cleaned rows to CSV format
+        // Convert rows to CSV
         const csv = parse(cleanedRows, { fields });
 
-        // Log CSV data
-        console.log("Generated CSV:", csv);
+        console.log("Generated CSV:", csv); // Log generated CSV content
 
-        // Define the file path for temporary CSV file
         const filePath = path.join(os.tmpdir(), `user_logs.csv`);
 
-        // Write CSV to the temporary file
+        // Write CSV to a temporary file
         await fs.promises.writeFile(filePath, csv);
-
-        // Send CSV file as a download
         res.download(filePath, 'user_logs.csv', async (err) => {
             if (err) {
                 console.error('Error sending file:', err);
                 return res.status(500).send({ error: 'Error exporting CSV file' });
             }
             try {
-                // Clean up temporary file after download
                 await fs.promises.unlink(filePath);
                 console.log('Temporary file deleted:', filePath);
             } catch (unlinkErr) {
