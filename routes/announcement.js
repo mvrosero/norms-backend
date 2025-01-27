@@ -464,8 +464,9 @@ router.put('/announcement/:id/unpin', async (req, res) => {
 
 
 // DELETE: Remove a file attached to an announcement
+// DELETE: Remove a file attached to an announcement
 router.delete('/announcement/:announcement_id/file/:filename', async (req, res) => {
-    const announcement_id = req.params.id;
+    const announcement_id = req.params.announcement_id;
     const filename = req.params.filename;
 
     if (!announcement_id || !filename) {
@@ -482,16 +483,15 @@ router.delete('/announcement/:announcement_id/file/:filename', async (req, res) 
         }
 
         const existingData = existingAnnouncement[0];
-        let filenames = existingData.filenames.split(',');
+        let filenames = existingData.filenames;
 
-        // Find the index of the filename to be removed
-        const fileIndex = filenames.findIndex(file => file === filename);
-        if (fileIndex === -1) {
+        // Check if the filename exists in the filenames string
+        if (!filenames.includes(filename)) {
             return res.status(404).json({ error: 'File not found in the announcement' });
         }
 
-        // Remove the filename from the list
-        filenames.splice(fileIndex, 1);
+        // Remove the file from the filenames string
+        filenames = filenames.replace(filename, '').replace(/^,|,$/g, ''); // Remove the file and clean up commas
 
         // Remove the file from the filesystem (if it's stored locally)
         const filePath = path.join(__dirname, '../uploads', filename);
@@ -510,7 +510,7 @@ router.delete('/announcement/:announcement_id/file/:filename', async (req, res) 
         `;
 
         await db.promise().execute(updateAnnouncementQuery, [
-            filenames.join(','),
+            filenames,
             announcement_id
         ]);
 
@@ -520,6 +520,7 @@ router.delete('/announcement/:announcement_id/file/:filename', async (req, res) 
         res.status(500).json({ error: 'Internal Server Error' });
     }
 });
+
 
 
 
