@@ -79,30 +79,38 @@ router.get('/offenses', (req, res) => {
 
 
 /* get: offenses grouped by category */
-router.get('/offenses-by-category', (req, res) => {
+/* Get: offenses by category_id*/
+router.get('/active-offenses/:category_id', async (req, res) => {
+    const { category_id } = req.params;
+
+    if (!category_id) {
+        return res.status(400).json({ error: 'Please provide a valid category_id' });
+    }
+
     try {
-        db.query(
-            `SELECT category.category_name, 
-                    GROUP_CONCAT(offense.offense_name ORDER BY offense.offense_name ASC) AS offenses,
-                    GROUP_CONCAT(offense.offense_code ORDER BY offense.offense_code ASC) AS offense_codes,
-                    GROUP_CONCAT(offense.status ORDER BY offense.offense_code ASC) AS statuses
-             FROM offense
-             LEFT JOIN category ON offense.category_id = category.category_id
-             GROUP BY category.category_name`,
-            (err, result) => {
-                if (err) {
-                    console.error('Error fetching offenses by category:', err);
-                    res.status(500).json({ message: 'Internal Server Error' });
-                } else {
-                    res.status(200).json(result);
-                }
-            }
-        );
+        // Fetch offenses for the given category_id
+        const [offenses] = await db.promise().query(`
+            SELECT 
+                o.offense_id, 
+                o.offense_name, 
+                o.offense_code, 
+                o.status
+            FROM offense o
+            WHERE o.category_id = ? AND o.status = 'active'
+            ORDER BY o.offense_name ASC
+        `, [category_id]);
+
+        if (offenses.length === 0) {
+            return res.status(404).json({ error: 'No offenses found for the provided category' });
+        }
+
+        res.status(200).json(offenses); // Return the offenses for the given category
     } catch (error) {
-        console.error('Error loading offenses by category:', error);
+        console.error('Error fetching offenses by category:', error);
         res.status(500).json({ error: 'Internal Server Error' });
     }
 });
+
 
 
 
