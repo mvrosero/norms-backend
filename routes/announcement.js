@@ -248,14 +248,14 @@ router.put('/announcement_field/:announcement_id', upload.array('files'), async 
                 const fileName = file.originalname;
                 const mimeType = file.mimetype;
 
-                // Upload the file to Google Drive and get the file ID
+                // Upload the file to Google Drive and get the file link (URL)
                 const driveResponse = await uploadFileToDrive(fileBuffer, fileName, mimeType);
-                return driveResponse.id;
+                return driveResponse.link;  // Assuming `driveResponse.link` is the file URL
             });
 
-            // Wait for all files to be uploaded and gather their IDs
-            const fileIds = await Promise.all(fileUploadPromises);
-            filenames = filenames ? filenames + ',' + fileIds.join(',') : fileIds.join(','); // Append new files to existing filenames
+            // Wait for all files to be uploaded and gather their links
+            const fileLinks = await Promise.all(fileUploadPromises);
+            filenames = filenames ? filenames + ',' + fileLinks.join(',') : fileLinks.join(','); // Append new file links to existing filenames
         }
 
         // Update announcement query with updated_at field
