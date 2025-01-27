@@ -220,6 +220,62 @@ router.put('/announcement/:announcement_id', upload.array('files'), async (req, 
 
 
 
+// GET: Retrieve a single announcement by announcement_id with file link and MIME type
+router.get('/announcements/:announcement_id', async (req, res) => {
+    const { announcement_id } = req.params;
+
+    try {
+        // Fetch the announcement by announcement_id
+        db.query('SELECT * FROM announcement WHERE announcement_id = ?', [announcement_id], async (err, result) => {
+            if (err) {
+                console.error('Error fetching announcement:', err);
+                return res.status(500).json({ message: 'Internal Server Error' });
+            }
+
+            // Ensure the announcement exists
+            if (result.length === 0) {
+                return res.status(404).json({ message: 'Announcement not found' });
+            }
+
+            // For the fetched announcement, fetch file details from Google Drive
+            const announcement = result[0];
+            const fileIds = announcement.filenames.split(',');
+
+            // Fetch file details from Google Drive API
+            const fileDetails = await Promise.all(fileIds.map(async (fileId) => {
+                try {
+                    const fileMetadata = await drive.files.get({
+                        fileId: fileId,
+                        fields: 'id, name, mimeType, webViewLink', // Fetch the file's metadata
+                    });
+
+                    return {
+                        file_link: fileMetadata.data.webViewLink,
+                        mime_type: fileMetadata.data.mimeType,
+                    };
+                } catch (error) {
+                    console.error(`Error fetching file metadata for file ID ${fileId}:`, error);
+                    return null; // Return null if there is an error fetching file details
+                }
+            }));
+
+            // Attach the file details directly to the announcement
+            const updatedAnnouncement = { 
+                ...announcement,
+                ...(fileDetails.length > 0 && { file_link: fileDetails[0]?.file_link, mime_type: fileDetails[0]?.mime_type })
+            };
+
+            // Send the updated single announcement with file links and MIME types
+            res.status(200).json(updatedAnnouncement);
+        });
+    } catch (error) {
+        console.error('Error loading announcement:', error);
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
+
+
+
 
 
 // GET: Retrieve all announcements with file link and MIME type
@@ -273,6 +329,7 @@ router.get('/announcements', async (req, res) => {
         res.status(500).json({ error: 'Internal Server Error' });
     }
 });
+
 
 
 
