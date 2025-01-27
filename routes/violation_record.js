@@ -693,7 +693,7 @@ router.get('/myrecords-history/:student_idnumber', async (req, res) => {
 
         const user_id = userResult[0].user_id;
 
-        // Fetch all violation records linked to the user
+        // Fetch all violation records linked to the user, ensuring department and program are from the history at the time of violation
         const [violations] = await db.promise().query(`
             SELECT 
                 vr.created_at, 
@@ -705,9 +705,9 @@ router.get('/myrecords-history/:student_idnumber', async (req, res) => {
                 sc.subcategory_name,
                 -- Format sanctions with space after the comma
                 GROUP_CONCAT(DISTINCT sa.sanction_name SEPARATOR ', ') AS sanction_names,
-                -- Department and program names at the time of violation
-                IFNULL(d.department_name, ud.department_name) AS department_name,
-                IFNULL(p.program_name, up.program_name) AS program_name
+                -- Use historical department and program based on the violation creation time
+                dh.department_name,
+                ph.program_name
             FROM violation_record vr
             LEFT JOIN violation_user vu ON vr.record_id = vu.record_id
             LEFT JOIN violation_sanction vs ON vr.record_id = vs.record_id
@@ -717,17 +717,33 @@ router.get('/myrecords-history/:student_idnumber', async (req, res) => {
             LEFT JOIN semester s ON vr.semester_id = s.semester_id
             LEFT JOIN academic_year ay ON vr.acadyear_id = ay.acadyear_id
             LEFT JOIN subcategory sc ON o.subcategory_id = sc.subcategory_id
-            LEFT JOIN user u ON vu.user_id = u.user_id
-            LEFT JOIN department d ON 
-                (d.department_id = u.department_id AND d.created_at <= vr.created_at)
-            LEFT JOIN program p ON 
-                (p.program_id = u.program_id AND p.created_at <= vr.created_at)
-            LEFT JOIN department ud ON u.department_id = ud.department_id
-            LEFT JOIN program up ON u.program_id = up.program_id
+            LEFT JOIN user_history uh ON vu.user_id = uh.user_id
+            LEFT JOIN (
+                SELECT 
+                    h.user_id, 
+                    h.department_name,
+                    h.changed_at 
+                FROM department_program_history h
+                WHERE h.user_id = ? AND h.changed_at <= vr.created_at
+                ORDER BY h.changed_at DESC
+                LIMIT 1
+            ) dh ON vu.user_id = dh.user_id
+
+            LEFT JOIN (
+                SELECT 
+                    h.user_id, 
+                    h.program_name,
+                    h.changed_at 
+                FROM department_program_history h
+                WHERE h.user_id = ? AND h.changed_at <= vr.created_at
+                ORDER BY h.changed_at DESC
+                LIMIT 1
+            ) ph ON vu.user_id = ph.user_id
+
             WHERE vu.user_id = ?
-            GROUP BY vr.record_id, department_name, program_name
+            GROUP BY vr.record_id
             ORDER BY vr.created_at
-        `, [user_id]);
+        `, [user_id, user_id, user_id]);
 
         if (violations.length === 0) {
             return res.status(404).json({ message: 'No violation records found for this student' });
@@ -739,6 +755,7 @@ router.get('/myrecords-history/:student_idnumber', async (req, res) => {
         res.status(500).json({ error: 'Internal Server Error' });
     }
 });
+
 
 
 
