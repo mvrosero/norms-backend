@@ -347,7 +347,7 @@ router.get('/uniform_defiance/:file_id', async (req, res) => {
         const driveResponse = await drive.files.get(
             {
                 fileId: file_id,
-                alt: 'media', // To return the file content
+                alt: 'media',
             },
             { responseType: 'stream' } 
         );
