@@ -311,7 +311,7 @@ router.get('/uniform_defiance/:file_id', async (req, res) => {
     }
 
     try {
-        // Query the database to fetch details about the file
+        // Query the database to verify the file ID exists
         const query = `
             SELECT 
                 ud.*, 
@@ -332,33 +332,39 @@ router.get('/uniform_defiance/:file_id', async (req, res) => {
             return res.status(404).json({ error: true, message: 'File not found in the database' });
         }
 
-        // Retrieve the file from Google Drive and its mimeType
-        const driveResponse = await drive.files.get(
-            {
-                fileId: file_id,
-                alt: 'media',
-            },
-            { responseType: 'stream' } 
+        // Fetch the file from Google Drive
+        const drive = await getDriveClient();
+
+        // Get file metadata to validate file existence
+        const fileMetadata = await drive.files.get({
+            fileId: file_id,
+            fields: 'id, name, mimeType',
+        });
+
+        const { mimeType } = fileMetadata.data;
+
+        // Pipe the file directly to the response
+        const driveStream = await drive.files.get(
+            { fileId: file_id, alt: 'media' },
+            { responseType: 'stream' }
         );
 
-        const mimeType = driveResponse.headers['content-type']; // Get the mime type of the file
-        const fileData = {
-            fileUrl: `https://test-backend-api-2.onrender.com/uniform_defiance/${file_id}`,
-            mimeType: mimeType
-        };
-
-        // Send the file URL and mimeType back to the frontend
-        res.json(fileData);
-
+        res.setHeader('Content-Type', mimeType);
+        driveStream.data
+            .on('error', (err) => {
+                console.error('Error streaming file:', err);
+                res.status(500).send('Error retrieving file');
+            })
+            .pipe(res);
     } catch (error) {
-        console.error('Error fetching file from Google Drive:', error);
+        console.error('Error retrieving file from Google Drive:', error);
         if (error.code === 404) {
-            return res.status(404).json({ error: true, message: 'File not found on Google Drive' });
+            res.status(404).json({ error: true, message: 'File not found in Google Drive' });
+        } else {
+            res.status(500).json({ error: true, message: 'Internal Server Error' });
         }
-        res.status(500).json({ error: 'Internal Server Error' });
     }
 });
-
 
 
 
