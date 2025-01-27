@@ -281,7 +281,6 @@ router.get('/uniform_defiances-pending', async (req, res) => {
                 ud.photo_video_filenames, 
                 ud.status, 
                 ud.created_at, 
-                ud.updated_at, 
                 CONCAT(u.first_name, ' ', IFNULL(u.middle_name, ''), ' ', u.last_name) AS full_name, 
                 vn.nature_name 
             FROM 
