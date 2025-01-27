@@ -760,40 +760,91 @@ router.get('/violationrecords-history/:student_idnumber', (req, res) => {
   }
 
   const query = `
-    SELECT 
-      vr.record_id,
-      vr.description,
-      vr.created_at AS violation_created_at,
-      vr.category_id,
-      vr.offense_id,
-      vr.acadyear_id,
-      vr.semester_id,
-      COALESCE((
+ SELECT 
+    vr.record_id,
+    vr.description,
+    vr.created_at AS violation_created_at,
+    c.category_name,
+    o.offense_name,  
+    ay.acadyear_code,
+    s.semester_name,
+    
+    COALESCE((
         SELECT uh.old_department_id
         FROM user_history uh
         WHERE uh.user_id = u.user_id
         AND uh.changed_at <= vr.created_at
         ORDER BY uh.changed_at DESC
         LIMIT 1
-      ), u.department_id) AS department_id,
-      COALESCE((
+    ), u.department_id) AS department_id,
+    
+    COALESCE((
+        SELECT d.department_name
+        FROM department d
+        WHERE d.department_id = COALESCE((
+            SELECT uh.old_department_id
+            FROM user_history uh
+            WHERE uh.user_id = u.user_id
+            AND uh.changed_at <= vr.created_at
+            ORDER BY uh.changed_at DESC
+            LIMIT 1
+        ), u.department_id)
+    ), 'Unknown Department') AS department_name,  
+    
+    COALESCE((
         SELECT uh.old_program_id
         FROM user_history uh
         WHERE uh.user_id = u.user_id
         AND uh.changed_at <= vr.created_at
         ORDER BY uh.changed_at DESC
         LIMIT 1
-      ), u.program_id) AS program_id
-    FROM 
-      violation_record vr
-    JOIN 
-      violation_user vu ON vr.record_id = vu.record_id
-    JOIN 
-      user u ON vu.user_id = u.user_id
-    WHERE 
-      u.student_idnumber = ?
-    ORDER BY 
-      vr.created_at DESC;
+    ), u.program_id) AS program_id,
+    
+    COALESCE((
+        SELECT p.program_name
+        FROM program p
+        WHERE p.program_id = COALESCE((
+            SELECT uh.old_program_id
+            FROM user_history uh
+            WHERE uh.user_id = u.user_id
+            AND uh.changed_at <= vr.created_at
+            ORDER BY uh.changed_at DESC
+            LIMIT 1
+        ), u.program_id)
+    ), 'Unknown Program') AS program_name,  -- Display program_name
+    
+    -- Get the sanction_names instead of sanction_ids
+    GROUP_CONCAT(DISTINCT sa.sanction_name ORDER BY sa.sanction_name SEPARATOR ', ') AS sanction_names  -- Join and fetch sanction names
+
+FROM 
+    violation_record vr
+JOIN 
+    violation_user vu ON vr.record_id = vu.record_id
+JOIN 
+    user u ON vu.user_id = u.user_id
+JOIN 
+    offense o ON vr.offense_id = o.offense_id
+JOIN 
+    academic_year ay ON vr.acadyear_id = ay.acadyear_id
+JOIN
+    semester s ON vr.semester_id = s.semester_id 
+JOIN
+    category c ON vr.category_id = c.category_id 
+
+-- Corrected JOIN for sanction names
+LEFT JOIN
+    violation_sanction vs ON vs.record_id = vr.record_id  
+LEFT JOIN
+    sanction sa ON sa.sanction_id = vs.sanction_id  
+
+WHERE 
+    u.student_idnumber = ?
+
+GROUP BY 
+    vr.record_id  
+
+ORDER BY 
+    vr.created_at DESC;
   `;
 
   db.query(query, [student_idnumber], (err, results) => {
