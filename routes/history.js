@@ -247,6 +247,8 @@ router.get('/histories/export', async (req, res) => {
             LEFT JOIN user AS updated_by ON user_history.updated_by = updated_by.user_id;
         `);
 
+        console.log("Rows returned:", rows);  
+
         if (rows.length === 0) {
             return res.status(404).json({ message: 'No records found' });
         }
