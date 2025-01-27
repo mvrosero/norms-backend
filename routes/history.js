@@ -213,12 +213,6 @@ router.get('/account-history/:user_id', (req, res) => {
 
 
 /* GET: Export all user histories to CSV */
-const fs = require('fs');
-const os = require('os');
-const path = require('path');
-const { parse } = require('json2csv');
-const db = require('./db'); // Adjust as necessary for your DB connection
-
 router.get('/histories/export', async (req, res) => {
     try {
         const [rows] = await db.promise().query(`
