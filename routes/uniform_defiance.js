@@ -267,12 +267,13 @@ router.get('/uniform_defiances-pending', async (req, res) => {
                     });
 
                     // Add the file metadata (e.g., webViewLink) to the row
-                    row.file_link = fileMetadata.data.webViewLink;
+                    row.file_link = `https://drive.google.com/file/d/${fileMetadata.data.id}/view?usp=drivesdk`;
                     row.mime_type = fileMetadata.data.mimeType;  // If you need to display or handle file types
 
                 } catch (err) {
                     console.error('Error fetching file from Google Drive:', err);
                     row.file_link = null; // In case of error, set file_link to null
+                    row.mime_type = null;
                 }
             }
             return row; // Make sure the updated row is returned
@@ -285,6 +286,7 @@ router.get('/uniform_defiances-pending', async (req, res) => {
         res.status(500).json({ message: 'Internal Server Error' });
     }
 });
+
 
 
 
