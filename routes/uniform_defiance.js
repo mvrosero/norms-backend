@@ -306,58 +306,60 @@ router.get('/uniform_defiances/:student_idnumber', async (req, res) => {
 router.get('/uniform_defiance/:file_id', async (req, res) => {
     const { file_id } = req.params;
 
+    // Step 1: Validate the file_id
     if (!file_id) {
         return res.status(400).json({ error: true, message: 'File ID is required' });
     }
 
     try {
-        // Query the database to fetch details about the file
+        // Step 2: Query the database to fetch details about the file
         const query = `
             SELECT 
-    ud.*, 
-    vn.nature_name, 
-    CONCAT(u.first_name, ' ', IFNULL(u.middle_name, ''), ' ', u.last_name) AS full_name
-FROM 
-    uniform_defiance ud
-LEFT JOIN 
-    violation_nature vn ON ud.nature_id = vn.nature_id
-LEFT JOIN 
-    user u ON ud.submitted_by = u.employee_idnumber
-WHERE 
-    FIND_IN_SET(?, ud.photo_video_filenames) > 0
-
+                ud.*, 
+                vn.nature_name, 
+                CONCAT(u.first_name, ' ', IFNULL(u.middle_name, ''), ' ', u.last_name) AS full_name
+            FROM 
+                uniform_defiance ud
+            LEFT JOIN 
+                violation_nature vn ON ud.nature_id = vn.nature_id
+            LEFT JOIN 
+                user u ON ud.submitted_by = u.employee_idnumber
+            WHERE 
+                FIND_IN_SET(?, ud.photo_video_filenames) > 0
         `;
+
         const [result] = await db.promise().query(query, [file_id]);
 
         if (result.length === 0) {
             return res.status(404).json({ error: true, message: 'File not found in the database' });
         }
 
-    
-
-        // Retrieve the file from Google Drive
+        // Step 3: Retrieve the file from Google Drive
         const driveResponse = await drive.files.get(
             {
                 fileId: file_id,
-                alt: 'media', // This tells the API to return the file content
+                alt: 'media', // To return the file content
             },
-            { responseType: 'stream' } // Stream the response for larger files
+            { responseType: 'stream' } // Stream the file if it's large
         );
 
-        // Stream the file back to the client
+        // Step 4: Stream the file back to the client
         res.setHeader('Content-Type', driveResponse.headers['content-type']);
         driveResponse.data.pipe(res);
 
     } catch (error) {
         console.error('Error fetching file from Google Drive:', error);
 
+        // Step 5: Handle errors
         if (error.code === 404) {
             return res.status(404).json({ error: true, message: 'File not found on Google Drive' });
         }
 
+        // Internal Server Error
         res.status(500).json({ error: 'Internal Server Error' });
     }
 });
+
 
 
 
