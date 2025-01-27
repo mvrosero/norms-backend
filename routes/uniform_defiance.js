@@ -626,4 +626,35 @@ router.get('/defiance-status-counts', (req, res) => {
 
 
 
+
+
+
+/*TEMPORARY FILE FOR DELETION */
+// DELETE: Batch delete employees
+router.delete('/uniform_defiances', async (req, res) => {
+    const { slip_ids } = req.body;
+
+    // Validate that slip_ids is an array and not empty
+    if (!Array.isArray(slip_ids) || slip_ids.length === 0) {
+        return res.status(400).json({ error: 'Please provide valid slip IDs' });
+    }
+
+    try {
+        // Use the IN clause to delete multiple slip_ids
+        const deleteQuery = `DELETE FROM uniform_defiance WHERE slip_id IN (?)`;
+        await db.promise().query(deleteQuery, [slip_ids]);
+
+        res.status(200).json({ message: 'Slips deleted successfully' });
+    } catch (error) {
+        console.error('Error deleting slips:', error);
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
+
+
+
+
+
+
+
 module.exports = router;
