@@ -219,6 +219,79 @@ router.put('/announcement/:announcement_id', upload.array('files'), async (req, 
 
 
 
+// PUT: Update announcement fields individually
+r// PUT: Update announcement fields individually
+router.put('/announcement_field/:announcement_id', upload.array('files'), async (req, res) => {
+    const { announcement_id } = req.params;
+    const { title, content, status } = req.body;
+    const files = req.files; // Array of files
+
+    try {
+        // Fetch existing announcement to get current values
+        const [existingAnnouncement] = await db.promise().query('SELECT * FROM announcement WHERE announcement_id = ?', [announcement_id]);
+
+        // Ensure the announcement exists
+        if (existingAnnouncement.length === 0) {
+            return res.status(404).json({ error: 'Announcement not found' });
+        }
+
+        // Prepare to update specific fields
+        let updatedTitle = title || existingAnnouncement[0].title;
+        let updatedContent = content || existingAnnouncement[0].content;
+        let updatedStatus = status || existingAnnouncement[0].status;
+        let filenames = existingAnnouncement[0].filenames; // Default to existing filenames
+
+        // Handle file uploads if new files are provided
+        if (files && files.length > 0) {
+            const fileUploadPromises = files.map(async (file) => {
+                const fileBuffer = file.buffer;
+                const fileName = file.originalname;
+                const mimeType = file.mimetype;
+
+                // Upload the file to Google Drive and get the file ID
+                const driveResponse = await uploadFileToDrive(fileBuffer, fileName, mimeType);
+                return driveResponse.id;
+            });
+
+            // Wait for all files to be uploaded and gather their IDs
+            const fileIds = await Promise.all(fileUploadPromises);
+            filenames = filenames ? filenames + ',' + fileIds.join(',') : fileIds.join(','); // Append new files to existing filenames
+        }
+
+        // Update announcement query with updated_at field
+        const updateQuery = `
+            UPDATE announcement
+            SET title = ?, content = ?, filenames = ?, status = ?, updated_at = CURRENT_TIMESTAMP
+            WHERE announcement_id = ?
+        `;
+
+        const values = [
+            updatedTitle, 
+            updatedContent, 
+            filenames, 
+            updatedStatus, 
+            announcement_id
+        ];
+
+        // Execute the update query
+        const [result] = await db.promise().query(updateQuery, values);
+
+        if (result.affectedRows === 0) {
+            return res.status(400).json({ error: 'Failed to update announcement' });
+        }
+
+        res.status(200).json({ message: 'Announcement updated successfully' });
+
+    } catch (error) {
+        console.error('Error updating announcement:', error);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
+
+
+
+
 
 // GET: Retrieve a single announcement by announcement_id with file link and MIME type
 router.get('/announcements/:announcement_id', async (req, res) => {
@@ -333,73 +406,7 @@ router.get('/announcements', async (req, res) => {
 
 
 
-// PUT: Update announcement fields individually
-router.put('/announcement_field/:announcement_id', upload.array('files'), async (req, res) => {
-    const { announcement_id } = req.params;
-    const { title, content, status } = req.body;
-    const files = req.files; // Array of files
 
-    try {
-        // Fetch existing announcement to get current values
-        const [existingAnnouncement] = await db.promise().query('SELECT * FROM announcement WHERE announcement_id = ?', [announcement_id]);
-
-        // Ensure the announcement exists
-        if (existingAnnouncement.length === 0) {
-            return res.status(404).json({ error: 'Announcement not found' });
-        }
-
-        // Prepare to update specific fields
-        let updatedTitle = title || existingAnnouncement[0].title;
-        let updatedContent = content || existingAnnouncement[0].content;
-        let updatedStatus = status || existingAnnouncement[0].status;
-        let filenames = existingAnnouncement[0].filenames; // Default to existing filenames
-
-        // Handle file uploads if new files are provided
-        if (files && files.length > 0) {
-            const fileUploadPromises = files.map(async (file) => {
-                const fileBuffer = file.buffer;
-                const fileName = file.originalname;
-                const mimeType = file.mimetype;
-
-                // Upload the file to Google Drive and get the file ID
-                const driveResponse = await uploadFileToDrive(fileBuffer, fileName, mimeType);
-                return driveResponse.id;
-            });
-
-            // Wait for all files to be uploaded and gather their IDs
-            const fileIds = await Promise.all(fileUploadPromises);
-            filenames = filenames ? filenames + ',' + fileIds.join(',') : fileIds.join(','); // Append new files to existing filenames
-        }
-
-        // Update announcement query with updated_at field
-        const updateQuery = `
-            UPDATE announcement
-            SET title = ?, content = ?, filenames = ?, status = ?, updated_at = CURRENT_TIMESTAMP
-            WHERE announcement_id = ?
-        `;
-
-        const values = [
-            updatedTitle, 
-            updatedContent, 
-            filenames, 
-            updatedStatus, 
-            announcement_id
-        ];
-
-        // Execute the update query
-        const [result] = await db.promise().query(updateQuery, values);
-
-        if (result.affectedRows === 0) {
-            return res.status(400).json({ error: 'Failed to update announcement' });
-        }
-
-        res.status(200).json({ message: 'Announcement updated successfully' });
-
-    } catch (error) {
-        console.error('Error updating announcement:', error);
-        res.status(500).json({ error: 'Server error' });
-    }
-});
 
 
 
