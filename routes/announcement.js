@@ -491,9 +491,16 @@ router.delete('/announcement/:announcement_id/file/:filename', async (req, res) 
         // Remove the file from the filenames string
         filenames = filenames.replace(filename, '').replace(/^,|,$/g, ''); // Remove the file and clean up commas
 
-        // Remove the file from the filesystem (if it's stored locally)
-        const filePath = path.join(__dirname, '../uploads', filename);
-        await fs.promises.unlink(filePath); // Use promises to avoid callback issues
+        // Assuming the uploaded file is stored with a specific format or folder
+        const filePath = path.join(__dirname, '../uploads', filename); // Update this logic if needed
+
+        // Check if the file exists in the filesystem
+        try {
+            await fs.promises.access(filePath); // Check if file exists before deleting
+            await fs.promises.unlink(filePath); // Delete the file
+        } catch (err) {
+            return res.status(404).json({ error: 'File not found in the filesystem' });
+        }
 
         // Update the announcement entry in the database
         const updateAnnouncementQuery = `
