@@ -706,8 +706,8 @@ router.get('/myrecords-history/:student_idnumber', async (req, res) => {
                 -- Format sanctions with space after the comma
                 GROUP_CONCAT(DISTINCT sa.sanction_name SEPARATOR ', ') AS sanction_names,
                 -- Department and program names at the time of violation
-                MAX(d.department_name) AS department_name,
-                MAX(p.program_name) AS program_name
+                MAX(dh.department_id) AS department_name,
+                MAX(ph.program_id) AS program_name
             FROM violation_record vr
             LEFT JOIN violation_user vu ON vr.record_id = vu.record_id
             LEFT JOIN violation_sanction vs ON vr.record_id = vs.record_id
