@@ -95,7 +95,7 @@ const uploadFileToDrive = async (fileBuffer, fileName, mimeType) => {
 // Multer configuration
 const upload = multer({ storage: multer.memoryStorage() });
 
-// Post route to handle uniform defiance creation
+// Post route to handle uniform defiance creation POSTMAN
 router.post('/create-uniformdefiance', upload.array('photo_video_files'), async (req, res) => {
     try {
         const { student_idnumber, nature_id, submitted_by } = req.body;
@@ -135,8 +135,8 @@ router.post('/create-uniformdefiance', upload.array('photo_video_files'), async 
     }
 });
 
-
-// GET: uniform_defiances
+ 
+// GET: uniform_defiances POSTMAN
 router.get('/uniform_defiances', async (req, res) => {
     try {
         // Query to fetch all rows without any implicit limit
@@ -301,7 +301,9 @@ router.get('/uniform_defiances/:student_idnumber', async (req, res) => {
 });
 
 
-/* GET: uniform_defiances (by employee_idnumber for submitted_by) */
+
+
+/* GET: uniform_defiances (by employee_idnumber for submitted_by) POSTMAN */
 router.get('/uniform_defiance/:file_id', async (req, res) => {
     const { file_id } = req.params;
 
@@ -310,7 +312,6 @@ router.get('/uniform_defiance/:file_id', async (req, res) => {
     }
 
     try {
-        // Query the database to fetch the relevant uniform defiance record and associated details
         const query = `
             SELECT 
                 ud.*, 
@@ -331,21 +332,12 @@ router.get('/uniform_defiance/:file_id', async (req, res) => {
             return res.status(404).json({ error: true, message: 'File not found in the database' });
         }
 
-        // Extract the first record (assuming `file_id` uniquely identifies a file in `photo_video_filenames`)
         const record = result[0];
+        const filePath = path.join(__dirname, 'uploads', record.photo_video_filenames); // Adjust the file path accordingly
 
-        // Construct the Google Drive file URL using the file ID
-        const fileUrl = `https://drive.google.com/uc?id=${file_id}`;
+        // Serve the image directly
+        res.sendFile(filePath);
 
-        // Include the fetched record details in the response
-        res.status(200).json({
-            fileUrl,
-            details: {
-                uniform_defiance: record,
-                nature_name: record.nature_name,
-                full_name: record.full_name,
-            },
-        });
     } catch (error) {
         console.error('Error fetching uniform defiance record:', error);
         res.status(500).json({ error: 'Internal Server Error' });
