@@ -221,7 +221,8 @@ router.put('/announcement/:announcement_id', upload.array('files'), async (req, 
 
 // PUT: Update announcement fields individually
 // PUT: Update announcement fields individually
-router.put('/announcement_field/:announcement_id', upload.array('files'), async (req, res) => {
+// PUT: Update announcement fields with file upload support, allowing partial updates
+router.put('/announcement/:announcement_id', upload.array('files'), async (req, res) => {
     const { announcement_id } = req.params;
     const { title, content, status } = req.body;
     const files = req.files; // Array of files
@@ -235,43 +236,41 @@ router.put('/announcement_field/:announcement_id', upload.array('files'), async 
             return res.status(404).json({ error: 'Announcement not found' });
         }
 
-        // Prepare to update specific fields
+        // Prepare to update only the provided fields, retain existing values for non-provided fields
         let updatedTitle = title || existingAnnouncement[0].title;
         let updatedContent = content || existingAnnouncement[0].content;
         let updatedStatus = status || existingAnnouncement[0].status;
-        let filenames = existingAnnouncement[0].filenames; // Default to existing filenames
+        let filenames = existingAnnouncement[0].filenames || ''; // Default to existing filenames if none provided
 
-        // Handle file uploads if new files are provided
+        // Handle file uploads if there are new files
         if (files && files.length > 0) {
+            // Handle filenames and upload files to Google Drive
             const fileUploadPromises = files.map(async (file) => {
                 const fileBuffer = file.buffer;
                 const fileName = file.originalname;
                 const mimeType = file.mimetype;
 
-                // Upload the file to Google Drive and get the file link (URL)
+                // Upload the file to Google Drive and return the file link (URL)
                 const driveResponse = await uploadFileToDrive(fileBuffer, fileName, mimeType);
-                return driveResponse.link;  // Assuming `driveResponse.link` is the file URL
+
+                // Assuming `driveResponse.link` is the URL returned from Google Drive
+                return driveResponse.link;
             });
 
-            // Wait for all files to be uploaded and gather their links
+            // Wait for all files to be uploaded to Google Drive
             const fileLinks = await Promise.all(fileUploadPromises);
-            filenames = filenames ? filenames + ',' + fileLinks.join(',') : fileLinks.join(','); // Append new file links to existing filenames
+
+            // Append the new file links to the existing filenames
+            filenames = filenames ? filenames + ',' + fileLinks.join(',') : fileLinks.join(',');
         }
 
-        // Update announcement query with updated_at field
         const updateQuery = `
             UPDATE announcement
             SET title = ?, content = ?, filenames = ?, status = ?, updated_at = CURRENT_TIMESTAMP
             WHERE announcement_id = ?
         `;
 
-        const values = [
-            updatedTitle, 
-            updatedContent, 
-            filenames, 
-            updatedStatus, 
-            announcement_id
-        ];
+        const values = [updatedTitle, updatedContent, filenames, updatedStatus, announcement_id];
 
         // Execute the update query
         const [result] = await db.promise().query(updateQuery, values);
@@ -287,6 +286,7 @@ router.put('/announcement_field/:announcement_id', upload.array('files'), async 
         res.status(500).json({ error: 'Server error' });
     }
 });
+
 
 
 
@@ -465,6 +465,7 @@ router.put('/announcement/:id/unpin', async (req, res) => {
 
 // DELETE: Remove a file attached to an announcement
 // DELETE: Remove a file attached to an announcement
+// DELETE: Remove a file attached to an announcement
 router.delete('/announcement/:announcement_id/file/:filename', async (req, res) => {
     const announcement_id = req.params.announcement_id;
     const filename = req.params.filename;
@@ -495,12 +496,7 @@ router.delete('/announcement/:announcement_id/file/:filename', async (req, res) 
 
         // Remove the file from the filesystem (if it's stored locally)
         const filePath = path.join(__dirname, '../uploads', filename);
-        fs.unlink(filePath, (err) => {
-            if (err) {
-                console.error('Error deleting file:', err);
-                return res.status(500).json({ error: 'Internal Server Error' });
-            }
-        });
+        await fs.promises.unlink(filePath); // Use promises to avoid callback issues
 
         // Update the announcement entry in the database
         const updateAnnouncementQuery = `
@@ -517,9 +513,13 @@ router.delete('/announcement/:announcement_id/file/:filename', async (req, res) 
         res.status(200).json({ message: 'File removed successfully' });
     } catch (error) {
         console.error('Error removing file:', error);
-        res.status(500).json({ error: 'Internal Server Error' });
+        // Check if the response has already been sent
+        if (!res.headersSent) {
+            res.status(500).json({ error: 'Internal Server Error' });
+        }
     }
 });
+
 
 
 
