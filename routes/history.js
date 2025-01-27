@@ -304,7 +304,7 @@ router.get('/histories/export', async (req, res) => {
         console.log("Generated CSV:", csv);
 
         // Define the file path for temporary CSV file
-        const filePath = path.join(os.tmpdir(), 'user_logs.csv');
+        const filePath = path.join(os.tmpdir(), `user_logs.csv`);
 
         // Write CSV to the temporary file
         await fs.promises.writeFile(filePath, csv);
