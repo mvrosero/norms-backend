@@ -252,7 +252,7 @@ router.get('/uniform_defiances-not-pending', async (req, res) => {
                     row.mime_type = null;
                 }
             }
-            return row; // Make sure the updated row is returned
+            return row; 
         }));
 
         // Log the updated rows to check if the file_link and mime_type were added
