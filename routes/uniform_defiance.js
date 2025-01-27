@@ -95,7 +95,7 @@ const uploadFileToDrive = async (fileBuffer, fileName, mimeType) => {
 // Multer configuration
 const upload = multer({ storage: multer.memoryStorage() });
 
-// Post route to handle uniform defiance creation POSTMAN
+// Post route to handle uniform defiance creation - POSTMAN
 router.post('/create-uniformdefiance', upload.array('photo_video_files'), async (req, res) => {
     try {
         const { student_idnumber, nature_id, submitted_by } = req.body;
