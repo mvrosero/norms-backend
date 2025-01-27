@@ -220,7 +220,7 @@ router.put('/announcement/:announcement_id', upload.array('files'), async (req, 
 
 
 // PUT: Update announcement fields individually
-r// PUT: Update announcement fields individually
+// PUT: Update announcement fields individually
 router.put('/announcement_field/:announcement_id', upload.array('files'), async (req, res) => {
     const { announcement_id } = req.params;
     const { title, content, status } = req.body;
