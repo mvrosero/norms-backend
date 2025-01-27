@@ -303,7 +303,6 @@ router.get('/uniform_defiances/:student_idnumber', async (req, res) => {
 
 
 
-/* GET: uniform_defiances (by employee_idnumber for submitted_by) POSTMAN */
 router.get('/uniform_defiance/:file_id', async (req, res) => {
     const { file_id } = req.params;
 
@@ -312,6 +311,7 @@ router.get('/uniform_defiance/:file_id', async (req, res) => {
     }
 
     try {
+        // Query the database to verify the file ID exists
         const query = `
             SELECT 
                 ud.*, 
@@ -332,15 +332,37 @@ router.get('/uniform_defiance/:file_id', async (req, res) => {
             return res.status(404).json({ error: true, message: 'File not found in the database' });
         }
 
-        const record = result[0];
-        const filePath = path.join(__dirname, 'uploads', record.photo_video_filenames); // Adjust the file path accordingly
+        // Fetch the file from Google Drive
+        const drive = await getDriveClient();
 
-        // Serve the image directly
-        res.sendFile(filePath);
+        // Get file metadata to validate file existence
+        const fileMetadata = await drive.files.get({
+            fileId: file_id,
+            fields: 'id, name, mimeType',
+        });
 
+        const { mimeType } = fileMetadata.data;
+
+        // Pipe the file directly to the response
+        const driveStream = await drive.files.get(
+            { fileId: file_id, alt: 'media' },
+            { responseType: 'stream' }
+        );
+
+        res.setHeader('Content-Type', mimeType);
+        driveStream.data
+            .on('error', (err) => {
+                console.error('Error streaming file:', err);
+                res.status(500).send('Error retrieving file');
+            })
+            .pipe(res);
     } catch (error) {
-        console.error('Error fetching uniform defiance record:', error);
-        res.status(500).json({ error: 'Internal Server Error' });
+        console.error('Error retrieving file from Google Drive:', error);
+        if (error.code === 404) {
+            res.status(404).json({ error: true, message: 'File not found in Google Drive' });
+        } else {
+            res.status(500).json({ error: true, message: 'Internal Server Error' });
+        }
     }
 });
 
