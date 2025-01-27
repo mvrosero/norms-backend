@@ -349,7 +349,7 @@ router.get('/uniform_defiance/:file_id', async (req, res) => {
                 fileId: file_id,
                 alt: 'media', // To return the file content
             },
-            { responseType: 'stream' } // Stream the file if it's large
+            { responseType: 'stream' } 
         );
 
         // Step 5: Set headers and stream the file back to the client
