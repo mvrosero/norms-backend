@@ -256,12 +256,36 @@ router.get('/uniform_defiances-pending', async (req, res) => {
                 ud.status = 'pending';
         `);
 
-        res.json(rows);
+        // Fetch Google Drive files for each pending uniform defiance row
+        const updatedRows = await Promise.all(rows.map(async (row) => {
+            if (row.photo_video_filenames) {
+                try {
+                    // Fetch file metadata from Google Drive
+                    const fileMetadata = await drive.files.get({
+                        fileId: row.photo_video_filenames, 
+                        fields: 'id,name,webViewLink, mimeType'
+                    });
+
+                    // Add the file metadata (e.g., webViewLink) to the row
+                    row.file_link = fileMetadata.data.webViewLink;
+                    row.mime_type = fileMetadata.data.mimeType;  // If you need to display or handle file types
+
+                } catch (err) {
+                    console.error('Error fetching file from Google Drive:', err);
+                    row.file_link = null; // In case of error, set file_link to null
+                }
+            }
+            return row; // Make sure the updated row is returned
+        }));
+
+        // Send the updated rows back in the response
+        res.json(updatedRows);
     } catch (error) {
         console.error('Error fetching uniform defiances (pending):', error);
         res.status(500).json({ message: 'Internal Server Error' });
     }
 });
+
 
 
 /* GET: uniform_defiances (by student_idnumber) */
