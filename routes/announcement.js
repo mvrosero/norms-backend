@@ -255,11 +255,14 @@ router.get('/announcements', async (req, res) => {
                     }
                 }));
 
-                // Attach the file details to the announcement
-                return {
+                // Attach the file details directly to the announcement
+                // If files exist, the details will be added to the announcement object
+                const updatedAnnouncement = { 
                     ...announcement,
-                    files: fileDetails.filter(Boolean), // Filter out null values if any file failed to fetch
+                    ...(fileDetails.length > 0 && { file_link: fileDetails[0]?.file_link, mime_type: fileDetails[0]?.mime_type })
                 };
+
+                return updatedAnnouncement;
             }));
 
             // Send the announcements with file links and MIME types
@@ -274,12 +277,12 @@ router.get('/announcements', async (req, res) => {
 
 
 // PUT: Update announcement fields individually
-router.put('/announcement/:announcement_id', async (req, res) => {
+router.put('/announcement_field/:announcement_id', async (req, res) => {
     const { announcement_id } = req.params;
     const { title, content, filenames, status } = req.body;
 
     try {
-        // Fetch existing announcement to get current values
+        // Fetch the existing announcement to get current values
         const [existingAnnouncement] = await db.promise().query('SELECT * FROM announcement WHERE announcement_id = ?', [announcement_id]);
 
         // Ensure the announcement exists
@@ -287,15 +290,48 @@ router.put('/announcement/:announcement_id', async (req, res) => {
             return res.status(404).json({ error: 'Announcement not found' });
         }
 
-        // Proceed with updating the announcement
+        // Prepare file metadata if filenames are provided
+        let fileLinks = [];
+        let mimeTypes = [];
+
+        // If filenames are provided, get the metadata for each file
+        if (filenames) {
+            const fileIds = filenames.split(',');
+
+            // Loop through each file ID to fetch its metadata
+            for (const fileId of fileIds) {
+                try {
+                    const fileMetadata = await drive.files.get({
+                        fileId, // Get the metadata of the file
+                        fields: 'id, mimeType, webViewLink',
+                    });
+
+                    fileLinks.push(fileMetadata.data.webViewLink);
+                    mimeTypes.push(fileMetadata.data.mimeType);
+                } catch (error) {
+                    console.error('Error fetching file metadata for fileId:', fileId, error);
+                    return res.status(500).json({ error: 'Failed to fetch file metadata' });
+                }
+            }
+        }
+
+        // Update query for updating the announcement, including file metadata
         const updateQuery = `
             UPDATE announcement
-            SET title = ?, content = ?, filenames = ?, status = ?, updated_at = CURRENT_TIMESTAMP
+            SET title = ?, content = ?, filenames = ?, status = ?, file_links = ?, mime_types = ?, updated_at = CURRENT_TIMESTAMP
             WHERE announcement_id = ?
         `;
 
-        const values = [title, content, filenames, status, announcement_id];
-        
+        const values = [
+            title, 
+            content, 
+            filenames, // Assuming this stores the file IDs or filenames as a comma-separated string
+            status, 
+            JSON.stringify(fileLinks), // Store file links as JSON array
+            JSON.stringify(mimeTypes), // Store MIME types as JSON array
+            announcement_id
+        ];
+
         // Execute the update query
         const [result] = await db.promise().query(updateQuery, values);
 
@@ -310,6 +346,7 @@ router.put('/announcement/:announcement_id', async (req, res) => {
         res.status(500).json({ error: 'Server error' });
     }
 });
+
 
 
 
@@ -375,8 +412,8 @@ router.delete('/announcement/:id/file/:filename', async (req, res) => {
     }
 
     try {
-        // Fetch existing announcement to get current filenames
-        const [existingAnnouncement] = await db.promise().query('SELECT filenames FROM announcement WHERE announcement_id = ?', [announcement_id]);
+        // Fetch existing announcement to get current file links and mime types
+        const [existingAnnouncement] = await db.promise().query('SELECT file_links, mime_types FROM announcement WHERE announcement_id = ?', [announcement_id]);
 
         // Ensure the announcement exists
         if (existingAnnouncement.length === 0) {
@@ -384,12 +421,20 @@ router.delete('/announcement/:id/file/:filename', async (req, res) => {
         }
 
         const existingData = existingAnnouncement[0];
-        const filenames = existingData.filenames.split(',');
+        let fileLinks = JSON.parse(existingData.file_links || '[]');
+        let mimeTypes = JSON.parse(existingData.mime_types || '[]');
 
-        // Remove the filename from the list
-        const updatedFilenames = filenames.filter(file => file !== filename);
+        // Find the index of the file link and mime type corresponding to the filename
+        const fileIndex = fileLinks.findIndex(link => link.includes(filename));
+        if (fileIndex === -1) {
+            return res.status(404).json({ error: 'File not found in the announcement' });
+        }
 
-        // Remove the file from the filesystem
+        // Remove the file link and mime type from the arrays
+        fileLinks.splice(fileIndex, 1);
+        mimeTypes.splice(fileIndex, 1);
+
+        // Remove the file from the filesystem (if it's stored locally)
         const filePath = path.join(__dirname, '../uploads', filename);
         fs.unlink(filePath, (err) => {
             if (err) {
@@ -400,13 +445,14 @@ router.delete('/announcement/:id/file/:filename', async (req, res) => {
 
         // Update the announcement entry in the database
         const updateAnnouncementQuery = `
-            UPDATE announcement 
-            SET filenames = ?
+            UPDATE announcement
+            SET file_links = ?, mime_types = ?
             WHERE announcement_id = ?
         `;
 
         await db.promise().execute(updateAnnouncementQuery, [
-            updatedFilenames.join(','),
+            JSON.stringify(fileLinks),
+            JSON.stringify(mimeTypes),
             announcement_id
         ]);
 
@@ -416,6 +462,10 @@ router.delete('/announcement/:id/file/:filename', async (req, res) => {
         res.status(500).json({ error: 'Internal Server Error' });
     }
 });
+
+
+
+
 
 
 
@@ -444,7 +494,10 @@ router.delete('/announcement/:id', (req, res) => {
     }
 });
 
+
+
 // Serve static files from the uploads directory
 router.use('/uploads', express.static(path.join(__dirname, '../uploads')));
+
 
 module.exports = router;
