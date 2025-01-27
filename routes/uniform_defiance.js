@@ -341,7 +341,7 @@ router.get('/uniform_defiance/:file_id', async (req, res) => {
             fields: 'name',
         });
 
-        const fileName = driveResponseMetadata.data.name || 'file.jpg'; // Default name if not found
+        const fileName = driveResponseMetadata.data.name || 'file.jpg';
 
         // Step 4: Retrieve the file content from Google Drive
         const driveResponse = await drive.files.get(
