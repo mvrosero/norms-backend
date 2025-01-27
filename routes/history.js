@@ -213,6 +213,12 @@ router.get('/account-history/:user_id', (req, res) => {
 
 
 /* GET: Export all user histories to CSV */
+const fs = require('fs');
+const os = require('os');
+const path = require('path');
+const { parse } = require('json2csv');
+const db = require('./db'); // Adjust as necessary for your DB connection
+
 router.get('/histories/export', async (req, res) => {
     try {
         const [rows] = await db.promise().query(`
@@ -221,18 +227,18 @@ router.get('/histories/export', async (req, res) => {
                 DATE_FORMAT(user_history.changed_at, '%Y-%m-%d, %l:%i:%s %p') AS changed_at, 
                 CONCAT(user.first_name, ' ', user.last_name, ' ', user.suffix) AS user,
                 user_history.user_id, 
-                IFNULL(old_department.department_name, 'Unknown') AS old_department_name, 
-                IFNULL(new_department.department_name, 'Unknown') AS new_department_name, 
-                IFNULL(old_program.program_name, 'Unknown') AS old_program_name, 
-                IFNULL(new_program.program_name, 'Unknown') AS new_program_name, 
+                old_department.department_name AS old_department_name, 
+                new_department.department_name AS new_department_name, 
+                old_program.program_name AS old_program_name, 
+                new_program.program_name AS new_program_name, 
                 user_history.old_year_level, 
                 user_history.new_year_level, 
                 user_history.old_status, 
                 user_history.new_status, 
                 user_history.old_batch, 
                 user_history.new_batch, 
-                IFNULL(old_role.role_name, 'Unknown') AS old_role_name, 
-                IFNULL(new_role.role_name, 'Unknown') AS new_role_name, 
+                old_role.role_name AS old_role_name, 
+                new_role.role_name AS new_role_name, 
                 user_history.updated_by, 
                 CONCAT(updated_by.first_name, ' ', updated_by.last_name, ' ', updated_by.suffix) AS updated_by
             FROM 
@@ -246,8 +252,6 @@ router.get('/histories/export', async (req, res) => {
             LEFT JOIN user ON user_history.user_id = user.user_id
             LEFT JOIN user AS updated_by ON user_history.updated_by = updated_by.user_id;
         `);
-
-        console.log("Rows returned:", rows);  
 
         if (rows.length === 0) {
             return res.status(404).json({ message: 'No records found' });
