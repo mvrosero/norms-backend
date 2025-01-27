@@ -149,7 +149,7 @@ router.post('/create-announcement', upload.array('files'), async (req, res) => {
 });
 
 
-/* GET: Retrieve a specific announcement by ID */
+
 // PUT: Update announcement fields individually
 router.put('/announcement/:announcement_id', upload.array('files'), async (req, res) => {
     const { announcement_id } = req.params;
@@ -220,24 +220,56 @@ router.put('/announcement/:announcement_id', upload.array('files'), async (req, 
 
 
 
-/* GET: Retrieve all announcements */
-router.get('/announcements', (req, res) => {
+
+
+// GET: Retrieve all announcements with file link and MIME type
+router.get('/announcements', async (req, res) => {
     try {
-        db.query('SELECT * FROM announcement', (err, result) => {
+        // Fetch announcements
+        db.query('SELECT * FROM announcement', async (err, result) => {
             if (err) {
                 console.error('Error fetching announcements:', err);
-                res.status(500).json({ message: 'Internal Server Error' });
-            } else {
-                res.status(200).json(result);
+                return res.status(500).json({ message: 'Internal Server Error' });
             }
+
+            // For each announcement, fetch file details from Google Drive
+            const announcementsWithFiles = await Promise.all(result.map(async (announcement) => {
+                // Split the filenames (file IDs) stored in the database
+                const fileIds = announcement.filenames.split(',');
+
+                // Fetch file details from Google Drive API
+                const fileDetails = await Promise.all(fileIds.map(async (fileId) => {
+                    try {
+                        const fileMetadata = await drive.files.get({
+                            fileId: fileId,
+                            fields: 'id, name, mimeType, webViewLink', // Fetch the file's metadata
+                        });
+
+                        return {
+                            file_link: fileMetadata.data.webViewLink,
+                            mime_type: fileMetadata.data.mimeType,
+                        };
+                    } catch (error) {
+                        console.error(`Error fetching file metadata for file ID ${fileId}:`, error);
+                        return null; // Return null if there is an error fetching file details
+                    }
+                }));
+
+                // Attach the file details to the announcement
+                return {
+                    ...announcement,
+                    files: fileDetails.filter(Boolean), // Filter out null values if any file failed to fetch
+                };
+            }));
+
+            // Send the announcements with file links and MIME types
+            res.status(200).json(announcementsWithFiles);
         });
     } catch (error) {
         console.error('Error loading announcements:', error);
         res.status(500).json({ error: 'Internal Server Error' });
     }
 });
-
-
 
 
 
