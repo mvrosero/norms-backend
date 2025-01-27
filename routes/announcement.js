@@ -202,7 +202,7 @@ router.get('/announcements', (req, res) => {
 // PUT: Update announcement fields individually
 router.put('/announcement/:announcement_id', async (req, res) => {
     const { announcement_id } = req.params;
-    const { title, description, filenames, status } = req.body;
+    const { title, content, filenames, status } = req.body;
 
     try {
         // Fetch existing announcement to get current values
@@ -216,11 +216,11 @@ router.put('/announcement/:announcement_id', async (req, res) => {
         // Proceed with updating the announcement
         const updateQuery = `
             UPDATE announcement
-            SET title = ?, description = ?, filenames = ?, status = ?, updated_at = CURRENT_TIMESTAMP
+            SET title = ?, content = ?, filenames = ?, status = ?, updated_at = CURRENT_TIMESTAMP
             WHERE announcement_id = ?
         `;
 
-        const values = [title, description, filenames, status, announcement_id];
+        const values = [title, content, filenames, status, announcement_id];
         
         // Execute the update query
         const [result] = await db.promise().query(updateQuery, values);
