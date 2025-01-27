@@ -764,32 +764,39 @@ router.get('/violationrecords-history/:student_idnumber', (req, res) => {
         vr.record_id,
         vr.description,
         vr.created_at AS violation_created_at,
-        vr.category_id,
-        vr.offense_id,
-        vr.acadyear_id,
-        vr.semester_id,
-        COALESCE((
-          SELECT uh.old_department_id
-          FROM user_history uh
-          WHERE uh.user_id = u.user_id
-          AND uh.changed_at <= vr.created_at
-          ORDER BY uh.changed_at DESC
-          LIMIT 1
-        ), u.department_id) AS department_id,
-        COALESCE((
-          SELECT uh.old_program_id
-          FROM user_history uh
-          WHERE uh.user_id = u.user_id
-          AND uh.changed_at <= vr.created_at
-          ORDER BY uh.changed_at DESC
-          LIMIT 1
-        ), u.program_id) AS program_id
+        -- Join with the category table to get category name
+        c.category_name AS category_name,
+        -- Join with the offense table to get offense name
+        o.offense_name AS offense_name,
+        -- Join with academic_year to get the formatted start_year - end_year
+        CONCAT(ay.start_year, ' - ', ay.end_year) AS acadyear_name,
+        -- Join with the semester table to get semester name
+        s.semester_name AS semester_name,
+        -- Join with the department table to get department name
+        d.department_name AS department_name,
+        -- Join with the program table to get program name
+        p.program_name AS program_name
       FROM 
         violation_record vr
+      -- Join with violation_user table to link violation records to users
       JOIN 
         violation_user vu ON vr.record_id = vu.record_id
+      -- Join with the user table to fetch user details
       JOIN 
         user u ON vu.user_id = u.user_id
+      -- Left joins to bring in additional information for category, offense, academic year, semester, department, and program
+      LEFT JOIN 
+        category c ON vr.category_id = c.category_id
+      LEFT JOIN 
+        offense o ON vr.offense_id = o.offense_id
+      LEFT JOIN 
+        academic_year ay ON vr.acadyear_id = ay.acadyear_id
+      LEFT JOIN 
+        semester s ON vr.semester_id = s.semester_id
+      LEFT JOIN 
+        department d ON vr.department_id = d.department_id
+      LEFT JOIN 
+        program p ON vr.program_id = p.program_id
       WHERE 
         u.student_idnumber = ?
       ORDER BY 
@@ -809,9 +816,7 @@ router.get('/violationrecords-history/:student_idnumber', (req, res) => {
       return res.json(results);
     });
   });
-
-
-
+  
 
 
 module.exports = router;
