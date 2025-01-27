@@ -303,48 +303,43 @@ router.get('/uniform_defiances/:student_idnumber', async (req, res) => {
 
 
 
-router.get('/uniform-defiance/:slip_id', async (req, res) => {
-    const slipId = req.params.slip_id;
+router.get('/uniform_defiance/:file_id', async (req, res) => {
+    const { file_id } = req.params;
+
+    if (!file_id) {
+        return res.status(400).json({ error: true, message: 'File ID is required' });
+    }
 
     try {
-        // Retrieve the file_id from the database based on slip_id
-        const [result] = await db.query('SELECT photo_video_filenames FROM uniform_defiance WHERE slip_id = ?', [slipId]);
+        const query = `
+            SELECT 
+                ud.*, 
+                vn.nature_name, 
+                CONCAT(u.first_name, ' ', IFNULL(u.middle_name, ''), ' ', u.last_name) AS full_name
+            FROM 
+                uniform_defiance ud
+            LEFT JOIN 
+                violation_nature vn ON ud.nature_id = vn.nature_id
+            LEFT JOIN 
+                user u ON ud.submitted_by = u.employee_idnumber
+            WHERE 
+                FIND_IN_SET(?, ud.photo_video_filenames) > 0
+        `;
+        const [result] = await db.promise().query(query, [file_id]);
 
-        if (result.length > 0) {
-            const fileId = result[0].photo_video_filenames;
-
-            if (!fileId) {
-                return res.status(404).send('Uniform defiance image not set for this slip');
-            }
-
-            try {
-                // Fetch file metadata from Google Drive
-                const metadataResponse = await drive.files.get({
-                    fileId: fileId,
-                    fields: 'name',
-                });
-                const fileName = metadataResponse.data.name || 'uniform-defiance.jpg';
-
-                // Fetch file content from Google Drive
-                const driveResponse = await drive.files.get({
-                    fileId: fileId,
-                    alt: 'media',
-                }, { responseType: 'stream' });
-
-                // Set headers and send the file
-                res.setHeader('Content-Type', 'image/jpeg');
-                res.setHeader('Content-Disposition', `inline; filename="${fileName}"`);
-                driveResponse.data.pipe(res);
-            } catch (err) {
-                console.error('Error retrieving the uniform defiance image from Google Drive:', err.message);
-                res.status(500).send('Error retrieving the uniform defiance image');
-            }
-        } else {
-            res.status(404).send('Slip not found');
+        if (result.length === 0) {
+            return res.status(404).json({ error: true, message: 'File not found in the database' });
         }
-    } catch (err) {
-        console.error("Error fetching uniform defiance image:", err.message);
-        res.status(500).send('Internal Server Error');
+
+        const record = result[0];
+        const filePath = path.join(__dirname, 'uploads', record.photo_video_filenames); // Adjust the file path accordingly
+
+        // Serve the image directly
+        res.sendFile(filePath);
+
+    } catch (error) {
+        console.error('Error fetching uniform defiance record:', error);
+        res.status(500).json({ error: 'Internal Server Error' });
     }
 });
 
