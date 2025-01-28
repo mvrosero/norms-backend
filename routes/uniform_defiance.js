@@ -1,5 +1,5 @@
 const express = require('express');
-const db = require('../app/configuration/database'); // Ensure this uses mysql2/promise
+const db = require('../app/configuration/database'); 
 const router = express.Router();
 const multer = require('multer');
 const path = require('path');
