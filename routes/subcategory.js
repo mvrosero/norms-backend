@@ -148,13 +148,16 @@ router.get('/myrecords-visual/:student_idnumber', async (req, res) => {
             return res.status(404).json({ message: 'No violation records found for this student' });
         }
 
-        // Formatting the response
+        // Formatting the response to include offense_id
         const formattedData = {};
         results.forEach(row => {
             if (!formattedData[row.subcategory_name]) {
                 formattedData[row.subcategory_name] = {};
             }
-            formattedData[row.subcategory_name][row.offense_name] = row.offense_count;
+            if (!formattedData[row.subcategory_name][row.offense_name]) {
+                formattedData[row.subcategory_name][row.offense_name] = {};
+            }
+            formattedData[row.subcategory_name][row.offense_name][row.offense_id] = row.offense_count;
         });
 
         res.status(200).json(formattedData);
@@ -163,6 +166,7 @@ router.get('/myrecords-visual/:student_idnumber', async (req, res) => {
         res.status(500).json({ error: 'Internal Server Error' });
     }
 });
+
 
 
 
