@@ -5,6 +5,7 @@ const path = require('path');
 const db = require('../app/configuration/database');
 const router = express.Router();
 
+
 const { google } = require('googleapis');
 const { Readable } = require('stream');
 
@@ -532,6 +533,7 @@ router.put('/announcement/:id/unpin', async (req, res) => {
 
 
 // DELETE: Remove a file attached to an announcement
+// DELETE: Remove a file attached to an announcement
 router.delete('/announcement/:announcement_id/file/:filename', async (req, res) => {
     const announcement_id = req.params.announcement_id;
     const filename = req.params.filename;
@@ -541,47 +543,43 @@ router.delete('/announcement/:announcement_id/file/:filename', async (req, res) 
     }
 
     try {
-        // Fetch existing announcement to get current filenames
-        const [existingAnnouncement] = await db.promise().query('SELECT filenames FROM announcement WHERE announcement_id = ?', [announcement_id]);
+        // Fetch existing announcement
+        const [existingAnnouncement] = await db.promise().query(
+            'SELECT filenames FROM announcement WHERE announcement_id = ?', 
+            [announcement_id]
+        );
 
-        // Ensure the announcement exists
         if (existingAnnouncement.length === 0) {
             return res.status(404).json({ error: 'Announcement not found' });
         }
 
         const existingData = existingAnnouncement[0];
-        let filenames = existingData.filenames;
+        let filenamesArray = existingData.filenames ? existingData.filenames.split(',') : [];
 
-        // Check if the filename exists in the filenames string
-        if (!filenames.includes(filename)) {
+        // Check if the filename exists in the array
+        if (!filenamesArray.includes(filename)) {
             return res.status(404).json({ error: 'File not found in the announcement' });
         }
 
-        // Remove the file from the filenames string
-        filenames = filenames.replace(filename, '').replace(/^,|,$/g, '').trim(); // Clean up commas
+        // Remove the filename from the array
+        filenamesArray = filenamesArray.filter(f => f !== filename);
 
         // Define the file path
-        const filePath = path.join(__dirname, '../uploads', filename); // Ensure this path matches your folder structure
+        const filePath = path.join(__dirname, '../uploads', filename);
 
-        // Check if the file exists in the filesystem
+        // Check if the file exists in the filesystem before deleting
         try {
-            await fs.promises.access(filePath); // Check if file exists before deleting
+            await fs.promises.access(filePath);
             await fs.promises.unlink(filePath); // Delete the file
         } catch (err) {
             return res.status(404).json({ error: 'File not found in the filesystem' });
         }
 
         // Update the announcement entry in the database
-        const updateAnnouncementQuery = `
-            UPDATE announcement
-            SET filenames = ?
-            WHERE announcement_id = ?
-        `;
-
-        await db.promise().execute(updateAnnouncementQuery, [
-            filenames,
-            announcement_id
-        ]);
+        await db.promise().execute(
+            'UPDATE announcement SET filenames = ? WHERE announcement_id = ?',
+            [filenamesArray.join(','), announcement_id] // Convert array back to a string
+        );
 
         res.status(200).json({ message: 'File removed successfully' });
     } catch (error) {
@@ -591,6 +589,7 @@ router.delete('/announcement/:announcement_id/file/:filename', async (req, res) 
         }
     }
 });
+
 
 
 
