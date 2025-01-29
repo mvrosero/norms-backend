@@ -359,9 +359,6 @@ router.get('/announcement/:file_id', async (req, res) => {
 
 
 
-
-
-
 // GET: Retrieve a single announcement by announcement_id with file link and MIME type
 router.get('/announcements/:announcement_id', async (req, res) => {
     const { announcement_id } = req.params;
