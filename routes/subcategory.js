@@ -109,6 +109,7 @@ router.delete('/subcategory/:id', async (req, res) => {
 
 
 /*VISUAL */
+
 router.get('/myrecords-visual/:student_idnumber', async (req, res) => {
     const student_idnumber = req.params.student_idnumber;
 
@@ -128,11 +129,10 @@ router.get('/myrecords-visual/:student_idnumber', async (req, res) => {
 
         const user_id = userResult[0].user_id;
 
-        // Fetch the offense count categorized by subcategory and offense_name
+        // Fetch the offense count categorized by subcategory
         const [results] = await db.promise().query(`
             SELECT 
                 subcat.subcategory_name,
-                o.offense_name,
                 o.offense_id,
                 COUNT(vu.record_id) AS offense_count
             FROM violation_user vu
@@ -140,7 +140,7 @@ router.get('/myrecords-visual/:student_idnumber', async (req, res) => {
             JOIN offense o ON vr.offense_id = o.offense_id
             JOIN subcategory subcat ON o.subcategory_id = subcat.subcategory_id
             WHERE vu.user_id = ?
-            GROUP BY subcat.subcategory_name, o.offense_name, o.offense_id
+            GROUP BY subcat.subcategory_name, o.offense_id
             ORDER BY subcat.subcategory_name, offense_count DESC;
         `, [user_id]);
 
@@ -149,23 +149,12 @@ router.get('/myrecords-visual/:student_idnumber', async (req, res) => {
         }
 
         // Formatting the response
-        const formattedData = {
-            offenseNameCount: {},
-            offenseIdCount: {}
-        };
-
+        const formattedData = {};
         results.forEach(row => {
-            // Grouping by offense_name
-            if (!formattedData.offenseNameCount[row.subcategory_name]) {
-                formattedData.offenseNameCount[row.subcategory_name] = {};
+            if (!formattedData[row.subcategory_name]) {
+                formattedData[row.subcategory_name] = {};
             }
-            formattedData.offenseNameCount[row.subcategory_name][row.offense_name] = row.offense_count;
-
-            // Grouping by offense_id
-            if (!formattedData.offenseIdCount[row.subcategory_name]) {
-                formattedData.offenseIdCount[row.subcategory_name] = {};
-            }
-            formattedData.offenseIdCount[row.subcategory_name][row.offense_id] = row.offense_count;
+            formattedData[row.subcategory_name][row.offense_id] = row.offense_count;
         });
 
         res.status(200).json(formattedData);
