@@ -128,33 +128,62 @@ router.get('/myrecords-visual/:student_idnumber', async (req, res) => {
 
         const user_id = userResult[0].user_id;
 
-        // Fetch the offense count categorized by subcategory
-        const [results] = await db.promise().query(`
+        // Fetch all offenses, even if there's no violation record
+        const [offenseResults] = await db.promise().query(`
+            SELECT 
+                subcat.subcategory_name,
+                o.offense_id
+            FROM offense o
+            JOIN subcategory subcat ON o.subcategory_id = subcat.subcategory_id
+        `);
+
+        if (offenseResults.length === 0) {
+            return res.status(404).json({ message: 'No offenses found' });
+        }
+
+        // Fetch violation data (using LEFT JOIN to include offenses with no violations)
+        const [violationResults] = await db.promise().query(`
             SELECT 
                 subcat.subcategory_name,
                 o.offense_id,
                 COUNT(vu.record_id) AS offense_count
             FROM violation_user vu
-            JOIN violation_record vr ON vu.record_id = vr.record_id
-            JOIN offense o ON vr.offense_id = o.offense_id
-            JOIN subcategory subcat ON o.subcategory_id = subcat.subcategory_id
+            LEFT JOIN violation_record vr ON vu.record_id = vr.record_id
+            LEFT JOIN offense o ON vr.offense_id = o.offense_id
+            LEFT JOIN subcategory subcat ON o.subcategory_id = subcat.subcategory_id
             WHERE vu.user_id = ?
             GROUP BY subcat.subcategory_name, o.offense_id
-            ORDER BY subcat.subcategory_name, offense_count DESC;
+            ORDER BY subcat.subcategory_name, offense_count DESC
         `, [user_id]);
 
-        if (results.length === 0) {
-            return res.status(404).json({ message: 'No violation records found for this student' });
-        }
+        // Create a map to store offense counts
+        const offenseCountMap = {};
+        violationResults.forEach(row => {
+            if (!offenseCountMap[row.subcategory_name]) {
+                offenseCountMap[row.subcategory_name] = {};
+            }
+            offenseCountMap[row.subcategory_name][row.offense_id] = row.offense_count;
+        });
 
-        // Formatting the response
+        // Formatting the response, ensuring all offenses are included
         const formattedData = {};
-        results.forEach(row => {
+        offenseResults.forEach(row => {
             if (!formattedData[row.subcategory_name]) {
                 formattedData[row.subcategory_name] = {};
             }
-            formattedData[row.subcategory_name][row.offense_id] = row.offense_count;
+            if (!formattedData[row.subcategory_name][row.offense_id]) {
+                formattedData[row.subcategory_name][row.offense_id] = 0;
+            }
         });
+
+        // Merge counts with all offenses
+        for (const subcategory in formattedData) {
+            for (const offense_id in formattedData[subcategory]) {
+                if (offenseCountMap[subcategory] && offenseCountMap[subcategory][offense_id] !== undefined) {
+                    formattedData[subcategory][offense_id] = offenseCountMap[subcategory][offense_id];
+                }
+            }
+        }
 
         res.status(200).json(formattedData);
     } catch (error) {
@@ -162,6 +191,7 @@ router.get('/myrecords-visual/:student_idnumber', async (req, res) => {
         res.status(500).json({ error: 'Internal Server Error' });
     }
 });
+
 
 
 
