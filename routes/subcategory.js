@@ -128,19 +128,19 @@ router.get('/myrecords-visual/:student_idnumber', async (req, res) => {
 
         const user_id = userResult[0].user_id;
 
-        // Fetch the offense count categorized by subcategory
+        // Fetch the offense count categorized by subcategory and offense_name
         const [results] = await db.promise().query(`
-                SELECT 
+            SELECT 
                 subcat.subcategory_name,
-                o.offense_id,
                 o.offense_name,
+                o.offense_id,
                 COUNT(vu.record_id) AS offense_count
             FROM violation_user vu
             JOIN violation_record vr ON vu.record_id = vr.record_id
             JOIN offense o ON vr.offense_id = o.offense_id
             JOIN subcategory subcat ON o.subcategory_id = subcat.subcategory_id
             WHERE vu.user_id = ?
-            GROUP BY subcat.subcategory_name, o.offense_id, o.offense_name
+            GROUP BY subcat.subcategory_name, o.offense_name, o.offense_id
             ORDER BY subcat.subcategory_name, offense_count DESC;
         `, [user_id]);
 
@@ -148,16 +148,24 @@ router.get('/myrecords-visual/:student_idnumber', async (req, res) => {
             return res.status(404).json({ message: 'No violation records found for this student' });
         }
 
-        // Formatting the response to include offense_id
-        const formattedData = {};
+        // Formatting the response
+        const formattedData = {
+            offenseNameCount: {},
+            offenseIdCount: {}
+        };
+
         results.forEach(row => {
-            if (!formattedData[row.subcategory_name]) {
-                formattedData[row.subcategory_name] = {};
+            // Grouping by offense_name
+            if (!formattedData.offenseNameCount[row.subcategory_name]) {
+                formattedData.offenseNameCount[row.subcategory_name] = {};
             }
-            if (!formattedData[row.subcategory_name][row.offense_name]) {
-                formattedData[row.subcategory_name][row.offense_name] = {};
+            formattedData.offenseNameCount[row.subcategory_name][row.offense_name] = row.offense_count;
+
+            // Grouping by offense_id
+            if (!formattedData.offenseIdCount[row.subcategory_name]) {
+                formattedData.offenseIdCount[row.subcategory_name] = {};
             }
-            formattedData[row.subcategory_name][row.offense_name][row.offense_id] = row.offense_count;
+            formattedData.offenseIdCount[row.subcategory_name][row.offense_id] = row.offense_count;
         });
 
         res.status(200).json(formattedData);
