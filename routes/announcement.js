@@ -558,10 +558,10 @@ router.delete('/announcement/:announcement_id/file/:filename', async (req, res) 
         }
 
         // Remove the file from the filenames string
-        filenames = filenames.replace(filename, '').replace(/^,|,$/g, ''); // Remove the file and clean up commas
+        filenames = filenames.replace(filename, '').replace(/^,|,$/g, '').trim(); // Clean up commas
 
-        // Assuming the uploaded file is stored with a specific format or folder
-        const filePath = path.join(__dirname, '../uploads', filename); // Update this logic if needed
+        // Define the file path
+        const filePath = path.join(__dirname, '../uploads', filename); // Ensure this path matches your folder structure
 
         // Check if the file exists in the filesystem
         try {
@@ -586,12 +586,12 @@ router.delete('/announcement/:announcement_id/file/:filename', async (req, res) 
         res.status(200).json({ message: 'File removed successfully' });
     } catch (error) {
         console.error('Error removing file:', error);
-        // Check if the response has already been sent
         if (!res.headersSent) {
             res.status(500).json({ error: 'Internal Server Error' });
         }
     }
 });
+
 
 
 
