@@ -238,6 +238,7 @@ router.get('/individual_violationrecords/:student_idnumber', async (req, res) =>
 
 
 /* Get: All violation records by student_idnumber */
+/* Get: All violation records by student_idnumber */
 router.get('/myrecords/:student_idnumber', async (req, res) => {
     const student_idnumber = req.params.student_idnumber;
 
@@ -257,16 +258,25 @@ router.get('/myrecords/:student_idnumber', async (req, res) => {
 
         const user_id = userResult[0].user_id;
 
-        // Fetch all violation records linked to the user, including the created_at field and subcategory_id
+        // Fetch all violation records linked to the user, including names instead of IDs
         const [violations] = await db.promise().query(`
-            SELECT vr.record_id, vr.description, vr.category_id, vr.offense_id, 
-                   vr.acadyear_id, vr.semester_id, vr.created_at,
-                   o.subcategory_id,  -- Include subcategory_id from offense table
-                   GROUP_CONCAT(DISTINCT vs.sanction_id) AS sanction_ids
+            SELECT vr.record_id, vr.description, 
+                   c.category_name,  
+                   o.offense_name,   
+                   a.academic_year,  
+                   s.semester_name,  
+                   vr.created_at,
+                   subcat.subcategory_name,  
+                   GROUP_CONCAT(DISTINCT sn.sanction_name) AS sanction_names  
             FROM violation_record vr
             LEFT JOIN violation_user vu ON vr.record_id = vu.record_id
             LEFT JOIN violation_sanction vs ON vr.record_id = vs.record_id
-            LEFT JOIN offense o ON vr.offense_id = o.offense_id  -- Join with the offense table
+            LEFT JOIN offense o ON vr.offense_id = o.offense_id
+            LEFT JOIN category c ON vr.category_id = c.category_id  -- Join with category table
+            LEFT JOIN academic_year a ON vr.acadyear_id = a.acadyear_id  -- Join with academic year table
+            LEFT JOIN semester s ON vr.semester_id = s.semester_id  -- Join with semester table
+            LEFT JOIN subcategory subcat ON o.subcategory_id = subcat.subcategory_id  -- Join with subcategory table
+            LEFT JOIN sanction sn ON vs.sanction_id = sn.sanction_id  -- Join with sanction table
             WHERE vu.user_id = ?
             GROUP BY vr.record_id
         `, [user_id]);
@@ -281,6 +291,7 @@ router.get('/myrecords/:student_idnumber', async (req, res) => {
         res.status(500).json({ error: 'Internal Server Error' });
     }
 });
+
 
 
 
