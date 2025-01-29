@@ -369,6 +369,7 @@ router.get('/uniform_defiances/:student_idnumber', async (req, res) => {
 
 
 
+/*GET THE ACTUAL FILES*/
 router.get('/uniform_defiance/:file_id', async (req, res) => {
     const { file_id } = req.params;
 

@@ -292,6 +292,67 @@ router.put('/announcement_field/:announcement_id', upload.array('files'), async 
 
 
 
+
+/*GET THE ACTUAL FILES*/
+router.get('/announcement/:file_id', async (req, res) => {
+    const { file_id } = req.params;
+
+    if (!file_id) {
+        return res.status(400).json({ error: true, message: 'File ID is required' });
+    }
+
+    try {
+        // Query the database to check if the file exists
+        const query = `SELECT * FROM announcement WHERE FIND_IN_SET(?, filenames) > 0`;
+        const [result] = await db.promise().query(query, [file_id]);
+
+        if (result.length === 0) {
+            return res.status(404).json({ error: true, message: 'File not found in the database' });
+        }
+
+        // Fetch file metadata from Google Drive
+        const driveResponseMetadata = await drive.files.get({
+            fileId: file_id,
+            fields: 'name, mimeType',
+        });
+
+        if (!driveResponseMetadata.data) {
+            return res.status(404).json({ error: true, message: 'File metadata not found' });
+        }
+
+        const fileName = driveResponseMetadata.data.name || 'file.jpg';
+        const mimeType = driveResponseMetadata.data.mimeType || 'application/octet-stream';
+
+        // Retrieve file content from Google Drive
+        const driveResponse = await drive.files.get(
+            { fileId: file_id, alt: 'media' },
+            { responseType: 'stream' }
+        );
+
+        // Set headers and stream the file back to the client
+        res.setHeader('Content-Type', mimeType);
+        res.setHeader('Content-Disposition', `inline; filename="${fileName}"`);
+        
+        driveResponse.data.pipe(res);
+
+    } catch (error) {
+        console.error('Error fetching file from Google Drive:', error);
+
+        // Handle Google Drive API errors properly
+        if (error.response && error.response.status === 404) {
+            return res.status(404).json({ error: true, message: 'File not found on Google Drive' });
+        }
+
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
+
+
+
+
+
+
+
 // GET: Retrieve a single announcement by announcement_id with file link and MIME type
 router.get('/announcements/:announcement_id', async (req, res) => {
     const { announcement_id } = req.params;
