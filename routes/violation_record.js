@@ -258,7 +258,6 @@ router.get('/myrecords/:student_idnumber', async (req, res) => {
 
         const user_id = userResult[0].user_id;
 
-        // Fetch all violation records linked to the user, including names instead of IDs
         const [violations] = await db.promise().query(`
             SELECT vr.record_id, vr.description, 
                 c.category_name,  
