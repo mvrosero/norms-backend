@@ -109,7 +109,6 @@ router.delete('/subcategory/:id', async (req, res) => {
 
 
 /*VISUAL */
-
 router.get('/myrecords-visual/:student_idnumber', async (req, res) => {
     const student_idnumber = req.params.student_idnumber;
 
