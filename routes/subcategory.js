@@ -133,13 +133,14 @@ router.get('/myrecords-visual/:student_idnumber', async (req, res) => {
             SELECT 
                 subcat.subcategory_name,
                 o.offense_name,
+                o.offense_id,
                 COUNT(vu.record_id) AS offense_count
             FROM violation_user vu
             JOIN violation_record vr ON vu.record_id = vr.record_id
             JOIN offense o ON vr.offense_id = o.offense_id
             JOIN subcategory subcat ON o.subcategory_id = subcat.subcategory_id
             WHERE vu.user_id = ?
-            GROUP BY subcat.subcategory_name, o.offense_name
+            GROUP BY subcat.subcategory_name, o.offense_name, o.offense_id
             ORDER BY subcat.subcategory_name, offense_count DESC;
         `, [user_id]);
 
