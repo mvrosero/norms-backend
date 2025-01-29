@@ -263,7 +263,7 @@ router.get('/myrecords/:student_idnumber', async (req, res) => {
             SELECT vr.record_id, vr.description, 
                    c.category_name,  
                    o.offense_name,   
-                   a.academic_year,  
+                   CONCAT(ay.start_year, ' - ', ay.end_year) AS academic_year,
                    s.semester_name,  
                    vr.created_at,
                    subcat.subcategory_name,  
@@ -273,7 +273,7 @@ router.get('/myrecords/:student_idnumber', async (req, res) => {
             LEFT JOIN violation_sanction vs ON vr.record_id = vs.record_id
             LEFT JOIN offense o ON vr.offense_id = o.offense_id
             LEFT JOIN category c ON vr.category_id = c.category_id  -- Join with category table
-            LEFT JOIN academic_year a ON vr.acadyear_id = a.acadyear_id  -- Join with academic year table
+            LEFT JOIN academic_year ay ON vr.acadyear_id = ay.acadyear_id
             LEFT JOIN semester s ON vr.semester_id = s.semester_id  -- Join with semester table
             LEFT JOIN subcategory subcat ON o.subcategory_id = subcat.subcategory_id  -- Join with subcategory table
             LEFT JOIN sanction sn ON vs.sanction_id = sn.sanction_id  -- Join with sanction table
