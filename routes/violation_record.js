@@ -246,105 +246,41 @@ router.get('/myrecords/:student_idnumber', async (req, res) => {
     }
 
     try {
-        const query = `
-            SELECT 
-                vr.record_id,
-                vr.description,
-                vr.created_at,
-                c.category_name,
-                o.offense_name,  
-                CONCAT(ay.start_year, ' - ', ay.end_year) AS academic_year,
-                s.semester_name,
-                
-                COALESCE((
-                    SELECT uh.old_department_id
-                    FROM user_history uh
-                    WHERE uh.user_id = u.user_id
-                    AND uh.changed_at <= vr.created_at
-                    ORDER BY uh.changed_at DESC
-                    LIMIT 1
-                ), u.department_id) AS department_id,
-                
-                COALESCE((
-                    SELECT d.department_name
-                    FROM department d
-                    WHERE d.department_id = COALESCE((
-                        SELECT uh.old_department_id
-                        FROM user_history uh
-                        WHERE uh.user_id = u.user_id
-                        AND uh.changed_at <= vr.created_at
-                        ORDER BY uh.changed_at DESC
-                        LIMIT 1
-                    ), u.department_id)
-                ), 'Unknown Department') AS department_name,  
-                
-                COALESCE((
-                    SELECT uh.old_program_id
-                    FROM user_history uh
-                    WHERE uh.user_id = u.user_id
-                    AND uh.changed_at <= vr.created_at
-                    ORDER BY uh.changed_at DESC
-                    LIMIT 1
-                ), u.program_id) AS program_id,
-                
-                COALESCE((
-                    SELECT p.program_name
-                    FROM program p
-                    WHERE p.program_id = COALESCE((
-                        SELECT uh.old_program_id
-                        FROM user_history uh
-                        WHERE uh.user_id = u.user_id
-                        AND uh.changed_at <= vr.created_at
-                        ORDER BY uh.changed_at DESC
-                        LIMIT 1
-                    ), u.program_id)
-                ), 'Unknown Program') AS program_name,
-                
-                GROUP_CONCAT(DISTINCT sa.sanction_name ORDER BY sa.sanction_name SEPARATOR ', ') AS sanction_names
+        // Fetch the user_id associated with the student_idnumber
+        const [userResult] = await db
+            .promise()
+            .query('SELECT user_id FROM user WHERE student_idnumber = ?', [student_idnumber]);
 
-            FROM 
-                violation_record vr
-            JOIN 
-                violation_user vu ON vr.record_id = vu.record_id
-            JOIN 
-                user u ON vu.user_id = u.user_id
-            JOIN 
-                offense o ON vr.offense_id = o.offense_id
-            JOIN 
-                academic_year ay ON vr.acadyear_id = ay.acadyear_id
-            JOIN
-                semester s ON vr.semester_id = s.semester_id 
-            JOIN
-                category c ON vr.category_id = c.category_id 
-            LEFT JOIN
-                violation_sanction vs ON vs.record_id = vr.record_id  
-            LEFT JOIN
-                sanction sa ON sa.sanction_id = vs.sanction_id  
-
-            WHERE 
-                u.student_idnumber = ?
-
-            GROUP BY 
-                vr.record_id  
-
-            ORDER BY 
-                vr.created_at DESC;
-        `;
-
-        const [results] = await db.promise().query(query, [student_idnumber]);
-
-        if (results.length === 0) {
-            return res.status(404).json({ message: 'No violations found for the student' });
+        if (userResult.length === 0) {
+            return res.status(404).json({ error: 'User not found' });
         }
 
-        return res.json(results);
+        const user_id = userResult[0].user_id;
+
+        // Fetch all violation records linked to the user, including the created_at field and subcategory_id
+        const [violations] = await db.promise().query(`
+            SELECT vr.record_id, vr.description, vr.category_id, vr.offense_id, 
+                   vr.acadyear_id, vr.semester_id, vr.created_at,
+                   o.subcategory_id,  -- Include subcategory_id from offense table
+                   GROUP_CONCAT(DISTINCT vs.sanction_id) AS sanction_ids
+            FROM violation_record vr
+            LEFT JOIN violation_user vu ON vr.record_id = vu.record_id
+            LEFT JOIN violation_sanction vs ON vr.record_id = vs.record_id
+            LEFT JOIN offense o ON vr.offense_id = o.offense_id  -- Join with the offense table
+            WHERE vu.user_id = ?
+            GROUP BY vr.record_id
+        `, [user_id]);
+
+        if (violations.length === 0) {
+            return res.status(404).json({ message: 'No violation records found for this student' });
+        }
+
+        res.status(200).json(violations);
     } catch (error) {
         console.error('Error fetching violation records:', error);
-        return res.status(500).json({ message: 'Internal server error' });
+        res.status(500).json({ error: 'Internal Server Error' });
     }
 });
-
-
 
 
 
