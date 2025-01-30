@@ -880,7 +880,4 @@ router.get('/violationrecords-history/:student_idnumber', (req, res) => {
   
 
 
-
-
-
 module.exports = router;
