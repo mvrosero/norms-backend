@@ -706,40 +706,82 @@ router.get('/myrecords-history/:student_idnumber', async (req, res) => {
 
         // Fetch all violation records linked to the user
         const [violations] = await db.promise().query(`
-         SELECT 
-                vr.created_at, 
+            SELECT 
+                vr.record_id,
                 vr.description,
+                vr.created_at,
                 c.category_name,
-                o.offense_name,
-                sc.subcategory_name,  -- Added subcategory_name
-                s.semester_name,
+                o.offense_name,  
                 CONCAT(ay.start_year, ' - ', ay.end_year) AS academic_year,
-                GROUP_CONCAT(DISTINCT sa.sanction_name SEPARATOR ', ') AS sanction_names,
-                -- Department and program names at the time of violation
-                IFNULL(d.department_name, ud.department_name) AS department_name,
-                IFNULL(p.program_name, up.program_name) AS program_name
-            FROM violation_record vr
-            LEFT JOIN violation_user vu ON vr.record_id = vu.record_id
-            LEFT JOIN violation_sanction vs ON vr.record_id = vs.record_id
-            LEFT JOIN sanction sa ON vs.sanction_id = sa.sanction_id
-            LEFT JOIN offense o ON vr.offense_id = o.offense_id
-            LEFT JOIN category c ON vr.category_id = c.category_id
-            LEFT JOIN semester s ON vr.semester_id = s.semester_id
-            LEFT JOIN academic_year ay ON vr.acadyear_id = ay.acadyear_id
-            LEFT JOIN subcategory sc ON o.subcategory_id = sc.subcategory_id  -- Join for subcategory_name
-            LEFT JOIN user_history uh ON vu.user_id = uh.user_id
-            LEFT JOIN department d ON 
-                (uh.new_department_id IS NULL OR uh.changed_at > vr.created_at) 
-                AND d.department_id = uh.new_department_id
-            LEFT JOIN program p ON 
-                (uh.new_program_id IS NULL OR uh.changed_at > vr.created_at) 
-                AND p.program_id = uh.new_program_id
-            LEFT JOIN user u ON vu.user_id = u.user_id
-            LEFT JOIN department ud ON u.department_id = ud.department_id
-            LEFT JOIN program up ON u.program_id = up.program_id
-            WHERE vu.user_id = ?
-            GROUP BY vr.record_id, department_name, program_name
-            ORDER BY vr.created_at;
+                s.semester_name,
+                sc.subcategory_name,  -- Ensure sc.subcategory_name is correct
+                COALESCE((
+                    SELECT uh.old_department_id
+                    FROM user_history uh
+                    WHERE uh.user_id = u.user_id
+                    AND uh.changed_at <= vr.created_at
+                    ORDER BY uh.changed_at DESC
+                    LIMIT 1
+                ), u.department_id) AS department_id,
+                COALESCE((
+                    SELECT d.department_name
+                    FROM department d
+                    WHERE d.department_id = COALESCE((
+                        SELECT uh.old_department_id
+                        FROM user_history uh
+                        WHERE uh.user_id = u.user_id
+                        AND uh.changed_at <= vr.created_at
+                        ORDER BY uh.changed_at DESC
+                        LIMIT 1
+                    ), u.department_id)
+                ), 'Unknown Department') AS department_name,  
+                COALESCE((
+                    SELECT uh.old_program_id
+                    FROM user_history uh
+                    WHERE uh.user_id = u.user_id
+                    AND uh.changed_at <= vr.created_at
+                    ORDER BY uh.changed_at DESC
+                    LIMIT 1
+                ), u.program_id) AS program_id,
+                COALESCE((
+                    SELECT p.program_name
+                    FROM program p
+                    WHERE p.program_id = COALESCE((
+                        SELECT uh.old_program_id
+                        FROM user_history uh
+                        WHERE uh.user_id = u.user_id
+                        AND uh.changed_at <= vr.created_at
+                        ORDER BY uh.changed_at DESC
+                        LIMIT 1
+                    ), u.program_id)
+                ), 'Unknown Program') AS program_name,  
+                GROUP_CONCAT(DISTINCT sa.sanction_name ORDER BY sa.sanction_name SEPARATOR ', ') AS sanction_names  
+            FROM 
+                violation_record vr
+            JOIN 
+                violation_user vu ON vr.record_id = vu.record_id
+            JOIN 
+                user u ON vu.user_id = u.user_id
+            JOIN 
+                offense o ON vr.offense_id = o.offense_id
+            JOIN 
+                academic_year ay ON vr.acadyear_id = ay.acadyear_id
+            JOIN
+                semester s ON vr.semester_id = s.semester_id 
+            JOIN
+                category c ON vr.category_id = c.category_id 
+            LEFT JOIN
+                violation_sanction vs ON vs.record_id = vr.record_id  
+            LEFT JOIN
+                sanction sa ON sa.sanction_id = vs.sanction_id  
+            LEFT JOIN
+                subcategory sc ON o.subcategory_id = sc.subcategory_id  
+            WHERE 
+                u.student_idnumber = ?
+            GROUP BY 
+                vr.record_id  
+            ORDER BY 
+                vr.created_at DESC;
         `, [user_id]);
 
         if (violations.length === 0) {
