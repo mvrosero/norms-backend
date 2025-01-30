@@ -706,15 +706,14 @@ router.get('/myrecords-history/:student_idnumber', async (req, res) => {
 
         // Fetch all violation records linked to the user
         const [violations] = await db.promise().query(`
-            SELECT 
+         SELECT 
                 vr.created_at, 
                 vr.description,
                 c.category_name,
                 o.offense_name,
+                sc.subcategory_name,  -- Added subcategory_name
                 s.semester_name,
                 CONCAT(ay.start_year, ' - ', ay.end_year) AS academic_year,
-                sc.subcategory_name,
-                -- Format sanctions with space after the comma
                 GROUP_CONCAT(DISTINCT sa.sanction_name SEPARATOR ', ') AS sanction_names,
                 -- Department and program names at the time of violation
                 IFNULL(d.department_name, ud.department_name) AS department_name,
@@ -727,7 +726,7 @@ router.get('/myrecords-history/:student_idnumber', async (req, res) => {
             LEFT JOIN category c ON vr.category_id = c.category_id
             LEFT JOIN semester s ON vr.semester_id = s.semester_id
             LEFT JOIN academic_year ay ON vr.acadyear_id = ay.acadyear_id
-            LEFT JOIN subcategory sc ON o.subcategory_id = sc.subcategory_id
+            LEFT JOIN subcategory sc ON o.subcategory_id = sc.subcategory_id  -- Join for subcategory_name
             LEFT JOIN user_history uh ON vu.user_id = uh.user_id
             LEFT JOIN department d ON 
                 (uh.new_department_id IS NULL OR uh.changed_at > vr.created_at) 
@@ -740,7 +739,7 @@ router.get('/myrecords-history/:student_idnumber', async (req, res) => {
             LEFT JOIN program up ON u.program_id = up.program_id
             WHERE vu.user_id = ?
             GROUP BY vr.record_id, department_name, program_name
-            ORDER BY vr.created_at
+            ORDER BY vr.created_at;
         `, [user_id]);
 
         if (violations.length === 0) {
@@ -779,6 +778,7 @@ router.get('/violationrecords-history/:student_idnumber', (req, res) => {
     o.offense_name,  
     CONCAT(ay.start_year, ' - ', ay.end_year) AS academic_year,
     s.semester_name,
+    sc.subcategory_name,
     
     COALESCE((
         SELECT uh.old_department_id
