@@ -258,26 +258,27 @@ router.get('/myrecords/:student_idnumber', async (req, res) => {
 
         const user_id = userResult[0].user_id;
 
+        // Fetch all violation records linked to the user, including names instead of IDs
         const [violations] = await db.promise().query(`
             SELECT vr.record_id, vr.description, 
-                c.category_name,  
-                o.offense_name,   
-                CONCAT(ay.start_year, ' - ', ay.end_year) AS academic_year,
-                s.semester_name,  
-                vr.created_at,
-                subcat.subcategory_name,  
-                IFNULL(GROUP_CONCAT(DISTINCT sn.sanction_name SEPARATOR ', '), 'No Sanction') AS sanction_names  
+                   c.category_name,  
+                   o.offense_name,   
+                   CONCAT(ay.start_year, ' - ', ay.end_year) AS academic_year,
+                   s.semester_name,  
+                   vr.created_at,
+                   subcat.subcategory_name,  
+                   GROUP_CONCAT(DISTINCT sn.sanction_name) AS sanction_names  
             FROM violation_record vr
             LEFT JOIN violation_user vu ON vr.record_id = vu.record_id
             LEFT JOIN violation_sanction vs ON vr.record_id = vs.record_id
             LEFT JOIN offense o ON vr.offense_id = o.offense_id
-            LEFT JOIN category c ON vr.category_id = c.category_id
+            LEFT JOIN category c ON vr.category_id = c.category_id  -- Join with category table
             LEFT JOIN academic_year ay ON vr.acadyear_id = ay.acadyear_id
-            LEFT JOIN semester s ON vr.semester_id = s.semester_id
-            LEFT JOIN subcategory subcat ON o.subcategory_id = subcat.subcategory_id
-            LEFT JOIN sanction sn ON vs.sanction_id = sn.sanction_id
+            LEFT JOIN semester s ON vr.semester_id = s.semester_id  -- Join with semester table
+            LEFT JOIN subcategory subcat ON o.subcategory_id = subcat.subcategory_id  -- Join with subcategory table
+            LEFT JOIN sanction sn ON vs.sanction_id = sn.sanction_id  -- Join with sanction table
             WHERE vu.user_id = ?
-            GROUP BY vr.record_id;
+            GROUP BY vr.record_id
         `, [user_id]);
 
         if (violations.length === 0) {
@@ -706,14 +707,15 @@ router.get('/myrecords-history/:student_idnumber', async (req, res) => {
 
         // Fetch all violation records linked to the user
         const [violations] = await db.promise().query(`
-         SELECT 
+            SELECT 
                 vr.created_at, 
                 vr.description,
                 c.category_name,
                 o.offense_name,
-                sc.subcategory_name,  -- Added subcategory_name
                 s.semester_name,
                 CONCAT(ay.start_year, ' - ', ay.end_year) AS academic_year,
+                sc.subcategory_name,
+                -- Format sanctions with space after the comma
                 GROUP_CONCAT(DISTINCT sa.sanction_name SEPARATOR ', ') AS sanction_names,
                 -- Department and program names at the time of violation
                 IFNULL(d.department_name, ud.department_name) AS department_name,
@@ -726,7 +728,7 @@ router.get('/myrecords-history/:student_idnumber', async (req, res) => {
             LEFT JOIN category c ON vr.category_id = c.category_id
             LEFT JOIN semester s ON vr.semester_id = s.semester_id
             LEFT JOIN academic_year ay ON vr.acadyear_id = ay.acadyear_id
-            LEFT JOIN subcategory sc ON o.subcategory_id = sc.subcategory_id  -- Join for subcategory_name
+            LEFT JOIN subcategory sc ON o.subcategory_id = sc.subcategory_id
             LEFT JOIN user_history uh ON vu.user_id = uh.user_id
             LEFT JOIN department d ON 
                 (uh.new_department_id IS NULL OR uh.changed_at > vr.created_at) 
@@ -739,7 +741,7 @@ router.get('/myrecords-history/:student_idnumber', async (req, res) => {
             LEFT JOIN program up ON u.program_id = up.program_id
             WHERE vu.user_id = ?
             GROUP BY vr.record_id, department_name, program_name
-            ORDER BY vr.created_at;
+            ORDER BY vr.created_at
         `, [user_id]);
 
         if (violations.length === 0) {
@@ -778,7 +780,6 @@ router.get('/violationrecords-history/:student_idnumber', (req, res) => {
     o.offense_name,  
     CONCAT(ay.start_year, ' - ', ay.end_year) AS academic_year,
     s.semester_name,
-    sc.subcategory_name,
     
     COALESCE((
         SELECT uh.old_department_id
