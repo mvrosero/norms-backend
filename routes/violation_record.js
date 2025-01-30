@@ -775,7 +775,7 @@ router.get('/myrecords-history/:student_idnumber', async (req, res) => {
             LEFT JOIN
                 sanction sa ON sa.sanction_id = vs.sanction_id  
             LEFT JOIN
-                subcategory sc ON o.subcategory_id = sc.subcategory_id  
+                subcategory sc ON sc.subcategory_id = sc.subcategory_id  
             WHERE 
                 u.student_idnumber = ?
             GROUP BY 
