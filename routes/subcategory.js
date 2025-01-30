@@ -195,11 +195,4 @@ router.get('/myrecords-visual/:student_idnumber', async (req, res) => {
 
 
 
-
-
-
-
-
-
-
 module.exports = router;
