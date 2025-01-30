@@ -764,114 +764,120 @@ router.get('/myrecords-history/:student_idnumber', async (req, res) => {
 
 /*FROM DATABASE QUERY*/
 router.get('/violationrecords-history/:student_idnumber', (req, res) => {
-  const student_idnumber = req.params.student_idnumber;
-
-  // Check if student_idnumber is provided
-  if (!student_idnumber) {
-    return res.status(400).json({ error: 'Please provide student_idnumber' });
-  }
-
-  const query = `
- SELECT 
-    vr.record_id,
-    vr.description,
-    vr.created_at,
-    c.category_name,
-    o.offense_name,  
-    CONCAT(ay.start_year, ' - ', ay.end_year) AS academic_year,
-    s.semester_name,
-    
-    COALESCE((
-        SELECT uh.old_department_id
-        FROM user_history uh
-        WHERE uh.user_id = u.user_id
-        AND uh.changed_at <= vr.created_at
-        ORDER BY uh.changed_at DESC
-        LIMIT 1
-    ), u.department_id) AS department_id,
-    
-    COALESCE((
-        SELECT d.department_name
-        FROM department d
-        WHERE d.department_id = COALESCE((
+    const student_idnumber = req.params.student_idnumber;
+  
+    // Check if student_idnumber is provided
+    if (!student_idnumber) {
+      return res.status(400).json({ error: 'Please provide student_idnumber' });
+    }
+  
+    const query = `
+      SELECT 
+        vr.record_id,
+        vr.description,
+        vr.created_at,
+        c.category_name,
+        o.offense_name,  
+        CONCAT(ay.start_year, ' - ', ay.end_year) AS academic_year,
+        s.semester_name,
+        
+        COALESCE((
             SELECT uh.old_department_id
             FROM user_history uh
             WHERE uh.user_id = u.user_id
             AND uh.changed_at <= vr.created_at
             ORDER BY uh.changed_at DESC
             LIMIT 1
-        ), u.department_id)
-    ), 'Unknown Department') AS department_name,  
-    
-    COALESCE((
-        SELECT uh.old_program_id
-        FROM user_history uh
-        WHERE uh.user_id = u.user_id
-        AND uh.changed_at <= vr.created_at
-        ORDER BY uh.changed_at DESC
-        LIMIT 1
-    ), u.program_id) AS program_id,
-    
-    COALESCE((
-        SELECT p.program_name
-        FROM program p
-        WHERE p.program_id = COALESCE((
+        ), u.department_id) AS department_id,
+        
+        COALESCE((
+            SELECT d.department_name
+            FROM department d
+            WHERE d.department_id = COALESCE((
+                SELECT uh.old_department_id
+                FROM user_history uh
+                WHERE uh.user_id = u.user_id
+                AND uh.changed_at <= vr.created_at
+                ORDER BY uh.changed_at DESC
+                LIMIT 1
+            ), u.department_id)
+        ), 'Unknown Department') AS department_name,  
+        
+        COALESCE((
             SELECT uh.old_program_id
             FROM user_history uh
             WHERE uh.user_id = u.user_id
             AND uh.changed_at <= vr.created_at
             ORDER BY uh.changed_at DESC
             LIMIT 1
-        ), u.program_id)
-    ), 'Unknown Program') AS program_name,  -- Display program_name
-    
-    -- Get the sanction_names instead of sanction_ids
-    GROUP_CONCAT(DISTINCT sa.sanction_name ORDER BY sa.sanction_name SEPARATOR ', ') AS sanction_names  -- Join and fetch sanction names
-
-FROM 
-    violation_record vr
-JOIN 
-    violation_user vu ON vr.record_id = vu.record_id
-JOIN 
-    user u ON vu.user_id = u.user_id
-JOIN 
-    offense o ON vr.offense_id = o.offense_id
-JOIN 
-    academic_year ay ON vr.acadyear_id = ay.acadyear_id
-JOIN
-    semester s ON vr.semester_id = s.semester_id 
-JOIN
-    category c ON vr.category_id = c.category_id 
-
--- Corrected JOIN for sanction names
-LEFT JOIN
-    violation_sanction vs ON vs.record_id = vr.record_id  
-LEFT JOIN
-    sanction sa ON sa.sanction_id = vs.sanction_id  
-
-WHERE 
-    u.student_idnumber = ?
-
-GROUP BY 
-    vr.record_id  
-
-ORDER BY 
-    vr.created_at DESC;
-  `;
-
-  db.query(query, [student_idnumber], (err, results) => {
-    if (err) {
-      console.error('Error fetching violation records:', err);
-      return res.status(500).json({ message: 'Internal server error' });
-    }
-
-    if (results.length === 0) {
-      return res.status(404).json({ message: 'No violations found for the student' });
-    }
-
-    return res.json(results);
+        ), u.program_id) AS program_id,
+        
+        COALESCE((
+            SELECT p.program_name
+            FROM program p
+            WHERE p.program_id = COALESCE((
+                SELECT uh.old_program_id
+                FROM user_history uh
+                WHERE uh.user_id = u.user_id
+                AND uh.changed_at <= vr.created_at
+                ORDER BY uh.changed_at DESC
+                LIMIT 1
+            ), u.program_id)
+        ), 'Unknown Program') AS program_name,  
+        
+        GROUP_CONCAT(DISTINCT sa.sanction_name ORDER BY sa.sanction_name SEPARATOR ', ') AS sanction_names,  -- Get the sanction_names instead of sanction_ids
+  
+        -- Join the subcategory table to fetch subcategory_name
+        sc.subcategory_name  -- Fetch the subcategory name
+  
+      FROM 
+        violation_record vr
+      JOIN 
+        violation_user vu ON vr.record_id = vu.record_id
+      JOIN 
+        user u ON vu.user_id = u.user_id
+      JOIN 
+        offense o ON vr.offense_id = o.offense_id
+      JOIN 
+        academic_year ay ON vr.acadyear_id = ay.acadyear_id
+      JOIN
+        semester s ON vr.semester_id = s.semester_id 
+      JOIN
+        category c ON vr.category_id = c.category_id 
+  
+      -- Join subcategory table to get subcategory_name
+      LEFT JOIN
+        subcategory sc ON o.subcategory_id = sc.subcategory_id  -- This line is added to include subcategory_name
+      
+      LEFT JOIN
+        violation_sanction vs ON vs.record_id = vr.record_id  
+      LEFT JOIN
+        sanction sa ON sa.sanction_id = vs.sanction_id  
+  
+      WHERE 
+        u.student_idnumber = ?
+  
+      GROUP BY 
+        vr.record_id  
+  
+      ORDER BY 
+        vr.created_at DESC;
+    `;
+  
+    db.query(query, [student_idnumber], (err, results) => {
+      if (err) {
+        console.error('Error fetching violation records:', err);
+        return res.status(500).json({ message: 'Internal server error' });
+      }
+  
+      if (results.length === 0) {
+        return res.status(404).json({ message: 'No violations found for the student' });
+      }
+  
+      return res.json(results);
+    });
   });
-});
+  
 
 
 
